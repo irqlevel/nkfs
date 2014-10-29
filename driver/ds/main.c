@@ -146,6 +146,7 @@ static int ds_thread_routine(void *data)
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
 				continue;
 			} else {
+				klog(KL_ERR, "listen done at port=%d", server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
 				mutex_unlock(&server->lock);
@@ -222,7 +223,7 @@ struct ds_server *ds_server_create_start(int port)
 	server->port = port;
 
 	snprintf(thread_name, sizeof(thread_name), "%s-%d", "ds_srv", port);
-	server->thread = kthread_create(ds_thread_routine, NULL, thread_name);
+	server->thread = kthread_create(ds_thread_routine, server, thread_name);
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
@@ -393,7 +394,7 @@ static int __init ds_init(void)
 {	
 	int err = -EINVAL;
 	
-	err = klog_init(KL_ERR_L);
+	err = klog_init(KL_DBG_L);
 	if (err) {
 		printk(KERN_ERR "klog_init failed with err=%d", err);
 		goto out;
