@@ -1,0 +1,14 @@
+*.o
+*.swp
+*.swo
+.tmp_versions/
+modules.order
+Module.symvers
+*.mod.c
+*.mod.o
+*.ko.cmd
+*.o.cmd
+*.ko
+*.pyc
+*.log
+

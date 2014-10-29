@@ -1,0 +1,59 @@
+cloud-disk
+==========
+
+cloud disk - linux block device with data backend spread across multiple servers.
+
+BUILD:
+
+make
+
+BUILD CLEAN:
+
+make clean
+
+INSTALL:
+	on client-side:
+		sudo insmod bin/cdisk.ko
+	on server-side:
+		sudo insmod bin/cdisk_srv.ko
+
+UNINSTALL:
+	on client-side:
+		sudo rmmod cdisk.ko
+	on server-side:
+		sudo rmmod cdisk_srv.ko
+
+USAGE (client-side):
+
+sudo bin/cdisk_ctl --create DISK_NUM
+  	"this creates /dev/cdiskDISK_NUM device"
+
+sudo /sbin/mkfs -t ext4 /dev/cdisk1 
+  	"format device space to ext4 fs"
+
+sudo mkdir /mnt/mnt_point 
+  	"create mount point"
+
+sudo mount -t ext4 /dev/cdisk1 /mnt/mnt_point 
+  	"mount file system to dir"
+
+sudo cd /mnt/mnt_point && ... 
+  	"work inside ext4 on our device"
+
+sudo umount /mnt/mnt_point
+ 	"umount file system"
+
+sudo bin/cdisk_ctl --destroy DISK_NUM
+  	"delete device /dev/cdiskDISK_NUM"
+
+LOGGING:
+	dmesg 
+		or 
+	file logs (root access required):
+		/var/log/cdisk.log
+TESTS:
+
+sudo python  tests/qcow2_fio.py
+	"this test requires fio installed"
+
+
