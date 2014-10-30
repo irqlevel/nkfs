@@ -140,7 +140,11 @@ out:
 
 void ksock_release(struct socket *sock)
 {
+
+	synchronize_rcu();
+	kernel_sock_shutdown(sock, SHUT_RDWR);
 	sock_release(sock);
+	klog(KL_DBG, "released sock=%p", sock);
 }
 
 int ksock_write_timeout(struct socket *sock, void *buffer, int nob, int timeout, int *pwrote)

@@ -31,7 +31,7 @@ MODULE_LICENSE("GPL");
 #define __SUBCOMPONENT__ "ds"
 #define __LOGNAME__ "ds.log"
 
-#define LISTEN_RESTART_TIMEOUT_MS 5000
+#define LISTEN_RESTART_TIMEOUT_MS 2000
 
 #define DS_MISC_DEV_NAME "ds_ctl"
 
@@ -174,10 +174,9 @@ static int ds_thread_routine(void *data)
 	}
 
 	err = 0;
-	klog(KL_DBG, "releasing listen socket");
-	
 	mutex_lock(&server->lock);
 	lsock = server->sock;
+	klog(KL_DBG, "releasing listen socket=%p", lsock);
 	server->sock = NULL;
 	mutex_unlock(&server->lock);
 
@@ -264,24 +263,18 @@ static int ds_server_start(int port)
 
 static void ds_server_do_stop(struct ds_server *server)
 {
-	struct task_struct *task = NULL;
-	
+	if (server->stopping) {
+		klog(KL_ERR, "server %p-%d already stopping", server, server->port);
+		return;
+	}
+
 	server->stopping = 1;
-	mutex_lock(&server->lock);
 	if (server->sock) {
 		ksock_abort_accept(server->sock);
-		server->sock = NULL;
 	}
-	if (server->thread) {
-		task = server->thread;
-		server->thread = NULL;
-	}
-	mutex_unlock(&server->lock);
-	
-	if (task) {
-		kthread_stop(task);
-		put_task_struct(task);
-	}
+
+	kthread_stop(server->thread);
+	put_task_struct(server->thread);
 }
 
 static int ds_server_stop(int port)
