@@ -11,9 +11,16 @@
 
 #include <ds_cmd.h>
 
+#define SERVER_START_OPT "--server_start"
+#define SERVER_STOP_OPT "--server_stop"
+#define DEV_ADD_OPT "--dev_add"
+#define DEV_REM_OPT "--dev_rem"
+
 static void usage(void)
 {
-    	printf("Usage:\nds_ctl --server_start PORT\nds_ctl --server_stop PORT\n");
+	printf("Usage:\nds_ctl " SERVER_START_OPT " PORT\nds_ctl " SERVER_STOP_OPT " PORT\n"\
+		"ds_ctl " DEV_ADD_OPT " DEV_NAME\n"\
+		"ds_ctl " DEV_REM_OPT " DEV_NAME\n");
 }
 
 static int ds_ctl_open(int *fd)
@@ -29,6 +36,59 @@ static int ds_ctl_open(int *fd)
 	}
 	*fd = dev_fd;
 	return 0;
+}
+
+static int ds_dev_add(const char *dev_name)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	snprintf(cmd.u.dev_add.dev_name, sizeof(cmd.u.dev_add.dev_name),
+		"%s", dev_name);
+	err = ioctl(fd, IOCTL_DS_DEV_ADD, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+out:
+	close(fd);
+	return err;
+}
+
+static int ds_dev_remove(const char *dev_name)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	snprintf(cmd.u.dev_remove.dev_name, sizeof(cmd.u.dev_remove.dev_name), "%s",
+		dev_name);
+	err = ioctl(fd, IOCTL_DS_DEV_REMOVE, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+out:
+	close(fd);
+	return err;
 }
 
 static int ds_server_stop(int port)
@@ -84,9 +144,6 @@ out:
 	return err;
 }
 
-#define SERVER_START_OPT "--server_start"
-#define SERVER_STOP_OPT "--server_stop"
-
 int main(int argc, char *argv[])
 {
     	int err = -EINVAL;
@@ -123,6 +180,32 @@ int main(int argc, char *argv[])
 		if (!err)
 			printf("stopped server port=%d\n", port);
 		goto out;	
+	} else if (strncmp(argv[1], DEV_ADD_OPT, strlen(DEV_ADD_OPT) + 1) == 0) {
+		const char *dev_name = NULL;
+		if (argc != 3) {
+			usage();
+			err = -EINVAL;
+			goto out;
+		}
+		dev_name = argv[2];
+		printf("adding dev=%s\n", dev_name);
+		err = ds_dev_add(dev_name);
+		if (!err)
+			printf("added dev=%s\n", dev_name);
+		goto out;
+	} else if (strncmp(argv[1], DEV_REM_OPT, strlen(DEV_REM_OPT) + 1) == 0) {
+		const char *dev_name = NULL;
+		if (argc != 3) {
+			usage();
+			err = -EINVAL;
+			goto out;
+		}
+		dev_name = argv[2];
+		printf("removing dev=%s\n", dev_name);
+		err = ds_dev_remove(dev_name);
+		if (!err)
+			printf("removed dev=%s\n", dev_name);
+		goto out;
 	} else {
 		usage();
 		err = -EINVAL;

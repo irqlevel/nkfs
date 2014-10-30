@@ -35,8 +35,17 @@ MODULE_LICENSE("GPL");
 
 #define DS_MISC_DEV_NAME "ds_ctl"
 
+static DEFINE_MUTEX(dev_list_lock);
+static LIST_HEAD(dev_list);
+
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
+
+struct ds_dev {
+	char		*dev_name;
+	struct list_head dev_list;
+	struct block_device *bdev;
+};
 
 struct ds_con {
 	struct task_struct 	*thread;
@@ -95,7 +104,8 @@ static int ds_con_thread_routine(void *data)
 	return 0;
 }
 
-static struct ds_con *ds_con_start(struct ds_server *server, struct socket *sock)
+static struct ds_con *ds_con_start(struct ds_server *server,
+	struct socket *sock)
 {
 	struct ds_con *con = kmalloc(sizeof(struct ds_con), GFP_KERNEL);
 	int err = -EINVAL;
@@ -146,7 +156,8 @@ static int ds_thread_routine(void *data)
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
 				continue;
 			} else {
-				klog(KL_ERR, "listen done at port=%d", server->port);
+				klog(KL_ERR, "listen done at port=%d",
+						server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
 				mutex_unlock(&server->lock);
@@ -158,9 +169,9 @@ static int ds_thread_routine(void *data)
 			err = ksock_accept(&con_sock, server->sock);
 			if (err) {
 				if (err == -EAGAIN)
-					klog(KL_WRN, "csock_accept err=%d", err);
+					klog(KL_WRN, "accept err=%d", err);
 				else
-					klog(KL_ERR, "csock_accept err=%d", err);
+					klog(KL_ERR, "accept err=%d", err);
 				continue;
 			}
 			klog(KL_DBG, "accepted con_sock=%p", con_sock);
@@ -189,7 +200,8 @@ static int ds_thread_routine(void *data)
 		con = NULL;
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&server->con_list)) {
-			con = list_first_entry(&server->con_list, struct ds_con, con_list);
+			con = list_first_entry(&server->con_list, struct ds_con,
+					con_list);
 			list_del_init(&con->con_list);		
 		}
 		mutex_unlock(&server->con_list_lock);
@@ -264,7 +276,8 @@ static int ds_server_start(int port)
 static void ds_server_do_stop(struct ds_server *server)
 {
 	if (server->stopping) {
-		klog(KL_ERR, "server %p-%d already stopping", server, server->port);
+		klog(KL_ERR, "server %p-%d already stopping",
+			server, server->port);
 		return;
 	}
 
@@ -293,6 +306,139 @@ static int ds_server_stop(int port)
 		}
 	}
 	mutex_unlock(&srv_list_lock);
+	return err;
+}
+
+static void ds_dev_free(struct ds_dev *dev)
+{
+	if (dev->dev_name)
+		kfree(dev->dev_name);
+	kfree(dev);
+}
+
+static int ds_dev_insert(struct ds_dev *cand)
+{
+	struct ds_dev *dev;
+	int err;
+
+	mutex_lock(&dev_list_lock);
+	list_for_each_entry(dev, &dev_list, dev_list) {
+		if (0 == strncmp(dev->dev_name, cand->dev_name,
+			strlen(cand->dev_name)+1)) {
+			err = -EEXIST;
+			break;
+		}
+	}
+	list_add_tail(&cand->dev_list, &dev_list);
+	err = 0;
+	mutex_unlock(&dev_list_lock);
+	return err;
+}
+
+static void ds_dev_release(struct ds_dev *dev)
+{
+	klog(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
+
+	mutex_lock(&dev_list_lock);
+	list_del(&dev->dev_list);
+	mutex_unlock(&dev_list_lock);
+	if (dev->bdev)
+		blkdev_put(dev->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+	ds_dev_free(dev);
+}
+
+static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
+{
+	struct ds_dev *dev;
+
+	mutex_lock(&dev_list_lock);
+	list_for_each_entry(dev, &dev_list, dev_list) {
+		if (0 == strncmp(dev->dev_name, dev_name,
+			strlen(dev_name)+1)) {
+			list_del(&dev->dev_list);
+			mutex_unlock(&dev_list_lock);
+			return dev;
+		}
+	}
+	mutex_unlock(&dev_list_lock);
+	return NULL;
+}
+
+static struct ds_dev *ds_dev_create(char *dev_name)
+{
+	struct ds_dev *dev;
+	int len;
+	int err;
+
+	len = strlen(dev_name);
+	if (len == 0) {
+		klog(KL_ERR, "len=%d", len);
+		return NULL;
+	}
+
+	dev = kmalloc(sizeof(struct ds_dev), GFP_KERNEL);
+	if (!dev) {
+		klog(KL_ERR, "dev alloc failed");
+		return NULL;
+	}
+
+	memset(dev, 0, sizeof(*dev));
+	dev->dev_name = kmalloc(len + 1, GFP_KERNEL);
+	if (!dev->dev_name) {
+		klog(KL_ERR, "dev_name alloc failed");
+		ds_dev_free(dev);
+		return NULL;
+	}
+
+	memcpy(dev->dev_name, dev_name, len + 1);
+	dev->bdev = blkdev_get_by_path(dev->dev_name,
+		FMODE_READ|FMODE_WRITE|FMODE_EXCL, dev);
+	if ((err = IS_ERR(dev->bdev))) {
+		dev->bdev = NULL;
+		klog(KL_ERR, "bkdev_get_by_path failed err %d", err);
+		ds_dev_free(dev);
+		return NULL;
+	}
+
+	return dev;
+}
+
+static int ds_dev_add(char *dev_name)
+{
+	int err;
+	struct ds_dev *dev;
+
+	klog(KL_DBG, "inserting dev %s", dev_name);
+	dev = ds_dev_create(dev_name);
+	if (!dev) {
+		return -ENOMEM;
+	}
+
+	err = ds_dev_insert(dev);
+	if (err) {
+		klog(KL_ERR, "ds_dev_insert err %d", err);
+		ds_dev_release(dev);
+		return err;
+	}
+
+	return err;
+}
+
+static int ds_dev_remove(char *dev_name)
+{
+	int err;
+	struct ds_dev *dev;
+
+	klog(KL_DBG, "removing dev %s", dev_name);
+	dev = ds_dev_lookup_unlink(dev_name);
+	if (dev) {
+		ds_dev_release(dev);
+		err = 0;
+	} else {
+		klog(KL_ERR, "dev with name %s not found", dev_name);
+		err = -ENOENT;
+	}
+
 	return err;
 }
 
@@ -345,6 +491,12 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	}
 	
 	switch (code) {
+		case IOCTL_DS_DEV_ADD:
+			err = ds_dev_add(cmd->u.dev_add.dev_name);
+			break;
+		case IOCTL_DS_DEV_REMOVE:
+			err = ds_dev_remove(cmd->u.dev_remove.dev_name);
+			break;
 		case IOCTL_DS_SRV_START:
 			err = ds_server_start(cmd->u.server_start.port);	
 			break;
