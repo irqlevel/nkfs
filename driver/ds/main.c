@@ -339,12 +339,8 @@ static void ds_dev_release(struct ds_dev *dev)
 {
 	klog(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
 
-	mutex_lock(&dev_list_lock);
-	list_del(&dev->dev_list);
-	mutex_unlock(&dev_list_lock);
 	if (dev->bdev)
 		blkdev_put(dev->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-	ds_dev_free(dev);
 }
 
 static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
@@ -418,6 +414,7 @@ static int ds_dev_add(char *dev_name)
 	if (err) {
 		klog(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_release(dev);
+		ds_dev_free(dev);
 		return err;
 	}
 
@@ -433,6 +430,7 @@ static int ds_dev_remove(char *dev_name)
 	dev = ds_dev_lookup_unlink(dev_name);
 	if (dev) {
 		ds_dev_release(dev);
+		ds_dev_free(dev);
 		err = 0;
 	} else {
 		klog(KL_ERR, "dev with name %s not found", dev_name);
@@ -442,7 +440,20 @@ static int ds_dev_remove(char *dev_name)
 	return err;
 }
 
-static void ds_stop_all(void)
+static void ds_dev_release_all(void)
+{
+	struct ds_dev *dev;
+	struct ds_dev *tmp;
+	mutex_lock(&dev_list_lock);
+	list_for_each_entry_safe(dev, tmp, &dev_list, dev_list) {
+		ds_dev_release(dev);
+		list_del(&dev->dev_list);
+		ds_dev_free(dev);
+	}
+	mutex_unlock(&srv_list_lock);
+}
+
+static void ds_server_stop_all(void)
 {
 	struct ds_server *server;
 	struct ds_server *tmp;
@@ -479,6 +490,8 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	int err = -EINVAL;
 	struct ds_cmd *cmd = NULL;	
 
+	klog(KL_DBG, "ctl code %d", code);
+
 	cmd = kmalloc(sizeof(struct ds_cmd), GFP_KERNEL);
 	if (!cmd) {
 		err = -ENOMEM;
@@ -489,7 +502,8 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		err = -EFAULT;
 		goto out_free_cmd;
 	}
-	
+
+	klog(KL_DBG, "ctl code %d", code);	
 	switch (code) {
 		case IOCTL_DS_DEV_ADD:
 			err = ds_dev_add(cmd->u.dev_add.dev_name);
@@ -566,8 +580,8 @@ static void __exit ds_exit(void)
 	klog(KL_DBG, "exiting");
 	
 	misc_deregister(&ds_misc);
-	ds_stop_all();
-
+	ds_server_stop_all();
+	ds_dev_release_all();
 	klog(KL_DBG, "exited");
 	klog_release();
 }

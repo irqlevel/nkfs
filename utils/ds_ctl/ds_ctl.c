@@ -64,7 +64,7 @@ out:
 	return err;
 }
 
-static int ds_dev_remove(const char *dev_name)
+static int ds_dev_rem(const char *dev_name)
 {
 	int err = -EINVAL;
 	struct ds_cmd cmd;
@@ -75,14 +75,15 @@ static int ds_dev_remove(const char *dev_name)
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-
 	snprintf(cmd.u.dev_remove.dev_name, sizeof(cmd.u.dev_remove.dev_name), "%s",
 		dev_name);
 	err = ioctl(fd, IOCTL_DS_DEV_REMOVE, &cmd);
+	printf("err %d\n", err);
 	if (err)
 		goto out;
 
 	err = cmd.err;
+	printf("err %d\n", err);
 	if (err)
 		goto out;
 
@@ -202,7 +203,7 @@ int main(int argc, char *argv[])
 		}
 		dev_name = argv[2];
 		printf("removing dev=%s\n", dev_name);
-		err = ds_dev_remove(dev_name);
+		err = ds_dev_rem(dev_name);
 		if (!err)
 			printf("removed dev=%s\n", dev_name);
 		goto out;
