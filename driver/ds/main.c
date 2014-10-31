@@ -42,9 +42,11 @@ static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
 struct ds_dev {
-	char		*dev_name;
-	struct list_head dev_list;
-	struct block_device *bdev;
+	char			*dev_name;
+	struct list_head 	dev_list;
+	struct block_device 	*bdev;
+	struct task_struct  	*thread;
+	int			stopping;
 };
 
 struct ds_con {
@@ -120,6 +122,7 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 	con->thread = kthread_create(ds_con_thread_routine, con, "ds_con");
 	if (IS_ERR(con->thread)) {
 		err = PTR_ERR(con->thread);
+		con->thread = NULL;
 		klog(KL_ERR, "kthread_create err=%d", err);
 		goto out;
 	}
@@ -343,6 +346,13 @@ static void ds_dev_release(struct ds_dev *dev)
 		blkdev_put(dev->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 }
 
+static void ds_dev_unlink(struct ds_dev *dev)
+{
+	mutex_lock(&dev_list_lock);
+	list_del(&dev->dev_list);
+	mutex_unlock(&dev_list_lock);
+}
+
 static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
 {
 	struct ds_dev *dev;
@@ -399,6 +409,49 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 	return dev;
 }
 
+static int ds_dev_thread_routine(void *data)
+{
+	struct ds_dev *dev = (struct ds_dev *)data;
+	int err = 0;
+
+	klog(KL_DBG, "dev %p thread starting");
+
+	if (dev->thread != current)
+		BUG_ON(1);
+
+	while (!kthread_should_stop()) {
+		msleep_interruptible(100);
+		if (dev->stopping)
+			break;
+	}
+
+	klog(KL_DBG, "dev %p exiting");
+	return err;
+}
+
+static int ds_dev_start(struct ds_dev *dev)
+{
+	int err;
+	dev->thread = kthread_create(ds_dev_thread_routine, dev, "ds_dev_th");
+	if (IS_ERR(dev->thread)) {
+		err = PTR_ERR(dev->thread);
+		dev->thread = NULL;
+		klog(KL_ERR, "kthread_create err=%d", err);
+		return err;
+	}
+	get_task_struct(dev->thread);
+	wake_up_process(dev->thread);
+	err = 0;
+	return err;
+}
+
+static void ds_dev_stop(struct ds_dev *dev)
+{
+	dev->stopping = 1;
+	kthread_stop(dev->thread);
+	put_task_struct(dev->thread);
+}
+
 static int ds_dev_add(char *dev_name)
 {
 	int err;
@@ -418,6 +471,15 @@ static int ds_dev_add(char *dev_name)
 		return err;
 	}
 
+	err = ds_dev_start(dev);
+	if (err) {
+		klog(KL_ERR, "ds_dev_insert err %d", err);
+		ds_dev_unlink(dev);		
+		ds_dev_release(dev);
+		ds_dev_free(dev);
+		return err;
+	}
+
 	return err;
 }
 
@@ -429,6 +491,7 @@ static int ds_dev_remove(char *dev_name)
 	klog(KL_DBG, "removing dev %s", dev_name);
 	dev = ds_dev_lookup_unlink(dev_name);
 	if (dev) {
+		ds_dev_stop(dev);
 		ds_dev_release(dev);
 		ds_dev_free(dev);
 		err = 0;
@@ -446,6 +509,7 @@ static void ds_dev_release_all(void)
 	struct ds_dev *tmp;
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry_safe(dev, tmp, &dev_list, dev_list) {
+		ds_dev_stop(dev);
 		ds_dev_release(dev);
 		list_del(&dev->dev_list);
 		ds_dev_free(dev);
