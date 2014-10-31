@@ -140,7 +140,7 @@ out:
 	return NULL;
 }
 
-static int ds_thread_routine(void *data)
+static int ds_server_thread_routine(void *data)
 {
 	struct ds_server *server = (struct ds_server *)data;
 	struct socket *lsock = NULL;
@@ -237,7 +237,7 @@ struct ds_server *ds_server_create_start(int port)
 	server->port = port;
 
 	snprintf(thread_name, sizeof(thread_name), "%s-%d", "ds_srv", port);
-	server->thread = kthread_create(ds_thread_routine, server, thread_name);
+	server->thread = kthread_create(ds_server_thread_routine, server, thread_name);
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
@@ -403,10 +403,95 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 		dev->bdev = NULL;
 		klog(KL_ERR, "bkdev_get_by_path failed err %d", err);
 		ds_dev_free(dev);
+		
 		return NULL;
 	}
 
 	return dev;
+}
+
+struct ds_dev_io {
+	struct ds_dev 		*dev;
+	struct bio    		*bio;
+	int			err;
+	int			(*clb)(struct ds_dev_io *io);
+	struct completion	*complete;
+}
+
+static void ds_dev_io_free(struct ds_dev_io *io)
+{
+	kfree(io->bio->bi_io_vec);
+	kfree(io->bio);
+	if (io->complete)
+		kfree(io->complete);
+}
+
+static void ds_dev_bio_end(struct bio *bio, int err)
+{
+	struct ds_dev_io *io = (struct ds_dev_io *)bio->bi_private;
+	
+	BUG_ON(bio != io->bio);
+	io->err = err;
+
+	if (io->clb)
+		io->clb(io);
+
+	if (io->complete)
+		complete(io->complete);
+	else
+		ds_dev_io_free(io);
+}
+
+static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
+		int rw_flags, void (*ds_dev_io_end_clb)(struct *dev, struct bio *bio, int err))
+{
+	struct bio *bio;
+	struct bio_vec *bio_vec;
+	struct ds_dev_io_end *dev_io_end;
+
+	bio = kmalloc(sizeof(struct bio), GFP_NOIO);
+	if (!bio)
+		return -ENOMEM;
+	memset(bio, 0, sizeof(*bio));
+	bio_vec = kmalloc(sizeof(struct bio), GFP_NOIO);
+	if (!bio_vec) {
+		kfree(bio);
+		return -ENOMEM;
+	}
+	memset(bio_vec, 0, sizeof(*bio_vec));
+	dev_end = kmalloc(sizeof(struct ds_dev_io_end), GFP_NOIO);
+	if (!dev_end) {
+		kfree(bio_vec);
+		kfree(bio);
+		return -ENOMEM;
+	}
+	memset(dev_end, 0, sizeof(*dev_end));
+
+	bio_init(bio);
+	bio->bi_io_vec = bio_vec;
+	bio->bi_io_vec->bv_page = page;
+	bio->bi_io_vec->bv_len = PAGE_SIZE;
+	bio->bi_io_vec->bv_offset = 0;
+	bio->bi_vcnt = 1;
+	bio->bi_iter.bi_size = PAGE_SIZE;
+	bio->bi_bdev = dev->bdev;
+	bio->bi_flags |= bi_flags;
+	bio->bi_rw |= rw_flags;
+	bio->bi_private = dev_end;
+	bio->bi_end_io = ds_dev_bio_end;
+
+	generic_make_request(bio);
+}
+
+static int ds_dev_touch0_page(struct ds_dev *dev)
+{
+	struct page *page;
+	void *page_va;
+	page = alloc_page(GFP_NOIO);
+	if (!page) {
+		return -ENOMEM;
+	}
+	ds_dev_io_page(
 }
 
 static int ds_dev_thread_routine(void *data)
@@ -418,6 +503,8 @@ static int ds_dev_thread_routine(void *data)
 
 	if (dev->thread != current)
 		BUG_ON(1);
+
+	err = ds_dev_touch0_page(dev);
 
 	while (!kthread_should_stop()) {
 		msleep_interruptible(100);
@@ -448,8 +535,10 @@ static int ds_dev_start(struct ds_dev *dev)
 static void ds_dev_stop(struct ds_dev *dev)
 {
 	dev->stopping = 1;
-	kthread_stop(dev->thread);
-	put_task_struct(dev->thread);
+	if (dev->thread) {
+		kthread_stop(dev->thread);
+		put_task_struct(dev->thread);
+	}
 }
 
 static int ds_dev_add(char *dev_name)
