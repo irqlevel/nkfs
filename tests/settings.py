@@ -8,16 +8,11 @@ PROJ_DIR = os.path.dirname(CURR_DIR)
 
 BIN_DIR = os.path.join(PROJ_DIR, "bin")
 
-CDISK_MOD = 'cdisk'
-CDISK_MOD_KO = CDISK_MOD + '.ko'
-CDISK_CTL = 'cdisk_ctl'
+DS_KO_NAME = "ds.ko"
+DS_CTL_NAME = "ds_ctl"
 
-CDISK_MOD_KO_P = os.path.join(BIN_DIR, CDISK_MOD_KO)
-CDISK_CTL_P = os.path.join(BIN_DIR, CDISK_CTL)
-CD_BLOCK_SIZE = 64*1024
-CD_BLOCKS = 1000
-
-CD_SIZE = CD_BLOCKS*CD_BLOCK_SIZE
+DS_KO = os.path.join(BIN_DIR, DS_KO_NAME)
+DS_CTL = os.path.join(BIN_DIR, DS_CTL_NAME)
 
 LOGGING = {
     'version' : 1,
@@ -35,17 +30,18 @@ LOGGING = {
             'level' : 'DEBUG',
 	    'class' : 'logging.FileHandler',
             'formatter' : 'simple',
-            'filename' : os.path.join(CURR_DIR, 'tests.debug.log'),
+            'filename' : os.path.join(CURR_DIR, 'ds_tests.log'),
 	},
+	'stdout' : {
+            'level' : 'DEBUG',
+	    'class' : 'logging.StreamHandler',
+            'formatter' : 'simple',
+	},
+
     },
     'loggers' : {
-        'django.request' : {
-            'handlers' : ['file'],
-            'level' : 'DEBUG',
-            'propagate' : True,
-        },
         'main' : {
-            'handlers' : ['file'],
+            'handlers' : ['file', 'stdout'],
             'level' : 'DEBUG',
             'propagate' : True,
         },
