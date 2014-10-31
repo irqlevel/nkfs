@@ -4,6 +4,7 @@ import sys
 import time
 import inspect
 import logging
+import argparse
 
 #currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 #parentdir = os.path.dirname(currentdir)
@@ -50,13 +51,55 @@ class Project():
         ssh.cmd("insmod " + ds_ko_p_r, throw = True)
     def unload_mod(self):
         ssh = self.open_ssh_target()
-        ssh.cmd("rmmod " + settings.DS_KO_NAME, throw = True)
+        ssh.cmd("rmmod " + settings.DS_KO_NAME, throw = False)
+    def undeploy(self):
+        self.unload_mod()
+
+def main(ip, user, passwd, pdir, cmd):
+    p = Project(settings.PROJ_DIR)
+    p.set_target(Target(ip, user, passwd))
+    if cmd == 'build':
+        p.build()
+    elif cmd == 'rebuild':
+        p.rebuild()
+    elif cmd == 'clean':
+        p.clean()
+    elif cmd == 'deploy':
+        p.rebuild()
+        p.undeploy()
+        p.deploy()
+    elif cmd == 'deploy-run':
+        p.rebuild()
+        p.undeploy()
+        p.deploy()
+        p.load_mod()
+    elif cmd == 'undeploy':
+        p.undeploy()
+    else:
+        raise Exception("Unknown cmd=" + cmd)
 
 if __name__ == '__main__':
-    p = Project("/mnt/sources/ds")
-    p.rebuild()
-    p.set_target(Target('10.30.18.211', 'root', '1q2w3es5'))
-    p.deploy()
-    p.load_mod()
-    p.unload_mod()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--ip', help='ip of node')
+    ap.add_argument('--user', help='user of node')
+    ap.add_argument('--passwd', help='user password')
+    ap.add_argument('--pdir', help='project dir')
+    ap.add_argument('cmd', help='command')
+
+    args = ap.parse_args()
+ 
+    ip = args.ip
+    user = args.user
+    passwd = args.passwd
+    pdir = args.pdir
+    cmd = args.cmd
+    if not ip:
+        ip = '10.30.18.211'
+    if not user:
+        user = 'root'
+    if not passwd:
+        passwd = '1q2w3es5'
+    if not pdir:
+        pdir = settings.PROJ_DIR
+    main(ip, user, passwd, pdir, cmd)
 
