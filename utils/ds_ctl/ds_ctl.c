@@ -75,15 +75,13 @@ static int ds_dev_rem(const char *dev_name)
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	snprintf(cmd.u.dev_remove.dev_name, sizeof(cmd.u.dev_remove.dev_name), "%s",
-		dev_name);
+	snprintf(cmd.u.dev_remove.dev_name, sizeof(cmd.u.dev_remove.dev_name),
+		"%s", dev_name);
 	err = ioctl(fd, IOCTL_DS_DEV_REMOVE, &cmd);
-	printf("err %d\n", err);
 	if (err)
 		goto out;
 
 	err = cmd.err;
-	printf("err %d\n", err);
 	if (err)
 		goto out;
 
@@ -91,6 +89,9 @@ out:
 	close(fd);
 	return err;
 }
+
+
+
 
 static int ds_server_stop(int port)
 {
