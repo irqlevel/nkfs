@@ -443,11 +443,11 @@ static void ds_dev_bio_end(struct bio *bio, int err)
 }
 
 static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
-		int rw_flags, void (*ds_dev_io_end_clb)(struct *dev, struct bio *bio, int err))
+		int rw_flags, void (*clb)(struct *ds_dev_io *io), int wait)
 {
 	struct bio *bio;
 	struct bio_vec *bio_vec;
-	struct ds_dev_io_end *dev_io_end;
+	struct ds_dev_io *io;
 
 	bio = kmalloc(sizeof(struct bio), GFP_NOIO);
 	if (!bio)
@@ -459,14 +459,26 @@ static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
 		return -ENOMEM;
 	}
 	memset(bio_vec, 0, sizeof(*bio_vec));
-	dev_end = kmalloc(sizeof(struct ds_dev_io_end), GFP_NOIO);
-	if (!dev_end) {
+	io = kmalloc(sizeof(struct ds_dev_io), GFP_NOIO);
+	if (!io) {
 		kfree(bio_vec);
 		kfree(bio);
 		return -ENOMEM;
 	}
-	memset(dev_end, 0, sizeof(*dev_end));
-
+	memset(io, 0, sizeof(*io));
+	if (wait) {
+		io->complete = kmalloc(sizeof(struct complete), GFP_NOIO);
+		if (!io->complete) {
+			kfree(bio_vec);
+			kfree(bio);
+			kfree(io);			
+		}
+		memset(io->complete, 0, sizeof(struct complete));
+		init_completion(io->complete);
+	}
+	io->dev = dev;
+	io->bio = bio;
+	io->clb = clb
 	bio_init(bio);
 	bio->bi_io_vec = bio_vec;
 	bio->bi_io_vec->bv_page = page;
@@ -477,10 +489,18 @@ static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
 	bio->bi_bdev = dev->bdev;
 	bio->bi_flags |= bi_flags;
 	bio->bi_rw |= rw_flags;
-	bio->bi_private = dev_end;
+	bio->bi_private = io;
 	bio->bi_end_io = ds_dev_bio_end;
 
 	generic_make_request(bio);
+
+	if (io->complete) {
+		wait_for_completion(io->complete);
+		err = io->err;
+		dev_io_free(io);
+	} else {
+		
+	}
 }
 
 static int ds_dev_touch0_page(struct ds_dev *dev)
@@ -491,7 +511,8 @@ static int ds_dev_touch0_page(struct ds_dev *dev)
 	if (!page) {
 		return -ENOMEM;
 	}
-	ds_dev_io_page(
+	err = ds_dev_io_page(dev, page, 0, REQ_READ, NULL, 1);
+
 }
 
 static int ds_dev_thread_routine(void *data)
