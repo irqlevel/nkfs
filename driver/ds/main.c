@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 #define __LOGNAME__ "ds.log"
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
-
+#define SECTOR_SHIFT 9
 #define DS_MISC_DEV_NAME "ds_ctl"
 
 static DEFINE_MUTEX(dev_list_lock);
@@ -46,6 +46,8 @@ struct ds_dev {
 	struct list_head 	dev_list;
 	struct block_device 	*bdev;
 	struct task_struct  	*thread;
+	struct list_head	io_list;
+	spinlock_t		io_lock;
 	int			stopping;
 };
 
@@ -395,6 +397,8 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 		ds_dev_free(dev);
 		return NULL;
 	}
+	spin_lock_init(&dev->io_lock);
+	INIT_LIST_HEAD(&dev->io_list);
 
 	memcpy(dev->dev_name, dev_name, len + 1);
 	dev->bdev = blkdev_get_by_path(dev->dev_name,
@@ -413,10 +417,11 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 struct ds_dev_io {
 	struct ds_dev 		*dev;
 	struct bio    		*bio;
+	struct list_head	io_list;
 	int			err;
-	int			(*clb)(struct ds_dev_io *io);
+	void			(*clb)(struct ds_dev_io *io);
 	struct completion	*complete;
-}
+};
 
 static void ds_dev_io_free(struct ds_dev_io *io)
 {
@@ -433,8 +438,15 @@ static void ds_dev_bio_end(struct bio *bio, int err)
 	BUG_ON(bio != io->bio);
 	io->err = err;
 
+	klog(KL_DBG, "bio %p io %p dev %p err %d", bio, io, io->dev, err);
+
 	if (io->clb)
 		io->clb(io);
+
+	spin_lock_irq(&io->dev->io_lock);
+	list_del(&io->io_list);
+	spin_unlock_irq(&io->dev->io_lock);
+
 
 	if (io->complete)
 		complete(io->complete);
@@ -442,12 +454,16 @@ static void ds_dev_bio_end(struct bio *bio, int err)
 		ds_dev_io_free(io);
 }
 
-static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
-		int rw_flags, void (*clb)(struct *ds_dev_io *io), int wait)
+static int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off,
+	int bi_flags, int rw_flags, void (*clb)(struct ds_dev_io *io), int wait)
 {
 	struct bio *bio;
 	struct bio_vec *bio_vec;
 	struct ds_dev_io *io;
+	int err;
+
+	if (dev->stopping)
+		return -EINVAL;
 
 	bio = kmalloc(sizeof(struct bio), GFP_NOIO);
 	if (!bio)
@@ -467,52 +483,79 @@ static int ds_dev_io_page(struct ds_dev *dev, struct page *page, int bi_flags,
 	}
 	memset(io, 0, sizeof(*io));
 	if (wait) {
-		io->complete = kmalloc(sizeof(struct complete), GFP_NOIO);
+		io->complete = kmalloc(sizeof(struct completion), GFP_NOIO);
 		if (!io->complete) {
 			kfree(bio_vec);
 			kfree(bio);
 			kfree(io);			
 		}
-		memset(io->complete, 0, sizeof(struct complete));
+		memset(io->complete, 0, sizeof(*io->complete));
 		init_completion(io->complete);
 	}
+
 	io->dev = dev;
 	io->bio = bio;
-	io->clb = clb
+	io->clb = clb;
+
 	bio_init(bio);
+
 	bio->bi_io_vec = bio_vec;
 	bio->bi_io_vec->bv_page = page;
 	bio->bi_io_vec->bv_len = PAGE_SIZE;
 	bio->bi_io_vec->bv_offset = 0;
+
 	bio->bi_vcnt = 1;
 	bio->bi_iter.bi_size = PAGE_SIZE;
+	bio->bi_iter.bi_sector = off >> SECTOR_SHIFT;
 	bio->bi_bdev = dev->bdev;
 	bio->bi_flags |= bi_flags;
 	bio->bi_rw |= rw_flags;
 	bio->bi_private = io;
 	bio->bi_end_io = ds_dev_bio_end;
+	
+	spin_lock_irq(&dev->io_lock);
+	list_add_tail(&io->io_list, &dev->io_list);
+	spin_unlock_irq(&dev->io_lock);
 
+	klog(KL_DBG, "bio %p io %p queued dev %p", bio, io, dev);
 	generic_make_request(bio);
 
 	if (io->complete) {
 		wait_for_completion(io->complete);
 		err = io->err;
-		dev_io_free(io);
-	} else {
-		
-	}
+		ds_dev_io_free(io);
+	} else
+		err = 0;
+	return err;
 }
 
 static int ds_dev_touch0_page(struct ds_dev *dev)
 {
 	struct page *page;
-	void *page_va;
+	int err;
+
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
+		klog(KL_ERR, "cant alloc page");
 		return -ENOMEM;
 	}
-	err = ds_dev_io_page(dev, page, 0, REQ_READ, NULL, 1);
 
+	err = ds_dev_io_page(dev, page, 0, 0, 0, NULL, 1);
+	if (err) {
+		klog(KL_ERR, "ds_dev_io_page err %d", err);
+		goto out;
+	}
+
+	err = ds_dev_io_page(dev, page, 0, 0, REQ_WRITE, NULL, 1);
+	if (err) {
+		klog(KL_ERR, "ds_dev_io_page err %d", err);	
+		goto out;
+	}
+
+	err = 0;
+out:
+	__free_page(page);
+	return err;
 }
 
 static int ds_dev_thread_routine(void *data)
@@ -526,6 +569,9 @@ static int ds_dev_thread_routine(void *data)
 		BUG_ON(1);
 
 	err = ds_dev_touch0_page(dev);
+	if (err) {
+		klog(KL_ERR, "ds_dev_touch0_page err=%d", err);
+	}
 
 	while (!kthread_should_stop()) {
 		msleep_interruptible(100);
@@ -559,6 +605,9 @@ static void ds_dev_stop(struct ds_dev *dev)
 	if (dev->thread) {
 		kthread_stop(dev->thread);
 		put_task_struct(dev->thread);
+	}
+	while (!list_empty(&dev->io_list)) {
+		msleep_interruptible(50);	
 	}
 }
 
