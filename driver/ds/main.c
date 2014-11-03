@@ -563,23 +563,25 @@ static int ds_dev_thread_routine(void *data)
 	struct ds_dev *dev = (struct ds_dev *)data;
 	int err = 0;
 
-	klog(KL_DBG, "dev %p thread starting");
+	klog(KL_DBG, "dev %p thread starting", dev);
 
 	if (dev->thread != current)
 		BUG_ON(1);
 
 	err = ds_dev_touch0_page(dev);
 	if (err) {
-		klog(KL_ERR, "ds_dev_touch0_page err=%d", err);
+		klog(KL_ERR, "ds_dev_touch0_page dev %p err %d",
+			dev, err);
 	}
 
+	klog(KL_DBG, "going to run main loop dev=%p", dev);
 	while (!kthread_should_stop()) {
 		msleep_interruptible(100);
 		if (dev->stopping)
 			break;
 	}
 
-	klog(KL_DBG, "dev %p exiting");
+	klog(KL_DBG, "dev %p exiting", dev);
 	return err;
 }
 
