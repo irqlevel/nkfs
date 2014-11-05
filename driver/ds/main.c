@@ -1,28 +1,3 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/bio.h>
-#include <linux/highmem.h>
-#include <linux/mutex.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/cdrom.h>
-#include <linux/workqueue.h>
-#include <linux/timer.h>
-#include <linux/cdev.h>
-#include <linux/kthread.h>
-#include <linux/time.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
-#include <linux/miscdevice.h>
-#include <asm/uaccess.h>
-
-#include <ds.h>
-#include <ds_cmd.h>
-#include <klog.h>
-#include <ksocket.h>
 #include <ds_priv.h>
 
 MODULE_LICENSE("GPL");
@@ -127,14 +102,22 @@ static int __init ds_init(void)
 
 	klog(KL_DBG, "initing");
 
+	err = ds_random_init();
+	if (err) {
+		klog(KL_ERR, "ds_random_init err %d", err);
+		goto out_klog_release;
+	}
+
 	err = misc_register(&ds_misc);
 	if (err) {
 		klog(KL_ERR, "misc_register err=%d", err);
-		goto out_klog_release; 
+		goto out_random_release; 
 	}
 
 	klog(KL_DBG, "inited");
 	return 0;
+out_random_release:
+	ds_random_release();
 out_klog_release:
 	klog_release();
 out:
@@ -144,7 +127,8 @@ out:
 static void __exit ds_exit(void)
 {
 	klog(KL_DBG, "exiting");
-	
+
+	ds_random_release();	
 	misc_deregister(&ds_misc);
 	ds_server_stop_all();
 	ds_dev_release_all();

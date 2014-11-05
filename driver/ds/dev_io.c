@@ -1,28 +1,3 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/bio.h>
-#include <linux/highmem.h>
-#include <linux/mutex.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/cdrom.h>
-#include <linux/workqueue.h>
-#include <linux/timer.h>
-#include <linux/cdev.h>
-#include <linux/kthread.h>
-#include <linux/time.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
-#include <linux/miscdevice.h>
-#include <asm/uaccess.h>
-
-#include <ds.h>
-#include <ds_cmd.h>
-#include <klog.h>
-#include <ksocket.h>
 #include <ds_priv.h>
 
 #define __SUBCOMPONENT__ "ds-devio"
@@ -59,13 +34,19 @@ static void ds_dev_io_bio_end(struct bio *bio, int err)
 		ds_dev_io_free(io);
 }
 
-int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off,
+int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off, __u32 len,
 	int bi_flags, int rw_flags, void (*clb)(struct ds_dev_io *io), int wait)
 {
 	struct bio *bio;
 	struct bio_vec *bio_vec;
 	struct ds_dev_io *io;
 	int err;
+
+	if (len > PAGE_SIZE)
+		BUG_ON(1);
+	
+	if (len == 0)
+		len = PAGE_SIZE;
 
 	if (dev->stopping)
 		return -EINVAL;
@@ -106,11 +87,11 @@ int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off,
 
 	bio->bi_io_vec = bio_vec;
 	bio->bi_io_vec->bv_page = page;
-	bio->bi_io_vec->bv_len = PAGE_SIZE;
+	bio->bi_io_vec->bv_len = len;
 	bio->bi_io_vec->bv_offset = 0;
 
 	bio->bi_vcnt = 1;
-	bio->bi_iter.bi_size = PAGE_SIZE;
+	bio->bi_iter.bi_size = len;
 	bio->bi_iter.bi_sector = off >> SECTOR_SHIFT;
 	bio->bi_bdev = dev->bdev;
 	bio->bi_flags |= bi_flags;
@@ -131,6 +112,7 @@ int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off,
 		ds_dev_io_free(io);
 	} else
 		err = 0;
+
 	return err;
 }
 
@@ -145,13 +127,13 @@ int ds_dev_io_touch0_page(struct ds_dev *dev)
 		return -ENOMEM;
 	}
 
-	err = ds_dev_io_page(dev, page, 0, 0, 0, NULL, 1);
+	err = ds_dev_io_page(dev, page, 0, 0, 0, 0, NULL, 1);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		goto out;
 	}
 
-	err = ds_dev_io_page(dev, page, 0, 0, REQ_WRITE, NULL, 1);
+	err = ds_dev_io_page(dev, page, 0, 0, 0, REQ_WRITE, NULL, 1);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);	
 		goto out;

@@ -1,37 +1,10 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/bio.h>
-#include <linux/highmem.h>
-#include <linux/mutex.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/cdrom.h>
-#include <linux/workqueue.h>
-#include <linux/timer.h>
-#include <linux/cdev.h>
-#include <linux/kthread.h>
-#include <linux/time.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
-#include <linux/miscdevice.h>
-#include <asm/uaccess.h>
-
-#include <ds.h>
-#include <ds_cmd.h>
-#include <klog.h>
-#include <ksocket.h>
 #include <ds_priv.h>
-
 
 #define __SUBCOMPONENT__ "ds-dev"
 #define __LOGNAME__ "ds.log"
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);
-
 
 static void ds_dev_free(struct ds_dev *dev)
 {
@@ -64,7 +37,7 @@ static void ds_dev_release(struct ds_dev *dev)
 	klog(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
 
 	if (dev->bdev)
-		blkdev_put(dev->bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+		blkdev_put(dev->bdev, dev->fmode);
 }
 
 static void ds_dev_unlink(struct ds_dev *dev)
@@ -91,7 +64,7 @@ static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
 	return NULL;
 }
 
-static struct ds_dev *ds_dev_create(char *dev_name)
+struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 {
 	struct ds_dev *dev;
 	int len;
@@ -120,8 +93,9 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 	INIT_LIST_HEAD(&dev->io_list);
 
 	memcpy(dev->dev_name, dev_name, len + 1);
+
 	dev->bdev = blkdev_get_by_path(dev->dev_name,
-		FMODE_READ|FMODE_WRITE|FMODE_EXCL, dev);
+		fmode, dev);
 	if ((err = IS_ERR(dev->bdev))) {
 		dev->bdev = NULL;
 		klog(KL_ERR, "bkdev_get_by_path failed err %d", err);
@@ -129,6 +103,7 @@ static struct ds_dev *ds_dev_create(char *dev_name)
 		
 		return NULL;
 	}
+	dev->fmode = fmode;
 
 	return dev;
 }
@@ -194,7 +169,7 @@ int ds_dev_add(char *dev_name)
 	struct ds_dev *dev;
 
 	klog(KL_DBG, "inserting dev %s", dev_name);
-	dev = ds_dev_create(dev_name);
+	dev = ds_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	if (!dev) {
 		return -ENOMEM;
 	}
@@ -217,6 +192,13 @@ int ds_dev_add(char *dev_name)
 	}
 
 	return err;
+}
+
+void ds_dev_delete(struct ds_dev *dev)
+{
+	ds_dev_stop(dev);
+	ds_dev_release(dev);
+	ds_dev_free(dev);
 }
 
 int ds_dev_remove(char *dev_name)
