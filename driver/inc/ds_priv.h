@@ -29,6 +29,7 @@
 #include <klog.h>
 #include <ksocket.h>
 
+#define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
 
 struct ds_dev {

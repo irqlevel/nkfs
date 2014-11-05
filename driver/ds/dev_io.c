@@ -1,7 +1,6 @@
 #include <ds_priv.h>
 
 #define __SUBCOMPONENT__ "ds-devio"
-#define __LOGNAME__ "ds.log"
 
 static void ds_dev_io_free(struct ds_dev_io *io)
 {

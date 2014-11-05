@@ -1,8 +1,6 @@
 #include <ds_priv.h>
 
-
 #define __SUBCOMPONENT__ "ds-file"
-#define __LOGNAME__ "ds.log"
 
 int file_write(struct file *file, const void *buf, u32 len, loff_t *off)
 {	

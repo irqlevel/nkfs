@@ -3,8 +3,6 @@
 MODULE_LICENSE("GPL");
 
 #define __SUBCOMPONENT__ "ds-main"
-#define __LOGNAME__ "ds.log"
-
 #define DS_MISC_DEV_NAME "ds_ctl"
 
 static int ds_mod_get(struct inode *inode, struct file *file)

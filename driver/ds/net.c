@@ -1,7 +1,6 @@
 #include <ds_priv.h>
 
 #define __SUBCOMPONENT__ "ds-net"
-#define __LOGNAME__ "ds.log"
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
