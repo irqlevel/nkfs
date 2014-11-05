@@ -36,7 +36,7 @@ static void ds_dev_io_free(struct ds_dev_io *io)
 		kfree(io->complete);
 }
 
-static void ds_dev_bio_end(struct bio *bio, int err)
+static void ds_dev_io_bio_end(struct bio *bio, int err)
 {
 	struct ds_dev_io *io = (struct ds_dev_io *)bio->bi_private;
 	
@@ -116,7 +116,7 @@ int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off,
 	bio->bi_flags |= bi_flags;
 	bio->bi_rw |= rw_flags;
 	bio->bi_private = io;
-	bio->bi_end_io = ds_dev_bio_end;
+	bio->bi_end_io = ds_dev_io_bio_end;
 	
 	spin_lock_irq(&dev->io_lock);
 	list_add_tail(&io->io_list, &dev->io_list);
