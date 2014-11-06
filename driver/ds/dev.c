@@ -7,6 +7,7 @@ static LIST_HEAD(dev_list);
 
 static void ds_dev_free(struct ds_dev *dev)
 {
+	ds_image_dev_free(dev);
 	if (dev->dev_name)
 		kfree(dev->dev_name);
 	kfree(dev);
@@ -129,14 +130,25 @@ static int ds_dev_thread_routine(void *data)
 		if (dev->stopping)
 			break;
 	}
-
+	ds_image_dev_stop(dev);
 	klog(KL_DBG, "dev %p exiting", dev);
 	return err;
 }
 
-static int ds_dev_start(struct ds_dev *dev)
+static int ds_dev_start(struct ds_dev *dev, int format)
 {
 	int err;
+
+	if (!format)
+		err = ds_image_check(dev);
+	else
+		err = ds_image_format(dev);
+
+	if (err) {
+		klog(KL_ERR, "check or format err %d", err);
+		return err;
+	}
+
 	dev->thread = kthread_create(ds_dev_thread_routine, dev, "ds_dev_th");
 	if (IS_ERR(dev->thread)) {
 		err = PTR_ERR(dev->thread);
@@ -162,7 +174,7 @@ static void ds_dev_stop(struct ds_dev *dev)
 	}
 }
 
-int ds_dev_add(char *dev_name)
+int ds_dev_add(char *dev_name, int format)
 {
 	int err;
 	struct ds_dev *dev;
@@ -181,7 +193,7 @@ int ds_dev_add(char *dev_name)
 		return err;
 	}
 
-	err = ds_dev_start(dev);
+	err = ds_dev_start(dev, format);
 	if (err) {
 		klog(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_unlink(dev);		
@@ -191,13 +203,6 @@ int ds_dev_add(char *dev_name)
 	}
 
 	return err;
-}
-
-void ds_dev_delete(struct ds_dev *dev)
-{
-	ds_dev_stop(dev);
-	ds_dev_release(dev);
-	ds_dev_free(dev);
 }
 
 int ds_dev_remove(char *dev_name)

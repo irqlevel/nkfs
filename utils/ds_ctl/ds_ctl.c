@@ -15,6 +15,7 @@
 #define SERVER_STOP_OPT "--server_stop"
 #define DEV_ADD_OPT "--dev_add"
 #define DEV_REM_OPT "--dev_rem"
+#define DEV_FORMAT_OPT "--format"
 
 static void usage(void)
 {
@@ -38,7 +39,7 @@ static int ds_ctl_open(int *fd)
 	return 0;
 }
 
-static int ds_dev_add(const char *dev_name)
+static int ds_dev_add(const char *dev_name, int format)
 {
 	int err = -EINVAL;
 	struct ds_cmd cmd;
@@ -51,6 +52,8 @@ static int ds_dev_add(const char *dev_name)
 	memset(&cmd, 0, sizeof(cmd));
 	snprintf(cmd.u.dev_add.dev_name, sizeof(cmd.u.dev_add.dev_name),
 		"%s", dev_name);
+
+	cmd.u.dev_add.format = format;
 	err = ioctl(fd, IOCTL_DS_DEV_ADD, &cmd);
 	if (err)
 		goto out;
@@ -184,14 +187,17 @@ int main(int argc, char *argv[])
 		goto out;	
 	} else if (strncmp(argv[1], DEV_ADD_OPT, strlen(DEV_ADD_OPT) + 1) == 0) {
 		const char *dev_name = NULL;
-		if (argc != 3) {
+		int format = 0;
+		if (argc < 3) {
 			usage();
 			err = -EINVAL;
 			goto out;
 		}
 		dev_name = argv[2];
-		printf("adding dev=%s\n", dev_name);
-		err = ds_dev_add(dev_name);
+		if (argc > 3 && (strncmp(argv[3], DEV_FORMAT_OPT, strlen(DEV_FORMAT_OPT)+1) == 0))
+			format = 1;
+		printf("adding dev=%s format=%d\n", dev_name, format);
+		err = ds_dev_add(dev_name, format);
 		if (!err)
 			printf("added dev=%s\n", dev_name);
 		goto out;

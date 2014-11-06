@@ -45,7 +45,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	klog(KL_DBG, "ctl code %d", code);	
 	switch (code) {
 		case IOCTL_DS_DEV_ADD:
-			err = ds_dev_add(cmd->u.dev_add.dev_name);
+			err = ds_dev_add(cmd->u.dev_add.dev_name, cmd->u.dev_add.format);
 			break;
 		case IOCTL_DS_DEV_REMOVE:
 			err = ds_dev_remove(cmd->u.dev_remove.dev_name);

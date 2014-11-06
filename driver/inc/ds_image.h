@@ -1,8 +1,7 @@
 #pragma once
 
-#include <ds_obj_id.h>
+#define DS_IMAGE_MAGIC 0x3EFFBDAE
 
-#define DS_IMAGE_MAGIC 'DsIm'
 #define DS_IMAGE_VER_1	1
 
 struct ds_image_header {

@@ -32,6 +32,13 @@
 #define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
 
+struct ds_image {
+	__u32	magic;
+	__u32	version;
+	__u64	size;
+	struct ds_obj_id id;
+};
+
 struct ds_dev {
 	char			*dev_name;
 	struct list_head 	dev_list;
@@ -41,6 +48,7 @@ struct ds_dev {
 	spinlock_t		io_lock;
 	int			fmode;
 	int			stopping;
+	struct	ds_image	*image;
 };
 
 struct ds_con {
@@ -74,11 +82,10 @@ int ds_dev_io_touch0_page(struct ds_dev *dev);
 int ds_dev_io_page(struct ds_dev *dev, struct page *page, __u64 off, __u32 len,
 	int bi_flags, int rw_flags, void (*clb)(struct ds_dev_io *io), int wait);
 
-int ds_dev_add(char *dev_name);
+int ds_dev_add(char *dev_name, int format);
 int ds_dev_remove(char *dev_name);
 void ds_dev_release_all(void);
 struct ds_dev *ds_dev_create(char *dev_name, int fmode);
-void ds_dev_delete(struct ds_dev *dev);
 
 int ds_server_start(int port);
 int ds_server_stop(int port);
@@ -91,3 +98,12 @@ int ds_random_buf_read(void *buf, __u32 len, int urandom);
 int file_write(struct file *file, const void *buf, u32 len, loff_t *off);
 int file_sync(struct file *file);
 int file_read(struct file *file, const void *buf, u32 len, loff_t *off);
+
+struct ds_obj_id *ds_obj_id_gen(void);
+char *ds_obj_id_to_str(struct ds_obj_id *id);
+
+int ds_image_check(struct ds_dev *dev);
+int ds_image_format(struct ds_dev *dev);
+void ds_image_dev_free(struct ds_dev *dev);
+void ds_image_dev_stop(struct ds_dev *dev);
+

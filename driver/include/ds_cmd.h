@@ -11,6 +11,7 @@ struct ds_cmd {
 	union {
 		struct {
 			char dev_name[DS_NAME_MAX_SZ];
+			int format;
 		} dev_add;
 		struct {
 			char dev_name[DS_NAME_MAX_SZ];
