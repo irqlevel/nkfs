@@ -32,4 +32,5 @@ HOW TO RUN:
 sudo insmod bin/ds.ko #load kernel module
 sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
 sudo bin/ds_ctl --server_start PORT_NUMBER #run network server on 0.0.0.0:PORT_NUMBER
-
+HOW TO CHECK DS EXECUTION LOG:
+See dmesg or /var/log/ds.log
