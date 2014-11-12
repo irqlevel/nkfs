@@ -1,8 +1,11 @@
 obj-m = ds.o
 
-ccflags-y := -I$(src)/include -I$(src)/inc -I$(PROJ_ROOT) -g3 -Wall -Werror
+ccflags-y := -I$(src)/inc -I$(PROJ_ROOT) -g3 -Wall -Werror
 
-ds-y := module.o dev_io.o dev.o net.o random.o file.o image.o obj_id.o lib/klog.o lib/ksocket.o error.o_shipped char2hex.o_shipped
+ds-y := module.o dev_io.o dev.o net.o random.o file.o \
+	image.o obj_id.o \
+	lib/klog.o lib/ksocket.o lib/sha256.o \
+	error.o_shipped char2hex.o_shipped
 
 all:
 	cp $(PROJ_ROOT)/objs/error.o error.o_shipped
