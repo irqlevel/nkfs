@@ -23,3 +23,12 @@ obj_id = put_object(object_data), del_object(obj_id), object_data = get_object(o
 4. каждый компьютер сети ставит себе KM, настраивает девайсы(для хранения кусков объектов) и подключается
 к остальным компьютерам сети.
 5. клиенты могут подключиться к любому компьютеру сети и воспользоваться API (смотри пункт 2 из "особенности).
+
+HOW TO BUILD:
+cd project_dir
+export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL(full sources or just kernel-devel package).
+HOW TO RUN:
+sudo insmod bin/ds.ko #load kernel module
+sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
+sudo bin/ds_ctl --server_start PORT_NUMBER #run network server on 0.0.0.0:PORT_NUMBER
+
