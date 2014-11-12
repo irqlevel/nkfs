@@ -12,5 +12,4 @@ ds_ctl.o: ds_ctl.c
 
 clean:
 	rm -rf *.o ds_ctl
-	rm -r -f ../../bin/ds_ctl
 

@@ -29,6 +29,8 @@
 #include <klog.h>
 #include <ksocket.h>
 
+#include <libs/include/error.h>
+
 #define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
 

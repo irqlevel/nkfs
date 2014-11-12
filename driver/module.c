@@ -58,7 +58,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			break;
 		default:
 			klog(KL_ERR, "unknown ioctl=%d", code);
-			err = -EINVAL;
+			err = DS_E_UNK_IOCTL;
 			break;
 	}
 	cmd->err = err;
