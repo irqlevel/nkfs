@@ -1,5 +1,5 @@
-#include <linux/module.h>  /* THIS_MODULE */
-#include <linux/init.h>    /* __init(),__exit() */
+#include <linux/module.h> 
+#include <linux/init.h>   
 #include <linux/string.h>
 #include <linux/types.h> 
 
