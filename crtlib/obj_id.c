@@ -1,15 +1,16 @@
-#include <ds_priv.h>
-#define __SUBCOMPONENT__ "ds-objid"
+#include <obj_id.h>
+#include <char2hex.h>
+#include <crt.h>
 
 char *ds_obj_id_to_str(struct ds_obj_id *id)
 {
 	int result_len = 2*sizeof(id->bytes) + 1;
-	char *result = kmalloc(result_len, GFP_KERNEL);
+	char *result = crt_malloc(result_len);
 	if (!result)
 		return NULL;
 
 	if (char_to_hex_buf(id->bytes, sizeof(id->bytes), result, result_len)) {
-		kfree(result);
+		crt_free(result);
 		return NULL;
 	}
 
@@ -22,16 +23,14 @@ struct ds_obj_id *ds_obj_id_gen(void)
 	struct ds_obj_id *id;
 	int err;
 
-	id = kmalloc(sizeof(struct ds_obj_id), GFP_KERNEL);
+	id = crt_malloc(sizeof(struct ds_obj_id));
 	if (!id) {
-		klog(KL_ERR, "no memory");
 		return NULL;
 	}
 
-	err = ds_random_buf_read(id, sizeof(*id), 0);
+	err = crt_random_buf(id, sizeof(*id));
 	if (err) {
-		klog(KL_ERR, "ds_random_buf_read err %d", err);
-		kfree(id);
+		crt_free(id);
 		return NULL;
 	}
 

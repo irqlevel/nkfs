@@ -23,8 +23,8 @@
 
 #include <include/ds_cmd.h>
 #include <include/ds_obj_id.h>
-#include <libs/include/error.h>
-#include <libs/include/char2hex.h>
+#include <crtlib/include/error.h>
+#include <crtlib/include/char2hex.h>
 
 #include <ds_image.h>
 
