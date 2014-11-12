@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -Werror -I../../driver/include
+CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)/include
 
 all: ds_ctl
 	cp ds_ctl ../../bin/ds_ctl

@@ -21,15 +21,13 @@
 #include <linux/file.h>
 #include <asm/uaccess.h>
 
-#include <ds.h>
-#include <ds_cmd.h>
-#include <ds_obj_id.h>
-#include <ds_image.h>
+#include <include/ds_cmd.h>
+#include <include/ds_obj_id.h>
+#include <libs/include/error.h>
 
+#include <ds_image.h>
 #include <klog.h>
 #include <ksocket.h>
-
-#include <libs/include/error.h>
 
 #define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
