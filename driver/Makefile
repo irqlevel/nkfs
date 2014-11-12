@@ -13,4 +13,4 @@ all:
 	cp ds.ko ../bin/ds.ko
 clean:
 	make -C $(DS_KERNEL_PATH) M=$(PWD) clean
-
+	rm -r -f *.o_shipped
