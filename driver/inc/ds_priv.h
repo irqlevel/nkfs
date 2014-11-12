@@ -23,10 +23,9 @@
 
 #include <include/ds_cmd.h>
 #include <include/ds_obj_id.h>
-#include <crtlib/include/error.h>
-#include <crtlib/include/char2hex.h>
+#include <include/ds_image.h>
 
-#include <ds_image.h>
+#include <crtlib/include/crtlib.h>
 
 #include <klog.h>
 #include <ksocket.h>

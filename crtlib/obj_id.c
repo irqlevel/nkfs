@@ -1,6 +1,4 @@
-#include <obj_id.h>
-#include <char2hex.h>
-#include <crt.h>
+#include <crtlib.h>
 
 char *ds_obj_id_to_str(struct ds_obj_id *id)
 {

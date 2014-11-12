@@ -1,5 +1,4 @@
-#include <char2hex.h>
-#include <error.h>
+#include <crtlib.h>
 
 char char_to_hex(char c)
 {

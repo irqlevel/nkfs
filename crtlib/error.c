@@ -1,4 +1,4 @@
-#include <error.h>
+#include <crtlib.h>
 
 char *ds_error(int err)
 {
