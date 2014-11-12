@@ -27,6 +27,7 @@ obj_id = put_object(object_data), del_object(obj_id), object_data = get_object(o
 HOW TO BUILD:
 cd project_dir
 export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL(full sources or just kernel-devel package).
+make
 HOW TO RUN:
 sudo insmod bin/ds.ko #load kernel module
 sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
