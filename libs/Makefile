@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -Werror -Iinclude
+CFLAGS=-c -Wall -Werror -Iinclude -mcmodel=kernel
 
 all: error.o char2hex.o
 	cp error.o ../objs/error.o
