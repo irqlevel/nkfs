@@ -6,10 +6,10 @@ all:
 	mkdir objs
 	mkdir libs
 	cd crtlib; make
-	cd driver; make
 	cd utils; make
+	cd driver; make
 clean:
 	cd crtlib; make clean
-	cd driver; make clean
 	cd utils; make clean
+	cd driver; make clean
 	rm -r -f bin/ objs/ libs/

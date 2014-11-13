@@ -201,13 +201,12 @@ static char *klog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "MAX"};
 
 static int klog_level = KL_INV_L;
 
-void klog(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...)
+void klog_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
 	
     	struct klog_msg *msg = NULL;
     	char *pos;
     	int left, count, len, log_name_count;
-    	va_list args;
     	struct timespec ts;
 	struct tm tm;
 	char *level_s;
@@ -252,10 +251,8 @@ void klog(int level, const char *log_name, const char *subcomp, const char *file
     	klog_write_msg(&pos,&left,"%04d-%02d-%02d %02d:%02d:%02d.%.9ld - %s - %s - %d - %s %d %s() - ", 1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday, 
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec, level_s, subcomp, current->pid, truncate_file_path(file), line, func);
 
-    	va_start(args,fmt);
     	klog_write_msg2(&pos,&left,fmt,args);
-    	va_end(args);
-	
+
     	msg->data[count-1] = '\0';
 
 	len = strlen(msg->data);
@@ -269,6 +266,14 @@ void klog(int level, const char *log_name, const char *subcomp, const char *file
 
 	klog_msg_printk(msg);
 	klog_msg_queue(msg);	
+}
+
+void klog(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...)
+{
+	va_list args;
+    	va_start(args,fmt);
+    	klog_v(level, log_name, subcomp, file, line, func, fmt, args);
+    	va_end(args);
 }
 
 static int klog_thread_routine(void *data)

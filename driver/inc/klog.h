@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdarg.h>
 #define KL_INV_L	0
 #define KL_DBG_L 	1
 #define KL_INF_L	2
@@ -13,6 +14,7 @@
 #define KL_ERR 		KL_ERR_L,__LOGNAME__,__SUBCOMPONENT__,__FILE__, __LINE__, __FUNCTION__
 
 void klog(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...);
+void klog_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args);
 
 int klog_init(int level);
 

@@ -8,7 +8,7 @@ char char_to_hex(char c)
 		return 'a' + c - 10;
 }
 
-int char_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
+int char_buf_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
 {
 	int i;
 
@@ -22,4 +22,24 @@ int char_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
 	return 0;
 }
 
+char *char_buf_to_hex_str(char *src, int src_count)
+{
+	char *hex;
+	int hex_count;
 
+	if (src_count == 0)
+		src_count = crt_strlen(src);
+
+	hex_count = 2*src_count + 1;
+	hex = crt_malloc(hex_count);
+	if (!hex)
+		return NULL;
+
+	if (char_buf_to_hex_buf(src, src_count, hex, hex_count)) {
+		crt_free(hex);
+		return NULL;
+	}
+
+	hex[2*src_count] = '\0';
+	return hex;
+}	

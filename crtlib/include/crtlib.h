@@ -13,9 +13,11 @@ extern void *crt_memcpy(void * destination, const void * source, size_t num);
 extern void *crt_malloc(size_t size);
 extern void crt_free(void *ptr);
 extern int crt_random_buf(void *buf, size_t len);
+extern size_t crt_strlen(const char * str);
 
 #include <crtlib/include/obj_id.h>
 #include <crtlib/include/char2hex.h>
 #include <crtlib/include/error.h>
 #include <crtlib/include/sha256.h>
+#include <crtlib/include/clog.h>
 

@@ -292,3 +292,19 @@ void sha256( const unsigned char *input, size_t ilen,
     sha256_finish( &ctx, output );
     sha256_free( &ctx );
 }
+
+void __sha256_test(void)
+{
+	unsigned char *data = (unsigned char *)"blabla";
+	unsigned char sum[32];
+	char *hex_sum;
+
+	sha256(data, crt_strlen((char *)data), sum, 0);
+	hex_sum = char_buf_to_hex_str((char *)sum, sizeof(sum));
+	if (!hex_sum) {
+		CLOG(CL_ERR, "char_buf_to_hex_str failed\n");
+		return;
+	}
+	CLOG(CL_INF, "sha256 for %s is %s\n", data, hex_sum);
+	crt_free(hex_sum);
+}

@@ -65,3 +65,6 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
  * \param output   SHA-224/256 checksum result
  */
 void sha256_finish(struct sha256_context *ctx, unsigned char output[32]);
+
+void __sha256_test(void);
+

@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <ds_cmd.h>
+#include <include/ds_cmd.h>
 
 #define SERVER_START_OPT "--server_start"
 #define SERVER_STOP_OPT "--server_stop"

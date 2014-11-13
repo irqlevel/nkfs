@@ -2,7 +2,7 @@
 
 MODULE_LICENSE("GPL");
 
-#define __SUBCOMPONENT__ "ds-main"
+#define __SUBCOMPONENT__ "ds-mod"
 #define DS_MISC_DEV_NAME "ds_ctl"
 
 static int ds_mod_get(struct inode *inode, struct file *file)
@@ -87,7 +87,6 @@ static struct miscdevice ds_misc = {
 	.name = DS_MISC_DEV_NAME,	
 };
 
-
 static int __init ds_init(void)
 {	
 	int err = -EINVAL;
@@ -99,6 +98,8 @@ static int __init ds_init(void)
 	}
 
 	klog(KL_DBG, "initing");
+
+	__sha256_test();
 
 	err = ds_random_init();
 	if (err) {
