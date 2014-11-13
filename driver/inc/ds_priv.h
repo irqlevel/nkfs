@@ -27,8 +27,9 @@
 
 #include <crtlib/include/crtlib.h>
 
-#include <klog.h>
-#include <ksocket.h>
+#include <inc/klog.h>
+#include <inc/ksocket.h>
+#include <inc/btree.h>
 
 #define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9

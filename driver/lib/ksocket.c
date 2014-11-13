@@ -7,8 +7,8 @@
 #include <linux/delay.h>
 #include <net/sock.h>
 
-#include "ksocket.h"
-#include "klog.h"
+#include <inc/ksocket.h>
+#include <inc/klog.h>
 
 #define __SUBCOMPONENT__	"ksocket"
 #define __LOGNAME__ "cd_ksocket.log"		

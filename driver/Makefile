@@ -1,9 +1,9 @@
 obj-m = ds.o
 
-ccflags-y := -I$(src)/inc -I$(PROJ_ROOT) -g3 -Wall -Werror
+ccflags-y := -I$(src) -I$(PROJ_ROOT) -g3 -Wall -Werror
 
 ds-y := module.o dev_io.o dev.o net.o random.o file.o \
-	image.o crt.o \
+	image.o crt.o btree.o \
 	lib/klog.o lib/ksocket.o \
 	crtlib.o_shipped
 

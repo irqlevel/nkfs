@@ -1,4 +1,4 @@
-#include <ds_priv.h>
+#include <inc/ds_priv.h>
 
 #define __SUBCOMPONENT__ "ds-random"
 static struct file *dev_random;

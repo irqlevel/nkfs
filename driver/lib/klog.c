@@ -1,4 +1,4 @@
-#include "klog.h"
+#include <inc/klog.h>
 #include <linux/kernel.h>       /* Needed for KERN_INFO */
 #include <linux/sched.h>
 #include <linux/time.h>
