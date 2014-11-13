@@ -1,4 +1,4 @@
-#include "sha256.h"
+#include <crtlib/include/crtlib.h>
 
 #ifndef PUT_UINT32_BE
 #define PUT_UINT32_BE(n,b,i)                            \
@@ -166,7 +166,7 @@ void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
 
 void sha256_init( struct sha256_context *ctx )
 {
-    memset( ctx, 0, sizeof( struct sha256_context ) );
+    crt_memset( ctx, 0, sizeof( struct sha256_context ) );
 }
 
 void sha256_starts( struct sha256_context *ctx, int is224 )
@@ -222,7 +222,7 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
 
     if( left && ilen >= fill )
     {
-        memcpy( (void *) (ctx->buffer + left), input, fill );
+        crt_memcpy( (void *) (ctx->buffer + left), input, fill );
         sha256_process( ctx, ctx->buffer );
         input += fill;
         ilen  -= fill;
@@ -237,7 +237,7 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
     }
 
     if( ilen > 0 )
-        memcpy( (void *) (ctx->buffer + left), input, ilen );
+        crt_memcpy( (void *) (ctx->buffer + left), input, ilen );
 }
 
 

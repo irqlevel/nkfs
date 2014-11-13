@@ -1,13 +1,13 @@
 CC=gcc
 AR=ar
 
-CFLAGS_KERNEL=-c -Wall -Werror -Iinclude -I$(PROJ_ROOT) -mcmodel=kernel -D __KERNEL__
-CFLAGS=-c -Wall -Werror -Iinclude -I$(PROJ_ROOT)
+CFLAGS_KERNEL=-c -Wall -Werror -I$(PROJ_ROOT) -mcmodel=kernel -D __KERNEL__
+CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
 
 LIB_OUT = crtlib.a
 LIB_KOUT = crtlib_km.a
 
-LIBS_SRC = char2hex.c error.c obj_id.c
+LIBS_SRC = sha256.c char2hex.c error.c obj_id.c
 
 OBJS = $(LIBS_OBJ) $(LIBS_KOBJ)
 

@@ -1,7 +1,4 @@
-#include <linux/module.h> 
-#include <linux/init.h>   
-#include <linux/string.h>
-#include <linux/types.h> 
+#pragma once
 
 /**
  * \brief          SHA-256 context structure
@@ -67,4 +64,4 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
  * \param ctx      SHA-256 context
  * \param output   SHA-224/256 checksum result
  */
-void sha256_finish(struct sha256_context *ctx,unsigned char output[32]);
+void sha256_finish(struct sha256_context *ctx, unsigned char output[32]);
