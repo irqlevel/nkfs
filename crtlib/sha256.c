@@ -302,9 +302,9 @@ void __sha256_test(void)
 	sha256(data, crt_strlen((char *)data), sum, 0);
 	hex_sum = char_buf_to_hex_str((char *)sum, sizeof(sum));
 	if (!hex_sum) {
-		CLOG(CL_ERR, "char_buf_to_hex_str failed\n");
+		CLOG(CL_ERR, "char_buf_to_hex_str failed");
 		return;
 	}
-	CLOG(CL_INF, "sha256 for %s is %s\n", data, hex_sum);
+	CLOG(CL_INF, "sha256 for %s is %s", data, hex_sum);
 	crt_free(hex_sum);
 }
