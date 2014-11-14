@@ -12,4 +12,4 @@ clean:
 	cd crtlib; make clean
 	cd utils; make clean
 	cd driver; make clean
-	rm -r -f bin/ objs/ libs/
+	rm -r -f bin/ objs/ libs/ *.log
