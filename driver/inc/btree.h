@@ -14,7 +14,7 @@ struct btree_link {
 	union {
 		__be64 off;
 		struct btree_node *ptr;
-	} u;
+	};
 };
 
 struct btree_node {

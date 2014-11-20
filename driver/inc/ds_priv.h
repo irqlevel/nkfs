@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/miscdevice.h>
 #include <linux/file.h>
+#include <linux/sort.h>
 #include <asm/uaccess.h>
 
 #include <include/ds_cmd.h>
@@ -30,6 +31,7 @@
 #include <inc/klog.h>
 #include <inc/ksocket.h>
 #include <inc/btree.h>
+#include <inc/amap.h>
 
 #define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
