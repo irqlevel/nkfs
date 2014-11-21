@@ -4,7 +4,7 @@ ccflags-y := -I$(src) -I$(PROJ_ROOT) -g3 -Wall -Werror
 
 ds-y := module.o dev_io.o dev.o net.o random.o file.o \
 	image.o crt.o btree.o amap.o \
-	lib/klog.o lib/ksocket.o \
+	klog.o 	ksocket.o \
 	crtlib.o_shipped
 
 all:

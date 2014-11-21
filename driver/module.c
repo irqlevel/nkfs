@@ -106,15 +106,23 @@ static int __init ds_init(void)
 		klog(KL_ERR, "ds_random_init err %d", err);
 		goto out_klog_release;
 	}
+	err = amap_sys_init();
+	if (err) {
+		klog(KL_ERR, "amap_sys_init err %d", err);
+		goto out_random_release;
+	}
 
 	err = misc_register(&ds_misc);
 	if (err) {
 		klog(KL_ERR, "misc_register err=%d", err);
-		goto out_random_release; 
+		goto out_amap_release; 
 	}
 
 	klog(KL_DBG, "inited");
 	return 0;
+
+out_amap_release:
+	amap_sys_release();
 out_random_release:
 	ds_random_release();
 out_klog_release:
@@ -131,6 +139,8 @@ static void __exit ds_exit(void)
 	misc_deregister(&ds_misc);
 	ds_server_stop_all();
 	ds_dev_release_all();
+	amap_sys_release();
+
 	klog(KL_DBG, "exited");
 	klog_release();
 }
