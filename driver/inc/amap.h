@@ -1,7 +1,9 @@
 #pragma once
 
-typedef void (*io_complete_t)(void *context,	int err, int rw, struct page *page, u64 off);
-typedef void (*io_op_t)(void *io, int rw, struct page *page, u64 off, void *context, io_complete_t complete);
+typedef void (*io_complete_t)(void *context,	int err, int rw,
+		struct page *page, u64 off);
+typedef void (*io_op_t)(void *io, int rw, struct page *page, u64 off,
+		void *context, io_complete_t complete);
 
 struct amap {
 
@@ -64,8 +66,10 @@ int amap_init(struct amap *map, void *io, int nr_max_nodes, io_op_t io_op);
 
 void amap_release(struct amap *map);
 
-int amap_read(struct amap *map,	struct page *page, u64 off, void *context, io_complete_t complete);
-int amap_write(struct amap *map, struct page *page, u64 off, void *context, io_complete_t complete);
+int amap_read(struct amap *map,	struct page *page, u64 off, void *context,
+		io_complete_t complete);
+int amap_write(struct amap *map, struct page *page, u64 off, void *context,
+		io_complete_t complete);
 
 /* Init/release of disk map subsystem */
 int amap_sys_init(void);

@@ -136,7 +136,7 @@ static int amap_insert(struct amap *map, struct amap_node *node)
 		spin_unlock(&map->lru_list_lock);
 	}
 
-	return 0;
+	return err;
 }
 
 static struct
@@ -482,11 +482,16 @@ void amap_node_io_complete(void *context, int err, int rw, struct page *page, u6
 	list_add_tail(&req->req_list, &comp_list);
 	node->req = NULL;
 	state = node->state;
+
+	/* copy actual data to cache */
 	if (!err) {
-		memcpy(page_address(node->page), page_address(page), PAGE_SIZE);
+		memcpy(page_address(node->page),
+			page_address(page),
+			PAGE_SIZE);
 		state = AMAP_NODE_S_READY;
 	}
 
+	/* snapshot all reqs pending on cache node */
 	list_for_each_entry_safe(req, tmp, &node->req_list, req_list) {
 		list_del_init(&req->req_list);
 		list_add_tail(&req->req_list, &req_list);
@@ -499,8 +504,11 @@ void amap_node_io_complete(void *context, int err, int rw, struct page *page, u6
 		switch (state) {
 			case AMAP_NODE_S_READY:
 				if (!req->rw) {
-					memcpy(page_address(req->page), page_address(node->page), PAGE_SIZE);
-					list_add_tail(&req->req_list, &comp_list);
+					memcpy(page_address(req->page),
+						page_address(node->page),
+						PAGE_SIZE);
+					list_add_tail(&req->req_list,
+							&comp_list);
 				} else {
 					BUG_ON(!nreq);
 					nreq = req;
@@ -519,7 +527,8 @@ void amap_node_io_complete(void *context, int err, int rw, struct page *page, u6
 	}
 	
 	list_for_each_entry_safe(req, tmp, &comp_list, req_list) {
-		req->complete(req->context, req->err, req->rw, req->page, req->off);
+		req->complete(req->context, req->err, req->rw, req->page,
+				req->off);
 		amap_req_free(req);
 	}
 
@@ -537,12 +546,14 @@ void amap_node_io_complete(void *context, int err, int rw, struct page *page, u6
 	spin_unlock_irq(&node->lock);
 	if (nreq)
 		node->owner->io_op(node->owner->io,
-			nreq->rw, nreq->page, nreq->off, node, amap_node_io_complete);
+			nreq->rw, nreq->page, nreq->off, node,
+			amap_node_io_complete);
 	else
 		amap_node_deref(node);
 }
 
-void amap_io(struct amap *map, int rw, struct page *page, u64 off, void *context, io_complete_t complete)
+void amap_io(struct amap *map, int rw, struct page *page, u64 off,
+		void *context, io_complete_t complete)
 {
 	unsigned long index = off/PAGE_SIZE;
 	int err;
@@ -576,7 +587,9 @@ void amap_io(struct amap *map, int rw, struct page *page, u64 off, void *context
 		case AMAP_NODE_S_READY:
 			BUG_ON(node->req);
 			if (!rw) {
-				memcpy(page_address(page), page_address(node->page), PAGE_SIZE);
+				memcpy(page_address(page),
+						page_address(node->page),
+						PAGE_SIZE);
 				spin_unlock_irq(&node->lock);
 				amap_req_free(req);
 				complete(context, 0, rw, page, off);
@@ -585,7 +598,8 @@ void amap_io(struct amap *map, int rw, struct page *page, u64 off, void *context
 				node->req = req;
 				node->state = AMAP_NODE_S_LOCKED;
 				spin_unlock_irq(&node->lock);
-				map->io_op(map->io, rw, page, off, node, amap_node_io_complete);
+				map->io_op(map->io, rw, page, off, node,
+						amap_node_io_complete);
 			}
 		case AMAP_NODE_S_LOCKED:
 			list_add_tail(&req->req_list, &node->req_list);
@@ -596,7 +610,8 @@ void amap_io(struct amap *map, int rw, struct page *page, u64 off, void *context
 			node->req = req;
 			node->state = AMAP_NODE_S_LOCKED;
 			spin_unlock_irq(&node->lock);
-			map->io_op(map->io, rw, page, off, node, amap_node_io_complete);
+			map->io_op(map->io, rw, page, off, node,
+					amap_node_io_complete);
 			return;
 		default:
 			BUG();
