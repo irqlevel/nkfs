@@ -65,7 +65,7 @@ int ds_image_format(struct ds_dev *dev)
 	ds_image_header_set_id(header, &dev->image->id);
 	ds_image_header_set_size(header,  dev->image->size);
 
-	err = ds_dev_io_page(dev, page, 0, 0, 0, REQ_WRITE|REQ_FUA, NULL, 1);
+	err = ds_dev_io_page(dev, NULL, page, 0, REQ_WRITE|REQ_FUA, 1, NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		kfree(dev->image);
@@ -97,12 +97,12 @@ int ds_image_check(struct ds_dev *dev)
 	header = kmap(page);
 	memset(header, 0, PAGE_SIZE);
 
-	err = ds_dev_io_page(dev, page, 0, 0, 0, 0, NULL, 1);
+	err = ds_dev_io_page(dev, NULL, page, 0, 0, 1, NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		goto free_page;
 	}
-	
+
 	dev->image = kmalloc(GFP_KERNEL, sizeof(struct ds_image));
 	if (!dev->image) {
 		klog(KL_ERR, "cant alloc ds_image struct");
