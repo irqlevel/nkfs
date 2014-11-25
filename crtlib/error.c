@@ -13,6 +13,8 @@ char *ds_error(int err)
 			return "send obj failed";
 		case DS_E_CRT_FLD:
 			return "create obj on server failed";
+		case DS_E_DEL_FLD:
+			return "delete obj on server failed";
 		default:
 			return "unknown err code";
 	}

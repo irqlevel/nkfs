@@ -4,8 +4,8 @@ enum packet_cmd
 {
 		DS_PKT_OBJ_PUT,
 		DS_PKT_OBJ_GET, 
-		DS_PKT_OBJ_CREATE, 
-		DS_PKT_OBJ_DELETE
+		DS_PKT_OBJ_CRT, 
+		DS_PKT_OBJ_DEL
 };
 struct ds_packet {
 		enum packet_cmd  cmd;   

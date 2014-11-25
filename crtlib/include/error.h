@@ -6,6 +6,7 @@
 #define DS_E_BUF_SMALL	DS_E_BASE + 3
 #define DS_E_PUT_FLD DS_E_BASE + 4
 #define DS_E_CRT_FLD DS_E_BASE + 5
+#define DS_E_DEL_FLD DS_E_BASE + 6
 
 extern char *ds_error(int err);
 

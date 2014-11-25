@@ -52,6 +52,7 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 		pack->data = crt_malloc(data_size);
 		pack->obj_id = crt_malloc(sizeof(struct ds_obj_id)); 
 		
+		pack->error=0;
 		pack->cmd = DS_PKT_OBJ_PUT;
 		crt_memcpy(pack->data,data,data_size);
 		pack->data_off=&off;
@@ -66,7 +67,10 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 				CLOG(CL_ERR, "ds_put_object() -> send() packet data failed to send");
 				goto out;
 		} 
-		
+		if((send(sock,pack->obj_id,sizeof(*(pack->obj_id)),0))<0) {
+				CLOG(CL_ERR, "ds_put_object() -> send() object id failed to send");
+				goto out;
+		} 
 		dspack_release(pack);
 		return 0;
 		out:
@@ -85,13 +89,13 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t 
 		 */
 		cr_pack->data= crt_malloc(sizeof(uint64_t));
 		cr_pack->obj_id = crt_malloc(sizeof(struct ds_obj_id));
-		cr_pack->cmd = DS_PKT_OBJ_CREATE;
+		cr_pack->cmd = DS_PKT_OBJ_CRT;
 		
 		*(cr_pack->data)=obj_size;
 		*(cr_pack->obj_id) = obj_id;
 		cr_pack->data_off = 0;
 		cr_pack->data_size = sizeof(uint64_t);
-		
+		cr_pack->error=0;
 		/* Packet data represents size of future object */
 		if((send(sock,cr_pack,sizeof(*cr_pack),0))<0) {
 				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
@@ -101,7 +105,10 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t 
 				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
 				goto out;
 		} 
-		
+		if((send(sock,cr_pack->obj_id,sizeof(*(cr_pack->obj_id)),0))<0) {
+				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
+				goto out;
+		} 
 		dspack_release(cr_pack);
 		return 0;
 		out:
@@ -110,15 +117,46 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t 
 }
 int  ds_delete_object(struct con_handle *con,struct ds_obj_id obj_id)
 {
-		/* Not implemented */
-		return -ENOSYS;
+		struct ds_packet *delete_pack;
+		
+		delete_pack = crt_malloc(sizeof(struct ds_packet));
+		delete_pack->data= NULL;
+		delete_pack->obj_id = crt_malloc(sizeof(struct ds_obj_id));
+		delete_pack->cmd = DS_PKT_OBJ_DEL;
+		
+		*(delete_pack->obj_id) = obj_id;
+		delete_pack->data_off = 0;
+		delete_pack->data_size = 0;
+		delete_pack->error = 0;
+		
+		if((send(sock,delete_pack,sizeof(*delete_pack),0))<0) {
+				CLOG(CL_ERR, "ds_delete_object() -> send() packet failed to send");
+				goto out;
+		} 
+		if((send(sock,delete_pack->obj_id,sizeof(*(delete_pack->obj_id)),0))<0) {
+				CLOG(CL_ERR, "ds_delete_object() -> send() packet failed to send");
+				goto out;
+		}
+		
+		dspack_release(delete_pack);
+		return 0;
+		out:
+				dspack_release(delete_pack);
+				return -DS_E_DEL_FLD;
 }
-int  ds_get_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t *data_size, uint64_t *off)
+int  ds_get_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size, uint64_t *off)
 {
-		/*NOT IMPLEMENTED*/
+		struct ds_packet *get_pack;
+		if(recv(con->sock,data,data_size,0)<0) {
+				CLOG(CL_ERR, "ds_get_object() -> recv() failed receive packet data");
+		/*
+		 * There will be packet parsing 
+		 * data from another host will be held in get_pack
+		 */
+		}
 		return -ENOSYS;
 }
-int ds_close(struct con_handle *con)
+void ds_close(struct con_handle *con)
 {
 		close(con->sock);
 }
