@@ -47,18 +47,16 @@ int main(int argc, const char *argv[])
 		/* Create two objects */
 		client_obj = crt_malloc(sizeof(struct object));
 	    income_obj = crt_malloc(sizeof(struct object));
-		income_obj->data=crt_malloc(OBJ_SIZE);
+	    client_obj->data=crt_malloc(OBJ_SIZE);
 		income_obj->data=crt_malloc(OBJ_SIZE);
 		/* Connect to two neighbours in network group */
 		ds_connect(&con[0],"192.168.1.200",9999);
 		ds_connect(&con[1],"192.168.1.245",8700);
 		
-		if(ds_create_object(&con[0],&client_obj->id,sizeof(*(client_obj->data))))
-				CLOG(CL_ERR, "cant reserve space for object on storage");
-		
+
 		/* generate object id and output it */
-		client_obj.id = ds_obj_id_gen();
-		income_obj.id = ds_obj_id_gen();
+		client_obj->id = ds_obj_id_gen();
+		income_obj->id = ds_obj_id_gen();
 		if (!(client_obj->id) && !(income_obj->id)) {
 				CLOG(CL_ERR, "cant generate obj id");
 		} else {
@@ -71,14 +69,19 @@ int main(int argc, const char *argv[])
 						crt_free(obj_id_s);
 		        }
 		}
+		/* 
+		 * After creating object on client side 
+		 * do the same on server side
+		 */
+		if(ds_create_object(&con[0],&(client_obj->id),3000)))
+				CLOG(CL_ERR, "cant reserve space for object on storage");
 		
-		/* Fill object data | lenght is 50*/
-		strcpy(client_obj->data,msg,strlen(msg));
-		client_obj->size = sizeof(*client_obj->data);
+		crt_memcpy(client_obj->data,msg,strlen(msg));
+		client_obj->size = sizeof(*(client_obj->data));
 		client_obj->data_off = 0;
 											
 		/* Send object to first node */
-		if(ds_put_object(&con[0],&client_obj->id,client_obj->data,client_obj->size,&client_obj->data_off))
+		if(ds_put_object(&con[0],&(client_obj->id),client_obj->data,client_obj->size,&(client_obj->data_off)))
 				CLOG(CL_ERR, "failed to send object");
 		/* Receive object from another node. 40 byte 
 		if(ds_get_object(&con[1],&income_obj.id,,
@@ -87,6 +90,10 @@ int main(int argc, const char *argv[])
 		
 		crt_free(income_obj->id);
 		crt_free(client_obj->id);
+		crt_free(income_obj->data);
+		crt_free(client_obj->data);
+		crt_free(income_obj);
+		crt_free(client_obj);
 		/* Disconnect from all hosts */
 		for(i=0;i<CON_NUM;i++)
 				ds_close(&con[i].sock);
