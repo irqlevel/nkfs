@@ -9,6 +9,10 @@ char *ds_error(int err)
 			return "unknown ioctl";
 		case DS_E_BUF_SMALL:
 			return "buffer too small";
+		case DS_E_PUT_FLD:
+			return "send obj failed";
+		case DS_E_CRT_FLD:
+			return "create obj on server failed";
 		default:
 			return "unknown err code";
 	}
