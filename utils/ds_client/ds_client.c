@@ -20,7 +20,7 @@
 int main(int argc, const char *argv[])
 {
 		int err = DS_E_BUF_SMALL;
-		int i,j;
+		int i;
 		char *msg="teststringteststringteststringteststringteststring";
 		/* Object with data that client want to send */
 		struct object *client_obj;
@@ -73,7 +73,7 @@ int main(int argc, const char *argv[])
 		 * After creating object on client side 
 		 * do the same on server side
 		 */
-		if(ds_create_object(&con[0],&(client_obj->id),3000)))
+		if(ds_create_object(&con[0],*(client_obj->id),3000))
 				CLOG(CL_ERR, "cant reserve space for object on storage");
 		
 		crt_memcpy(client_obj->data,msg,strlen(msg));
@@ -81,7 +81,7 @@ int main(int argc, const char *argv[])
 		client_obj->data_off = 0;
 											
 		/* Send object to first node */
-		if(ds_put_object(&con[0],&(client_obj->id),client_obj->data,client_obj->size,&(client_obj->data_off)))
+		if(ds_put_object(&con[0],*(client_obj->id),client_obj->data,client_obj->size,&client_obj->data_off))
 				CLOG(CL_ERR, "failed to send object");
 		/* Receive object from another node. 40 byte 
 		if(ds_get_object(&con[1],&income_obj.id,,
@@ -96,7 +96,7 @@ int main(int argc, const char *argv[])
 		crt_free(client_obj);
 		/* Disconnect from all hosts */
 		for(i=0;i<CON_NUM;i++)
-				ds_close(&con[i].sock);
+				ds_close(&con[i]);
 		
 		return 0;
 }

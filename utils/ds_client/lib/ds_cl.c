@@ -1,6 +1,11 @@
-#include "include/ds_client.h"
-#include "include/ds_packet.h"
+#include <include/ds_client.h>
 
+void dspack_release(struct ds_packet *pack)
+{
+	crt_free(pack->obj_id);
+	crt_free(pack->data);
+	crt_free(pack);
+}
 int con_handle_init(struct con_handle *connection)
 {
 		int sock;
@@ -29,7 +34,7 @@ int ds_connect(struct con_handle *con,char *ip,int port)
 		serv_addr.sin_family = AF_INET;
 		serv_addr.sin_port = htons(port);
 	
-		ret=inet_aton(ip,&(serv_addr.sin_addr.s_addr));
+		ret=inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
 		if(!ret) { 
 				CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
 				return -EFAULT;
@@ -55,19 +60,19 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 		pack->error=0;
 		pack->cmd = DS_PKT_OBJ_PUT;
 		crt_memcpy(pack->data,data,data_size);
-		pack->data_off=&off;
+		pack->data_off=*off;
 		*(pack->obj_id)=id;
 		pack->data_size = data_size;
 		
-		if((send(sock,pack,sizeof(*pack),0))<0) {
+		if((send(con->sock,pack,sizeof(*pack),0))<0) {
 				CLOG(CL_ERR, "ds_put_object() -> send() packet failed to send");
 				goto out;
 		} 
-		if((send(sock,pack->data,pack->data_size,0))<0) {
+		if((send(con->sock,pack->data,pack->data_size,0))<0) {
 				CLOG(CL_ERR, "ds_put_object() -> send() packet data failed to send");
 				goto out;
 		} 
-		if((send(sock,pack->obj_id,sizeof(*(pack->obj_id)),0))<0) {
+		if((send(con->sock,pack->obj_id,sizeof(*(pack->obj_id)),0))<0) {
 				CLOG(CL_ERR, "ds_put_object() -> send() object id failed to send");
 				goto out;
 		} 
@@ -78,7 +83,7 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 			return -DS_E_PUT_FLD;	
 }
 
-int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t obj_size);
+int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t obj_size)
 {		
 		struct ds_packet *cr_pack;
 		
@@ -97,15 +102,15 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t 
 		cr_pack->data_size = sizeof(uint64_t);
 		cr_pack->error=0;
 		/* Packet data represents size of future object */
-		if((send(sock,cr_pack,sizeof(*cr_pack),0))<0) {
+		if((send(con->sock,cr_pack,sizeof(*cr_pack),0))<0) {
 				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
 				goto out;
 		} 
-		if((send(sock,cr_pack->data,cr_pack->data_size,0))<0) {
+		if((send(con->sock,cr_pack->data,cr_pack->data_size,0))<0) {
 				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
 				goto out;
 		} 
-		if((send(sock,cr_pack->obj_id,sizeof(*(cr_pack->obj_id)),0))<0) {
+		if((send(con->sock,cr_pack->obj_id,sizeof(*(cr_pack->obj_id)),0))<0) {
 				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
 				goto out;
 		} 
@@ -129,11 +134,11 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id obj_id)
 		delete_pack->data_size = 0;
 		delete_pack->error = 0;
 		
-		if((send(sock,delete_pack,sizeof(*delete_pack),0))<0) {
+		if((send(con->sock,delete_pack,sizeof(*delete_pack),0))<0) {
 				CLOG(CL_ERR, "ds_delete_object() -> send() packet failed to send");
 				goto out;
 		} 
-		if((send(sock,delete_pack->obj_id,sizeof(*(delete_pack->obj_id)),0))<0) {
+		if((send(con->sock,delete_pack->obj_id,sizeof(*(delete_pack->obj_id)),0))<0) {
 				CLOG(CL_ERR, "ds_delete_object() -> send() packet failed to send");
 				goto out;
 		}
@@ -146,12 +151,11 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id obj_id)
 }
 int  ds_get_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size, uint64_t *off)
 {
-		struct ds_packet *get_pack;
 		if(recv(con->sock,data,data_size,0)<0) {
 				CLOG(CL_ERR, "ds_get_object() -> recv() failed receive packet data");
 		/*
 		 * There will be packet parsing 
-		 * data from another host will be held in get_pack
+		 * data from another host will be held in struct ds_packet
 		 */
 		}
 		return -ENOSYS;
@@ -161,9 +165,4 @@ void ds_close(struct con_handle *con)
 		close(con->sock);
 }
 
-void dspack_release(struct ds_packet *pack)
-{
-	crt_free(pack->obj_id);
-	crt_free(pack->data);
-	crt_free(pack);
-}
+
