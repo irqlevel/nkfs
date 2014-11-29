@@ -16,7 +16,9 @@ char *ds_error(int err)
 	case DS_E_OBJ_DELETE:
 		return "delete obj on server failed";
 	case DS_E_CON_INIT_FAILED:
-		return "connection initialization failed"
+		return "connection initialization failed";
+	case DS_E_OBJ_GET:
+		return "failed to get object";
 	default:
 		return "unknown err code";
 	}

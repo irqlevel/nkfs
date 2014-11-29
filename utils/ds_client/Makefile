@@ -1,6 +1,6 @@
 CC=gcc
 AR=ar
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT) -std=c99 -pedantic-errors  
+CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT) 
 LIB_OUT= ds_client_lib.a
 
 all: ds_client 

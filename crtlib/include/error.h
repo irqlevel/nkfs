@@ -8,6 +8,7 @@
 #define DS_E_OBJ_CREATE      DS_E_BASE + 5
 #define DS_E_OBJ_DELETE      DS_E_BASE + 6
 #define DS_E_CON_INIT_FAILED DS_E_BASE + 7
+#define DS_E_OBJ_GET		 DS_E_BASE + 8
 
 extern char *ds_error(int err);
 

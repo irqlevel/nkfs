@@ -14,15 +14,13 @@
 #include <utils/ucrt/include/ucrt.h>
 #include <include/ds_client.h> /* client lib */
 
-#define CON_NUM 3
-
 int main(int argc, const char *argv[])
 {
 	char *msg="teststringteststringteststringteststringteststring";
 	char *client_buff;
+	char *obj_id_s;
 	uint64_t client_data_len;
 	int err = DS_E_BUF_SMALL;
-	int i;
 	struct con_handle con; 
 	/* represent client data */
 	struct ds_obj_id *obj_id;
@@ -40,7 +38,8 @@ int main(int argc, const char *argv[])
 	/* translate error code to string description */
 	CLOG(CL_INF, "err %x - %s", err, ds_error(err));
 	/* Connect to neighbour in network group */
-	if(ds_connect(&con,"127.0.0.1",9900)); {
+	err = ds_connect(&con,"127.0.0.1",9900); 
+	if (err) {
 		CLOG(CL_ERR, "cant connect to host");
 		return 0;
 	}
@@ -50,7 +49,7 @@ int main(int argc, const char *argv[])
 		CLOG(CL_ERR, "cant generate obj id");
 		goto out_con_free;
 	} else {
-		char *obj_id_s = ds_obj_id_to_str(obj_id);
+		obj_id_s = ds_obj_id_to_str(obj_id);
 		if (!obj_id_s) {
 			CLOG(CL_ERR, "cant convert obj id to str");
 		} else {
@@ -67,32 +66,39 @@ int main(int argc, const char *argv[])
 	} 
 	crt_memcpy(obj_data,msg,client_data_len);
 	obj_off = 0;
-
 	/* Calculate overall object size in bytes */
-	obj_size = client_data_len + 2*sizeof(uint64_t) + sizeof(struct ds_obj_id); 
+	obj_size = client_data_len + sizeof(obj_size) + sizeof(obj_off) + sizeof(struct ds_obj_id); 
+
+	client_buff = crt_malloc(obj_size);
+	if (!client_buff) {
+		goto out_buff;
+	}
 	/* Reserver space for object on server */
-	err = ds_create_object(&con,*obj_id,obj_size));
+	err = ds_create_object(&con,obj_id,obj_size);
 	if (err) {
-		CLOG(CL_ERR, "cant reserve space for object on storage, err %x - %s",err,ds_error(err));
+		/* cant reserve space for object on storage */
+		CLOG(CL_ERR, "err %x - %s",err,ds_error(err));
 		goto out_all;
 	}
 	/* Send object to first node */
 	err = ds_put_object(&con,obj_id,obj_data,obj_size);
 	if(err) {
-		CLOG(CL_ERR, "failed to send object, err %x - %s",err,ds_error(err));
+		/* failed to send object */
+		CLOG(CL_ERR, "err %x - %s",err,ds_error(err));
 		goto out_all;
 	}
 	/* Receive the same object which was send previosly from another node */
 	err = ds_get_object(&con,obj_id,client_buff,obj_size);
 	if (err) {
-		CLOG(CL_ERR, "failed to get object, err %x - %s");
+		/* failed to get object */
+		CLOG(CL_ERR, "err %x - %s",err,ds_error(err));
 		goto out_all;
 	}
-	*/
 	out_all:
+		crt_free(client_buff);
+	out_buff:
 		crt_free(obj_data);
 	out_id_free:
-		crt_free(obj_id_s);
 		crt_free(obj_id);
 	out_con_free:
 		ds_close(&con);
