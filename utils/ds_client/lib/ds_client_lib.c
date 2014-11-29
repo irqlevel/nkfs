@@ -116,29 +116,29 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj
 int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 {
 	struct ds_cmd cmd;
+	int i;
 	/*
 	 * Object size that client requests 
 	 * is the only data in packet
 	 */
-	cmd.data = crt_malloc(sizeof());
+	cmd.data = crt_malloc(sizeof(struct ds_obj_id));
 	if (!cmd.data) {
-		CLOG(CL_ERR, "ds_create_object() -> failed to allocate space for cmd data");
-		return DS_E_OBJ_CREATE;
+		CLOG(CL_ERR, "ds_delete_object() -> failed to allocate space for cmd data");
+		return DS_E_OBJ_DELETE;
 	}
-	/* Convert 64-bit int into char array. C99 feature. */
-	snprintf(cmd.data,sizeof(obj_size),"%d",obj_size);
-
-	cmd.data_size = sizeof(obj_size);
+	
+	crt_memcpy(cmd.data,id->bytes,sizeof(id->bytes));
+	cmd.data_size = sizeof(struct ds_obj_id);
 	cmd.obj_id = *id;
-	cmd.cmd = 1; /* 1 - create object */
+	cmd.cmd = 3; /* 3 - delete object */
 	cmd.data_off = 0;
 	/* Command packet data represents size of future object */
 	if((send(con->sock,cmd,sizeof(cmd),0))<0) {
-		CLOG(CL_ERR, "ds_create_object() -> send(), cmd failed to send");
+		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd failed to send");
 		goto out;
 	} 
-	if((send(con->sock,cmd_pack.data,cmd_pack.data_size,0))<0) {
-		CLOG(CL_ERR, "ds_create_object() -> send(), cmd data failed to send");
+	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
+		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd data failed to send");
 		goto out;
 	} 
 	/* TODO recv() , parse cmd.error, add error handling */
@@ -146,7 +146,7 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 	return 0;
 	out:
 		crt_free(cmd.data);	
-		return DS_E_OBJ_CREATE;
+		return DS_E_OBJ_DELETE;
 }
 int  ds_get_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size)
 {
