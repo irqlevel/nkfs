@@ -38,9 +38,10 @@ int main(int argc, const char *argv[])
 	/* translate error code to string description */
 	CLOG(CL_INF, "err %x - %s", err, ds_error(err));
 	/* Connect to neighbour in network group */
-	err = ds_connect(&con,"127.0.0.1",9900);
-	if (err)
+	if(ds_connect(&con,"127.0.0.1",9900)); {
+		CLOG(CL_ERR, "cant connect to host");
 		return 0;
+	}
 	/* generate object id and output it */
 	obj_id = ds_obj_id_gen();
 	if (!obj_id) {
@@ -55,20 +56,21 @@ int main(int argc, const char *argv[])
 			crt_free(obj_id_s);
 		}
 	}
-	if(ds_create_object(&con[0],*(client_obj->id),3000)) {
-		CLOG(CL_ERR, "cant reserve space for object on storage");
-		return 0;
-	}
 	obj_size = strlen(msg);
 	crt_memcpy(obj_data,msg,data_size);
 	data_off = 0;
-	obj_size = sizeof(*(client_obj->data)); /* TODO size of object data or object? */
+	/* Reserve space on server */
+	if(ds_create_object(&con[0],*obj_id,)) {
+		CLOG(CL_ERR, "cant reserve space for object on storage");
+		return 0;
+	}
+	
+	/* Send object to first node */
 
-		client_obj->data_off = 0;
-											
-		/* Send object to first node */
-		if(ds_put_object(&con[0],*(client_obj->id),client_obj->data,client_obj->size,&client_obj->data_off))
-				CLOG(CL_ERR, "failed to send object");
+	if(ds_put_object(&con[0],*(client_obj->id),client_obj->data,client_obj->size,&client_obj->data_off)) {
+		CLOG(CL_ERR, "failed to send object");
+		return 0;
+	}
 		/* Receive object from another node. 40 byte 
 		if(ds_get_object(&con[1],&income_obj.id,,
 				CLOG(CL_ERR, "failed to send object");

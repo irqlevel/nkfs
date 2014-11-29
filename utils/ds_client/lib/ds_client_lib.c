@@ -50,9 +50,9 @@ int ds_connect(struct con_handle *con,char *ip,int port)
 	}
 	return err;
 } 
-int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size, uint64_t *off)
+int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size)
 {
-		struct ds_packet *pack;
+		struct ds_cmd *cmd;
 		
 		pack = crt_malloc(sizeof(struct ds_packet));
 		pack->data = crt_malloc(data_size);
@@ -86,14 +86,12 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 
 int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t obj_size)
 {		
-		struct ds_packet *cr_pack;
-		
-		cr_pack = crt_malloc(sizeof(struct ds_packet));
+		struct ds_cmd cmd;
 		/*
 		 * Object size that client requests 
 		 * is the only data in packet
 		 */
-		cr_pack->data= crt_malloc(sizeof(uint64_t));
+		cmd.data = crt_malloc(sizeof(uint64_t));
 		cr_pack->obj_id = crt_malloc(sizeof(struct ds_obj_id));
 		cr_pack->cmd = DS_PKT_OBJ_CRT;
 		

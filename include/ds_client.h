@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <utils/ucrt/include/ucrt.h>
 #include <include/ds_obj_id.h>
-#include <include/ds_packet.h>
+#include <include/ds_cmd.h>
 
 /* Represent host connection */
 struct con_handle {
