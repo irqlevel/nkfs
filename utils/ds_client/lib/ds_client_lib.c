@@ -1,13 +1,6 @@
 #include <include/ds_client.h>
 
-void ds_packet_release(struct ds_packet *pack)
-{
-	crt_free(pack->obj_id);
-	crt_free(pack->data);
-	crt_free(pack);
-}
-
-int con_handle_init(struct con_handle *connection)
+static int con_handle_init(struct con_handle *connection)
 {
 	int sock;
 	
@@ -38,16 +31,19 @@ int ds_connect(struct con_handle *con,char *ip,int port)
 	err = inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
 	if(!err) { 
 		CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
-		return -EFAULT;
+		close(con->sock);
+		return EFAULT;
 	}
 		
 	crt_memset(&(serv_addr.sin_zero),0,8);
 	
-	ret = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
-	if (ret == -1) {
-		CLOG(CL_ERR, "ds_connect() -> connect() failed");
-		return -ENOTCONN;
+	err = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
+	if (err<0) {
+		CLOG(CL_ERR, "ds_connect() -> connect(), connection failed");
+		close(con->sock);
+		return ENOTCONN;
 	}
+	/* connect() return 0 on succeed */
 	return err;
 } 
 int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size)
@@ -56,8 +52,8 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 		
 		pack = crt_malloc(sizeof(struct ds_packet));
 		pack->data = crt_malloc(data_size);
-		pack->obj_id = crt_malloc(sizeof(struct ds_obj_id)); 
-		
+		if(!(pack->data)) 
+
 		pack->error=0;
 		pack->cmd = DS_PKT_OBJ_PUT;
 		crt_memcpy(pack->data,data,data_size);
@@ -84,40 +80,38 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 			return DS_E_OBJ_PUT;	
 }
 
-int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t obj_size)
+int  ds_create_object(struct con_handle *con, struct ds_obj_id *obj_id, uint64_t obj_size)
 {		
-		struct ds_cmd cmd;
-		/*
-		 * Object size that client requests 
-		 * is the only data in packet
-		 */
-		cmd.data = crt_malloc(sizeof(uint64_t));
-		cr_pack->obj_id = crt_malloc(sizeof(struct ds_obj_id));
-		cr_pack->cmd = DS_PKT_OBJ_CRT;
-		
-		*(cr_pack->data)=obj_size;
-		*(cr_pack->obj_id) = obj_id;
-		cr_pack->data_off = 0;
-		cr_pack->data_size = sizeof(uint64_t);
-		cr_pack->error=0;
-		/* Packet data represents size of future object */
-		if((send(con->sock,cr_pack,sizeof(*cr_pack),0))<0) {
-				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
-				goto out;
-		} 
-		if((send(con->sock,cr_pack->data,cr_pack->data_size,0))<0) {
-				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
-				goto out;
-		} 
-		if((send(con->sock,cr_pack->obj_id,sizeof(*(cr_pack->obj_id)),0))<0) {
-				CLOG(CL_ERR, "ds_create_object() -> send() packet failed to send");
-				goto out;
-		} 
-		dspack_release(cr_pack);
-		return 0;
-		out:
-				dspack_release(cr_pack);
-				return -DS_E_CRT_FLD;
+	struct ds_cmd cmd;
+	/*
+	 * Object size that client requests 
+	 * is the only data in packet
+	 */
+	cmd.data = crt_malloc(sizeof(obj_size));
+	if (!cmd.data) {
+		CLOG(CL_ERR, "ds_create_object() -> failed to allocate space for cmd data");
+		return DS_E_OBJ_CREATE;
+	}
+	crt_memcpy(cmd_pack.data,obj_size,sizeof(obj_size));
+	cmd.data_size = sizeof(obj_size);
+	cmd.obj_id = *obj_id;
+	cmd.cmd = 1; /* 1 - create object */
+	cmd.data_off = 0;
+	cmd.error = 0;
+	/* Command packet data represents size of future object */
+	if((send(con->sock,cmd,sizeof(cmd),0))<0) {
+		CLOG(CL_ERR, "ds_create_object() -> send(), cmd failed to send");
+		goto out;
+	} 
+	if((send(con->sock,cmd_pack.data,cmd_pack.data_size,0))<0) {
+		CLOG(CL_ERR, "ds_create_object() -> send(), cmd data failed to send");
+		goto out;
+	} 
+	crt_free(cmd.data);
+	return 0;
+	out:
+		crt_free(cmd.data);	
+		return DS_E_CRT_FLD;
 }
 int  ds_delete_object(struct con_handle *con,struct ds_obj_id obj_id)
 {
