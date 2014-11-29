@@ -10,33 +10,32 @@ void ds_packet_release(struct ds_packet *pack)
 int con_handle_init(struct con_handle *connection)
 {
 	int sock;
-	int16_t err;
+	
 	sock = socket(AF_INET,SOCK_STREAM,0);
 	if (sock == -1) {
 		CLOG(CL_ERR, "con_handle_init() -> socket() failed");
-		err = 1;
-	} else {
-		connection->sock = sock;
-		err = 0;
-	}
-	return err;
+		return DS_E_CON_INIT_FAILED;
+	} 
+
+	connection->sock = sock;
+	return 0;
 }
 
 int ds_connect(struct con_handle *con,char *ip,int port)
 {
 	struct sockaddr_in serv_addr;
-	int16_t err;
+	int err;
 	
 	err = con_handle_init(con);
 	if (err) {
-		CLOG(CL_ERR, "ds_connect() -> create connection failed");
+		CLOG(CL_INF, "ds_connect() -> err %x - %s", err, ds_error(err));
 		return err;
 	}
 		
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(port);
 	
-	err=inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
+	err = inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
 	if(!err) { 
 		CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
 		return -EFAULT;
@@ -82,7 +81,7 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint6
 		return 0;
 		out:
 			dspack_release(pack);
-			return -DS_E_PUT_FLD;	
+			return DS_E_OBJ_PUT;	
 }
 
 int  ds_create_object(struct con_handle *con, struct ds_obj_id obj_id, uint64_t obj_size)

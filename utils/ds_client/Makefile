@@ -16,6 +16,7 @@ ds_client.o: ds_client.c
 ds_cl.o:
 	$(CC) $(CFLAGS) lib/ds_client_lib.c
 	$(AR) -cvq lib/$(LIB_OUT) ds_client_lib.o
+	
 clean:
 	rm -rf *.o ds_client lib/*.a lib/*.o
 
