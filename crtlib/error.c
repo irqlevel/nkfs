@@ -15,6 +15,7 @@ char *ds_error(int err)
 			return "create obj on server failed";
 		case DS_E_DEL_FLD:
 			return "delete obj on server failed";
+		case DS_E_CONNECT_
 		default:
 			return "unknown err code";
 	}

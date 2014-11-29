@@ -1,53 +1,55 @@
 #include <include/ds_client.h>
 
-void dspack_release(struct ds_packet *pack)
+void ds_packet_release(struct ds_packet *pack)
 {
 	crt_free(pack->obj_id);
 	crt_free(pack->data);
 	crt_free(pack);
 }
+
 int con_handle_init(struct con_handle *connection)
 {
-		int sock;
-		
-		sock = socket(AF_INET,SOCK_STREAM,0);
-		if (sock == -1) {
-			CLOG(CL_ERR, "con_handle_init() -> socket() failed");
-			return 1;
-		}
-		else {
-			connection->sock = sock;
-			return 0;
-		}
+	int sock;
+	int16_t err;
+	sock = socket(AF_INET,SOCK_STREAM,0);
+	if (sock == -1) {
+		CLOG(CL_ERR, "con_handle_init() -> socket() failed");
+		err = 1;
+	} else {
+		connection->sock = sock;
+		err = 0;
+	}
+	return err;
 }
 
 int ds_connect(struct con_handle *con,char *ip,int port)
 {
-		struct sockaddr_in serv_addr;
-		int32_t ret;
-		
-		if (con_handle_init(con)) {
-				CLOG(CL_ERR, "ds_connect() -> create connection failed");
-				return 1;
-		}
-		
-		serv_addr.sin_family = AF_INET;
-		serv_addr.sin_port = htons(port);
+	struct sockaddr_in serv_addr;
+	int16_t err;
 	
-		ret=inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
-		if(!ret) { 
-				CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
-				return -EFAULT;
-		}
+	err = con_handle_init(con);
+	if (err) {
+		CLOG(CL_ERR, "ds_connect() -> create connection failed");
+		return err;
+	}
 		
-		crt_memset(&(serv_addr.sin_zero),0,8);
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(port);
 	
-		ret = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
-		if (ret == -1) {
-				CLOG(CL_ERR, "ds_connect() -> connect() failed");
-				return -ENOTCONN;
-		}
-		return 0;
+	err=inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
+	if(!err) { 
+		CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
+		return -EFAULT;
+	}
+		
+	crt_memset(&(serv_addr.sin_zero),0,8);
+	
+	ret = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
+	if (ret == -1) {
+		CLOG(CL_ERR, "ds_connect() -> connect() failed");
+		return -ENOTCONN;
+	}
+	return err;
 } 
 int  ds_put_object(struct con_handle *con,struct ds_obj_id id, char *data, uint64_t data_size, uint64_t *off)
 {

@@ -15,46 +15,26 @@
 #include <include/ds_client.h> /* client lib */
 
 #define CON_NUM 3
-#define OBJ_SIZE 65535
 
 int main(int argc, const char *argv[])
 {
-		int err = DS_E_BUF_SMALL;
-		int i;
-		char *msg="teststringteststringteststringteststringteststring";
-		/* Object with data that client want to send */
-		struct object *client_obj;
-		/* object received from another client */
-		struct object *income_obj;
-		/*
-		 * Create an array of connections 
-		 * In future there will be function for dynamic allocation
-		 * every time computer connects to the network and becomes neighbour
-		 * con_handle struct will be added 
-		 */
-		struct con_handle con[CON_NUM]; 
-		/* 
-	     * set CLOG log path : NULL and log name ds_client.log
-	     * NULL means use current working dir as path
-	     */
-	    ucrt_log_set_path(NULL, "ds_client.log");
-		/* set CLOG log level */
-		ucrt_log_set_level(CL_DBG);
-
-		CLOG(CL_INF, "Hello from ds client");
-		/* translate error code to string description */
-		CLOG(CL_INF, "err %x - %s", err, ds_error(err));
-		/* Create two objects */
-		client_obj = crt_malloc(sizeof(struct object));
-	    income_obj = crt_malloc(sizeof(struct object));
-	    client_obj->data=crt_malloc(OBJ_SIZE);
-		income_obj->data=crt_malloc(OBJ_SIZE);
-		/* Connect to two neighbours in network group */
-		ds_connect(&con[0],"192.168.1.200",9999);
-		ds_connect(&con[1],"192.168.1.245",8700);
-		
-
-		/* generate object id and output it */
+	int err = DS_E_BUF_SMALL;
+	int i;
+	char *msg="teststringteststringteststringteststringteststring";
+	struct con_handle con; 
+	/* 
+	 * set CLOG log path : NULL and log name ds_client.log
+	 * NULL means use current working dir as path
+	*/
+	ucrt_log_set_path(NULL, "ds_client.log");
+	/* set CLOG log level */
+	ucrt_log_set_level(CL_DBG);
+	CLOG(CL_INF, "Hello from ds client");
+	/* translate error code to string description */
+	CLOG(CL_INF, "err %x - %s", err, ds_error(err));
+	/* Connect to neighbour in network group */
+	ds_connect(&con,"127.0.0.1",9900);
+	/* generate object id and output it */
 		client_obj->id = ds_obj_id_gen();
 		income_obj->id = ds_obj_id_gen();
 		if (!(client_obj->id) && !(income_obj->id)) {
@@ -69,12 +49,12 @@ int main(int argc, const char *argv[])
 						crt_free(obj_id_s);
 		        }
 		}
-		/* 
-		 * After creating object on client side 
-		 * do the same on server side
-		 */
-		if(ds_create_object(&con[0],*(client_obj->id),3000))
-				CLOG(CL_ERR, "cant reserve space for object on storage");
+	/* 
+	 * After creating object on client side 
+	 * do the same on server side
+	 */
+	if(ds_create_object(&con[0],*(client_obj->id),3000))
+		CLOG(CL_ERR, "cant reserve space for object on storage");
 		
 		crt_memcpy(client_obj->data,msg,strlen(msg));
 		client_obj->size = sizeof(*(client_obj->data));
@@ -87,16 +67,6 @@ int main(int argc, const char *argv[])
 		if(ds_get_object(&con[1],&income_obj.id,,
 				CLOG(CL_ERR, "failed to send object");
 		*/
-		
-		crt_free(income_obj->id);
-		crt_free(client_obj->id);
-		crt_free(income_obj->data);
-		crt_free(client_obj->data);
-		crt_free(income_obj);
-		crt_free(client_obj);
-		/* Disconnect from all hosts */
-		for(i=0;i<CON_NUM;i++)
-				ds_close(&con[i]);
-		
-		return 0;
+	ds_close(&con);
+	return 0;
 }
