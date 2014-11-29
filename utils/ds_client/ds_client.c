@@ -19,6 +19,7 @@
 int main(int argc, const char *argv[])
 {
 	char *msg="teststringteststringteststringteststringteststring";
+	char *client_buff;
 	uint64_t client_data_len;
 	int err = DS_E_BUF_SMALL;
 	int i;
@@ -70,19 +71,23 @@ int main(int argc, const char *argv[])
 	/* Calculate overall object size in bytes */
 	obj_size = client_data_len + 2*sizeof(uint64_t) + sizeof(struct ds_obj_id); 
 	/* Reserver space for object on server */
-	if(ds_create_object(&con[0],*obj_id,obj_size)) {
+	err = ds_create_object(&con,*obj_id,obj_size));
+	if (err) {
 		CLOG(CL_ERR, "cant reserve space for object on storage, err %x - %s",err,ds_error(err));
 		goto out_all;
 	}
 	/* Send object to first node */
-	err = ds_put_object(&con[0],*(client_obj->id),client_obj->data,client_obj->size,&client_obj->data_off)
+	err = ds_put_object(&con,obj_id,obj_data,obj_size);
 	if(err) {
-		CLOG(CL_ERR, "failed to send object");
+		CLOG(CL_ERR, "failed to send object, err %x - %s",err,ds_error(err));
 		goto out_all;
 	}
-	/* Receive object from another node. 40 byte 
-	if(ds_get_object(&con[1],&income_obj.id,,
-		CLOG(CL_ERR, "failed to send object");
+	/* Receive the same object which was send previosly from another node */
+	err = ds_get_object(&con,obj_id,client_buff,obj_size);
+	if (err) {
+		CLOG(CL_ERR, "failed to get object, err %x - %s");
+		goto out_all;
+	}
 	*/
 	out_all:
 		crt_free(obj_data);
