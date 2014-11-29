@@ -92,7 +92,9 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id *obj_id, uint64_t
 		CLOG(CL_ERR, "ds_create_object() -> failed to allocate space for cmd data");
 		return DS_E_OBJ_CREATE;
 	}
-	crt_memcpy(cmd_pack.data,obj_size,sizeof(obj_size));
+	/* Convert 64-bit int into char array. C99 feature. */
+	snprintf(cmd.data,sizeof(obj_size),"%d",obj_size);
+
 	cmd.data_size = sizeof(obj_size);
 	cmd.obj_id = *obj_id;
 	cmd.cmd = 1; /* 1 - create object */

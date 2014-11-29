@@ -1,6 +1,6 @@
 CC=gcc
 AR=ar
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
+CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT) -std=c99 -pedantic-errors  
 LIB_OUT= ds_client_lib.a
 
 all: ds_client 
@@ -16,7 +16,7 @@ ds_client.o: ds_client.c
 ds_cl.o:
 	$(CC) $(CFLAGS) lib/ds_client_lib.c
 	$(AR) -cvq lib/$(LIB_OUT) ds_client_lib.o
-	
+
 clean:
 	rm -rf *.o ds_client lib/*.a lib/*.o
 
