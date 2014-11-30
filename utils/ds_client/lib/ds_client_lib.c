@@ -1,16 +1,54 @@
 #include <include/ds_client.h>
 
-static int con_handle_init(struct con_handle *connection)
+#define PACKET_SIZE 1024
+
+/* 
+ * Handle error according to code from server  
+ * was tested, work properly 
+ * if server sends just integer value 
+ */
+static int err_code_handle(struct con_handle con,int err)
+{
+	ssize_t count_bytes;
+
+	count_bytes = recv(con.sock,&err,sizeof(int),0);
+
+	if (!count_bytes) {
+		CLOG(CL_ERR,"err_code_hanlde() -> connection has been closed");
+		return 1;
+	}
+	if (count_bytes<0) {
+		CLOG(CL_ERR,"err_code_hanlde() -> failed to receive error code from server");
+		return 1;
+	}
+	
+	if(err) {
+		
+		switch(err) {
+			/*
+		case 10:
+		...
+		case 26:
+		*/
+		}
+	}
+	
+	return 0;
+	
+}
+
+static int con_handle_init(struct con_handle *con)
 {
 	int sock;
 	
 	sock = socket(AF_INET,SOCK_STREAM,0);
-	if (sock == -1) {
+	if (sock<0) {
 		CLOG(CL_ERR, "con_handle_init() -> socket() failed");
 		return DS_E_CON_INIT_FAILED;
 	} 
 
-	connection->sock = sock;
+	con->sock = sock;
+
 	return 0;
 }
 
@@ -30,9 +68,9 @@ int ds_connect(struct con_handle *con,char *ip,int port)
 	
 	err = inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
 	if(!err) { 
-		CLOG(CL_ERR, "ds_connect() -> inet_aton() failed, invalid address");
-		close(con->sock);
-		return EFAULT;
+		CLOG(CL_ERR, "ds_connect() -> inet_aton(), invalid address");
+		err = EFAULT;
+		goto out;
 	}
 		
 	crt_memset(&(serv_addr.sin_zero),0,8);
@@ -40,20 +78,25 @@ int ds_connect(struct con_handle *con,char *ip,int port)
 	err = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
 	if (err<0) {
 		CLOG(CL_ERR, "ds_connect() -> connect(), connection failed");
-		close(con->sock);
-		return ENOTCONN;
+		err = ENOTCONN;
+		goto out;
 	}
-	/* connect() return 0 on succeed */
-	return err;
+	
+	err = 0;
+	out:
+		close(con->sock);
+		return err;
 } 
+
 int  ds_put_object(struct con_handle *con,struct ds_obj_id *id, char *data, uint64_t data_size)
 {
 	struct ds_cmd cmd;
-		
+	int err = DS_E_OBJ_PUT;
+
 	cmd.data = crt_malloc(data_size);
 	if(!cmd.data) {
 		CLOG(CL_ERR, "ds_put_object() -> failed to allocate space for cmd data");
-		return DS_E_OBJ_PUT;
+		return err;
 	} 
 
 	crt_memcpy(cmd.data,data,data_size);
@@ -66,29 +109,35 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id *id, char *data, uint
 		CLOG(CL_ERR, "ds_put_object() -> send() packet failed to send");
 		goto out;
 	} 
+
 	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
 		CLOG(CL_ERR, "ds_put_object() -> send() packet data failed to send");
 		goto out;
-	} 
-	/* TODO recv() , parse cmd.error, add error handling */
-	crt_free(cmd.data);
-	return 0;
+	}
+
+	if (err_code_handle(*con,cmd.error)) 
+		goto out;
+
+	err = 0;
+
 	out:
 		crt_free(cmd.data);
-		return DS_E_OBJ_PUT;	
+		return err;	
 }
 
 int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj_size)
 {		
 	struct ds_cmd cmd;
+	int err = DS_E_OBJ_CREATE;
 	/*
 	 * Object size that client requests 
 	 * is the only data in packet
 	 */
 	cmd.data = crt_malloc(sizeof(obj_size));
+
 	if (!cmd.data) {
 		CLOG(CL_ERR, "ds_create_object() -> failed to allocate space for cmd data");
-		return DS_E_OBJ_CREATE;
+		return err;
 	}
 	/* Convert 64-bit int into char array. C99 feature. */
 	snprintf(cmd.data,sizeof(obj_size),"%d",(int)obj_size);
@@ -97,6 +146,7 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj
 	cmd.obj_id = *id;
 	cmd.cmd = 1; /* 1 - create object */
 	cmd.data_off = 0;
+	cmd.error = 0;
 	/* Command packet data represents size of future object */
 	if((send(con->sock,&cmd,sizeof(cmd),0))<0) {
 		CLOG(CL_ERR, "ds_create_object() -> send(), cmd failed to send");
@@ -106,21 +156,25 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj
 		CLOG(CL_ERR, "ds_create_object() -> send(), cmd data failed to send");
 		goto out;
 	} 
-	/* TODO recv() , parse cmd.error, add error handling */
-	crt_free(cmd.data);
-	return 0;
+	
+	if (err_code_handle(*con,cmd.error)) 
+		goto out;
+	
+	err = 0;
 	out:
 		crt_free(cmd.data);	
-		return DS_E_OBJ_CREATE;
+		return err;
 }
+
 int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 {
 	struct ds_cmd cmd;
-	
+	int err = DS_E_OBJ_DELETE;
+
 	cmd.data = crt_malloc(sizeof(struct ds_obj_id));
 	if (!cmd.data) {
 		CLOG(CL_ERR, "ds_delete_object() -> failed to allocate space for cmd data");
-		return DS_E_OBJ_DELETE;
+		return err;
 	}
 	
 	crt_memcpy(cmd.data,id->bytes,sizeof(id->bytes));
@@ -133,30 +187,38 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd failed to send");
 		goto out;
 	} 
+
 	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
 		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd data failed to send");
 		goto out;
 	} 
-	/* TODO recv() , parse cmd.error, add error handling */
-	crt_free(cmd.data);
-	return 0;
+
+	if (err_code_handle(*con,cmd.error)) 
+		goto out;
+
+	err = 0;
+
 	out:
 		crt_free(cmd.data);	
-		return DS_E_OBJ_DELETE;
+		return err;
 }
+
 int  ds_get_object(struct con_handle *con,struct ds_obj_id *id, char *data, uint64_t data_size)
 {
-	/*
-	int err;
+	int err = DS_E_OBJ_GET;
 
 	err = recv(con->sock,data,data_size,0);
+
 	if (err<0) {
 		CLOG(CL_ERR, "ds_get_object() -> recv() failed receive packet data");
-		return DS_E_OBJ_GET;
+		return err;
 	}
-	*/
-	return 0;
+
+	err = 0;
+	
+	return err;
 }
+
 void ds_close(struct con_handle *con)
 {
 	close(con->sock);
