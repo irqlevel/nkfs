@@ -1,7 +1,12 @@
 CC=gcc
 AR=ar
+ARCH_BITS=$(shell getconf LONG_BIT)
+CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
+CFLAGS_KERNEL=$(CFLAGS) -D __KERNEL__
+ifeq ($(ARCH_BITS), 64)
+CFLAGS_KERNEL=$(CFLAGS_KERNEL) -mcmodel=kernel
+endif
 
-CFLAGS_KERNEL=-c -Wall -Werror -I$(PROJ_ROOT) -mcmodel=kernel -D __KERNEL__
 CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
 
 LIB_OUT = crtlib.a
