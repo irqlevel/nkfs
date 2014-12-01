@@ -4,10 +4,8 @@ ARCH_BITS=$(shell getconf LONG_BIT)
 CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
 CFLAGS_KERNEL=$(CFLAGS) -D __KERNEL__
 ifeq ($(ARCH_BITS), 64)
-CFLAGS_KERNEL=$(CFLAGS_KERNEL) -mcmodel=kernel
+CFLAGS_KERNEL+= -mcmodel=kernel
 endif
-
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
 
 LIB_OUT = crtlib.a
 LIB_KOUT = crtlib_km.a
