@@ -7,9 +7,6 @@
 #define CL_ERR	4
 #define CL_MAX	5
 
-extern void crt_log(int level, const char *file, int line,
-	const char *func, const char *fmt, ...);
-
 #define CLOG_ENABLED	1
 #define CLOG_SRC	1
 #define CLOG_LEVEL	CL_DBG

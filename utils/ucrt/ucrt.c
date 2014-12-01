@@ -137,26 +137,6 @@ void ulog_v(int level, const char *log_name, const char *subcomp, const char *fi
 	}
 }
 
-void *crt_malloc(size_t size)
-{
-	return malloc(size);
-}
-
-void *crt_memcpy(void *dst, const void *src, size_t len)
-{
-	return memcpy(dst, src, len);
-}
-
-void *crt_memset(void *ptr, int value, size_t len)
-{
-	return memset(ptr, value, len);
-}
-
-void crt_free(void *ptr)
-{
-	free(ptr);
-}
-
 int fd_read(int fd, void *buf, size_t len)
 {	
 	int err;
@@ -179,7 +159,28 @@ out:
 	return err;
 }
 
-int crt_random_buf(void *buf, size_t len)
+
+asmlinkage void *crt_malloc(size_t size)
+{
+	return malloc(size);
+}
+
+asmlinkage void *crt_memcpy(void *dst, const void *src, size_t len)
+{
+	return memcpy(dst, src, len);
+}
+
+asmlinkage void *crt_memset(void *ptr, int value, size_t len)
+{
+	return memset(ptr, value, len);
+}
+
+asmlinkage void crt_free(void *ptr)
+{
+	free(ptr);
+}
+
+asmlinkage int crt_random_buf(void *buf, size_t len)
 {
 	int fd = open("/dev/random", O_RDONLY);
 	int err;
@@ -192,7 +193,7 @@ int crt_random_buf(void *buf, size_t len)
 	return err;
 }
 
-void crt_log(int level, const char *file, int line,
+asmlinkage void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...)
 {
 	va_list args;
@@ -201,7 +202,7 @@ void crt_log(int level, const char *file, int line,
 	va_end(args);
 }
 
-size_t crt_strlen(const char *s)
+asmlinkage size_t crt_strlen(const char *s)
 {
 	return strlen(s);
 }
