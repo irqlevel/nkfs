@@ -1,14 +1,16 @@
 #include <inc/ds_priv.h>
 
 #define __SUBCOMPONENT__ "ds-image"
-
-#define DS_IMAGE_INFO_DUMP(dev)								\
-{											\
-	char *id_s = ds_obj_id_to_str(&dev->image->id);					\
-	klog(KL_INF, "d=%p m=%x v=%d size=%llu id=%s",		\
-		dev, dev->image->magic, dev->image->version, dev->image->size, id_s);	\
-	if (id_s)									\
-		kfree(id_s);								\
+	
+#define DS_IMAGE_INFO_DUMP(DEV)						\
+{									\
+	struct ds_obj_id *img_id = &((DEV)->image)->id;			\
+	char *img_id_s = ds_obj_id_to_str(img_id);			\
+	klog(KL_INF, "d=%p m=%x v=%d size=%llu id=%s",			\
+		(DEV), (DEV)->image->magic, (DEV)->image->version,	\
+		(DEV)->image->size, img_id_s);				\
+	if (img_id_s)							\
+		kfree(img_id_s);					\
 }
 
 void ds_image_dev_free(struct ds_dev *dev)
@@ -36,6 +38,8 @@ int ds_image_format(struct ds_dev *dev)
 		klog(KL_ERR, "obj id gen failed");
 		return -ENOMEM;
 	}
+
+	klog(KL_INF, "generated id=%p", id);
 
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
@@ -116,7 +120,7 @@ int ds_image_check(struct ds_dev *dev)
 	dev->image->version = ds_image_header_version(header);
 	dev->image->size = ds_image_header_size(header);
 	ds_image_header_id(header, &dev->image->id);
-	
+		
 	DS_IMAGE_INFO_DUMP(dev);
 
 	if (dev->image->magic != DS_IMAGE_MAGIC) {

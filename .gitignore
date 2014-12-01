@@ -12,4 +12,4 @@ Module.symvers
 *.ko
 *.pyc
 *.log
-
+tags

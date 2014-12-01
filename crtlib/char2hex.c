@@ -1,6 +1,6 @@
 #include <crtlib/include/crtlib.h>
 
-char char_to_hex(char c)
+asmlinkage char char_to_hex(char c)
 {
 	if (c < 10)
 		return '0' + c;
@@ -8,7 +8,7 @@ char char_to_hex(char c)
 		return 'a' + c - 10;
 }
 
-int char_buf_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
+asmlinkage int char_buf_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
 {
 	int i;
 
@@ -22,10 +22,13 @@ int char_buf_to_hex_buf(char *src, int src_count, char *hex, int hex_count)
 	return 0;
 }
 
-char *char_buf_to_hex_str(char *src, int src_count)
+asmlinkage char *char_buf_to_hex_str(char *src, int src_count)
 {
 	char *hex;
 	int hex_count;
+
+	if (!src)
+		return NULL;
 
 	if (src_count == 0)
 		src_count = crt_strlen(src);

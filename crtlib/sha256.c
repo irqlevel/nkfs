@@ -33,7 +33,7 @@ static void polarssl_zeroize( void *v, size_t n ) {
     volatile unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 
-void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
+asmlinkage void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
 {
     uint32_t temp1, temp2, W[64];
     uint32_t A, B, C, D, E, F, G, H;
@@ -164,12 +164,12 @@ void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
     ctx->state[7] += H;
 }
 
-void sha256_init( struct sha256_context *ctx )
+asmlinkage void sha256_init( struct sha256_context *ctx )
 {
     crt_memset( ctx, 0, sizeof( struct sha256_context ) );
 }
 
-void sha256_starts( struct sha256_context *ctx, int is224 )
+asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 )
 {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
@@ -202,7 +202,7 @@ void sha256_starts( struct sha256_context *ctx, int is224 )
     ctx->is224 = is224;
 }
 
-void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *input,
                     size_t ilen )
 {
     size_t fill;
@@ -242,7 +242,7 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
 
 
 
-void sha256_finish( struct sha256_context *ctx, unsigned char output[32] )
+asmlinkage void sha256_finish( struct sha256_context *ctx, unsigned char output[32] )
 {
     uint32_t last, padn;
     uint32_t high, low;
@@ -273,7 +273,7 @@ void sha256_finish( struct sha256_context *ctx, unsigned char output[32] )
         PUT_UINT32_BE( ctx->state[7], output, 28 );
 }
 
-void sha256_free( struct sha256_context *ctx )
+asmlinkage void sha256_free( struct sha256_context *ctx )
 {
     if( ctx == NULL )
         return;
@@ -281,7 +281,7 @@ void sha256_free( struct sha256_context *ctx )
     polarssl_zeroize( ctx, sizeof( struct sha256_context ) );
 }
 
-void sha256( const unsigned char *input, size_t ilen,
+asmlinkage void sha256( const unsigned char *input, size_t ilen,
              unsigned char output[32], int is224 )
 {
     struct sha256_context ctx;
@@ -293,7 +293,7 @@ void sha256( const unsigned char *input, size_t ilen,
     sha256_free( &ctx );
 }
 
-void __sha256_test(void)
+asmlinkage void __sha256_test(void)
 {
 	unsigned char *data = (unsigned char *)"blabla";
 	unsigned char sum[32];

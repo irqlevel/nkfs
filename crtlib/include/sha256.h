@@ -23,7 +23,7 @@ struct sha256_context
  * \param output   SHA-224/256 checksum result
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
-void sha256( const unsigned char *input, size_t ilen,
+extern asmlinkage void sha256( const unsigned char *input, size_t ilen,
            unsigned char output[32], int is224 );
            
 /**
@@ -31,14 +31,14 @@ void sha256( const unsigned char *input, size_t ilen,
  *
  * \param ctx      SHA-256 context to be initialized
  */
-void sha256_init( struct sha256_context *ctx );
+extern asmlinkage void sha256_init( struct sha256_context *ctx );
 
 /**
  * \brief          Clear SHA-256 context
  *
  * \param ctx      SHA-256 context to be cleared
  */
-void sha256_free( struct sha256_context *ctx );
+extern asmlinkage void sha256_free( struct sha256_context *ctx );
 
 /**
  * \brief          SHA-256 context setup
@@ -46,7 +46,7 @@ void sha256_free( struct sha256_context *ctx );
  * \param ctx      context to be initialized
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
-void sha256_starts( struct sha256_context *ctx, int is224 );
+extern asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 );
 
 /**
  * \brief          SHA-256 process buffer
@@ -55,7 +55,7 @@ void sha256_starts( struct sha256_context *ctx, int is224 );
  * \param input    buffer holding the  data
  * \param ilen     length of the input data
  */
-void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+extern asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *input,
                     size_t ilen );
 
 /**
@@ -64,7 +64,7 @@ void sha256_update( struct sha256_context *ctx, const unsigned char *input,
  * \param ctx      SHA-256 context
  * \param output   SHA-224/256 checksum result
  */
-void sha256_finish(struct sha256_context *ctx, unsigned char output[32]);
+extern asmlinkage void sha256_finish(struct sha256_context *ctx, unsigned char output[32]);
 
-void __sha256_test(void);
+extern asmlinkage void __sha256_test(void);
 

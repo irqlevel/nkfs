@@ -5,6 +5,6 @@
 #define DS_E_UNK_IOCTL	DS_E_BASE + 2
 #define DS_E_BUF_SMALL	DS_E_BASE + 3
 
-extern char *ds_error(int err);
+extern asmlinkage char *ds_error(int err);
 
 

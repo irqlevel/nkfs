@@ -36,7 +36,6 @@
 #include <inc/dev_io.h>
 #include <inc/net.h>
 #include <inc/random.h>
-#include <inc/obj_id.h>
 #include <inc/file.h>
 #include <inc/image.h>
 

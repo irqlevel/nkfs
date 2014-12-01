@@ -1,11 +1,11 @@
 #include <crtlib/include/crtlib.h>
 
-char *ds_obj_id_to_str(struct ds_obj_id *id)
+asmlinkage char *ds_obj_id_to_str(struct ds_obj_id *id)
 {
-	return char_buf_to_hex_str(id->bytes, sizeof(id->bytes));
+	return char_buf_to_hex_str((char *)id, sizeof(*id));
 }
 
-struct ds_obj_id *ds_obj_id_gen(void)
+asmlinkage struct ds_obj_id *ds_obj_id_gen(void)
 {
 	struct ds_obj_id *id;
 	int err;

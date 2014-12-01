@@ -1,6 +1,6 @@
 #include <crtlib/include/crtlib.h>
 
-char *ds_error(int err)
+asmlinkage char *ds_error(int err)
 {
 	switch (err) {
 		case DS_E_NO_MEM:
