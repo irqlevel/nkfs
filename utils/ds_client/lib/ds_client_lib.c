@@ -1,10 +1,7 @@
 #include <include/ds_client.h>
-
-#define PACKET_SIZE 1024
-
 /* 
  * Handle error according to code from server  
- * was tested, work properly 
+ * tested, work properly 
  * if server sends just integer value 
  */
 static int err_code_handle(struct con_handle con,int err)
@@ -35,6 +32,28 @@ static int err_code_handle(struct con_handle con,int err)
 	
 	return 0;
 	
+}
+
+static int send_cmd_packet(struct con_handle *con,struct ds_cmd *cmd)
+{
+	int err = 1;
+
+	if((send(con->sock,&cmd,sizeof(cmd),0))<0) {
+		CLOG(CL_ERR, "send(),cmd failed to send");
+		goto out;
+	} 
+
+	if((send(con->sock,cmd->data,cmd->data_size,0))<0) {
+		CLOG(CL_ERR, "send(),cmd data failed to send");
+		goto out;
+	} 
+
+	if(err_code_handle(*con,cmd->error))
+		goto out;
+
+	err = 0;
+	out:
+		return err;
 }
 
 static int con_handle_init(struct con_handle *con)
@@ -104,25 +123,13 @@ int  ds_put_object(struct con_handle *con,struct ds_obj_id *id, char *data, uint
 	cmd.obj_id = *id;
 	cmd.cmd = 2; /* 2 - put object */
 	cmd.data_off = 0;
+	cmd.error = 0;
 	
-	if((send(con->sock,&cmd,sizeof(cmd),0))<0) {
-		CLOG(CL_ERR, "ds_put_object() -> send() packet failed to send");
-		goto out;
-	} 
+	if(send_cmd_packet(con,&cmd))
+		return err;
 
-	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
-		CLOG(CL_ERR, "ds_put_object() -> send() packet data failed to send");
-		goto out;
-	}
-
-	if (err_code_handle(*con,cmd.error)) 
-		goto out;
-
-	err = 0;
-
-	out:
-		crt_free(cmd.data);
-		return err;	
+	crt_free(cmd.data);
+	return 0;
 }
 
 int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj_size)
@@ -147,17 +154,8 @@ int  ds_create_object(struct con_handle *con, struct ds_obj_id *id, uint64_t obj
 	cmd.cmd = 1; /* 1 - create object */
 	cmd.data_off = 0;
 	cmd.error = 0;
-	/* Command packet data represents size of future object */
-	if((send(con->sock,&cmd,sizeof(cmd),0))<0) {
-		CLOG(CL_ERR, "ds_create_object() -> send(), cmd failed to send");
-		goto out;
-	} 
-	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
-		CLOG(CL_ERR, "ds_create_object() -> send(), cmd data failed to send");
-		goto out;
-	} 
 	
-	if (err_code_handle(*con,cmd.error)) 
+	if(send_cmd_packet(con,&cmd))
 		goto out;
 	
 	err = 0;
@@ -182,20 +180,11 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 	cmd.obj_id = *id;
 	cmd.cmd = 3; /* 3 - delete object */
 	cmd.data_off = 0;
-	/* Command packet data represents size of future object */
-	if((send(con->sock,&cmd,sizeof(cmd),0))<0) {
-		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd failed to send");
+	cmd.error = 0;
+	
+	if(send_cmd_packet(con,&cmd))
 		goto out;
-	} 
-
-	if((send(con->sock,cmd.data,cmd.data_size,0))<0) {
-		CLOG(CL_ERR, "ds_delete_object() -> send(), cmd data failed to send");
-		goto out;
-	} 
-
-	if (err_code_handle(*con,cmd.error)) 
-		goto out;
-
+	
 	err = 0;
 
 	out:
@@ -205,18 +194,44 @@ int  ds_delete_object(struct con_handle *con,struct ds_obj_id *id)
 
 int  ds_get_object(struct con_handle *con,struct ds_obj_id *id, char *data, uint64_t data_size)
 {
+	struct ds_cmd cmd;
+	ssize_t count_bytes;
 	int err = DS_E_OBJ_GET;
-
-	err = recv(con->sock,data,data_size,0);
-
-	if (err<0) {
-		CLOG(CL_ERR, "ds_get_object() -> recv() failed receive packet data");
+	/*
+	 * 1) Send object id that client requested and get command
+	 * 2) Receive data of requested object
+	*/
+	cmd.data = crt_malloc(sizeof(struct ds_obj_id));
+	if (!cmd.data) {
+		CLOG(CL_ERR, "ds_get_object() -> failed to allocate space for cmd data");
 		return err;
+	}
+	
+	crt_memcpy(cmd.data,id->bytes,sizeof(id->bytes));
+	cmd.data_size = sizeof(struct ds_obj_id);
+	cmd.obj_id = *id;
+	cmd.cmd = 4; /* 4 - get object */
+	cmd.data_off = 0;
+	cmd.error = 0;
+	
+	if(send_cmd_packet(con,&cmd))
+		goto out;
+
+	count_bytes = recv(con->sock,data,data_size,0);
+	if (!count_bytes) {
+		CLOG(CL_ERR, "ds_get_object()->recv(),connection has been closed");
+		goto out;
+	}
+
+	if (count_bytes<0) {
+		CLOG(CL_ERR, "ds_get_object()->recv(),failed receive object data");
+		goto out;
 	}
 
 	err = 0;
-	
-	return err;
+	out:
+		crt_free(cmd.data); 
+		return err;
 }
 
 void ds_close(struct con_handle *con)
