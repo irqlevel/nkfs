@@ -4,12 +4,14 @@
 
 #define DS_IMAGE_VER_1	1
 
+#pragma pack(push, 1)
 struct ds_image_header {
 	__be32			magic;
 	__be32			version;
 	__u64			size;
 	struct ds_obj_id	id;
 };
+#pragma pack(pop)
 
 static inline __u32 ds_image_header_magic(struct ds_image_header *header)
 {
