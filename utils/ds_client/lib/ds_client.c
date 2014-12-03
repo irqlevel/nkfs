@@ -1,14 +1,23 @@
 #include <include/ds_client.h>
 #include <include/ds_net_cmd.h>
 
+static void con_fail(struct ds_con *con, int err)
+{
+	con->err = err;
+}
+
+static int con_check(struct ds_con *con)
+{
+	return con->err;
+}
+
 static int con_send(struct ds_con *con, void *buf, uint32_t size)
 {
 	ssize_t sent = 0, total_sent = 0;
 	int err;
 
-	if (con->err) {
-		CLOG(CL_ERR, "con err %d", con->err);
-		err = con->err;
+	if ((err = con_check(con))) {
+		CLOG(CL_ERR, "con err %d", err);
 		goto out;
 	}
 
@@ -17,7 +26,7 @@ static int con_send(struct ds_con *con, void *buf, uint32_t size)
 		if (sent < 0) {
 			err = errno;
 			CLOG(CL_ERR, "send err %d", err);
-			con->err = err;
+			con_fail(con, err);
 			goto out;
 		}
 		total_sent+= sent;
@@ -32,9 +41,8 @@ static int con_recv(struct ds_con *con, void *buf, uint32_t size)
 	ssize_t recvd = 0, total_recvd = 0;
 	int err;
 
-	if (con->err) {
-		CLOG(CL_ERR, "con err %d", con->err);
-		err = con->err;
+	if ((err = con_check(con))) {
+		CLOG(CL_ERR, "con err %d", err);
 		goto out;
 	}
 
@@ -43,7 +51,7 @@ static int con_recv(struct ds_con *con, void *buf, uint32_t size)
 		if (recvd < 0) {
 			err = errno;
 			CLOG(CL_ERR, "recv err %d", err);
-			con->err = err;
+			con_fail(con, err);
 			goto out;
 		}
 		total_recvd+= recvd;
@@ -56,16 +64,20 @@ out:
 static int con_init(struct ds_con *con)
 {
 	int sock;
+	int err;
 
 	memset(con, 0, sizeof(*con));	
 	sock = socket(AF_INET,SOCK_STREAM,0);
-	if (sock<0) {
+	if (sock < 0) {
 		CLOG(CL_ERR, "con_handle_init() -> socket() failed");
-		return DS_E_CON_INIT_FAILED;
+		err =  DS_E_CON_INIT_FAILED;
+		con_fail(con, err);
+		goto out;
 	} 
 	con->sock = sock;
-
-	return 0;
+	err = 0;
+out:
+	return err;
 }
 
 int ds_connect(struct ds_con *con, char *ip, int port)
