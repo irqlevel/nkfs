@@ -1,5 +1,4 @@
-CC=gcc
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
+include $(PROJ_ROOT)/Makefile.inc
 
 all: ds_ctl
 	cp ds_ctl $(PROJ_ROOT)/bin/ds_ctl

@@ -1,7 +1,7 @@
-CC=gcc
-AR=ar
-ARCH_BITS=$(shell getconf LONG_BIT)
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
+include $(PROJ_ROOT)/Makefile.inc
+
+CFLAGS+= -D __CRT_LIB__
+
 CFLAGS_KERNEL=$(CFLAGS) -D __KERNEL__
 ifeq ($(ARCH_BITS), 64)
 CFLAGS_KERNEL+= -mcmodel=kernel
@@ -10,7 +10,7 @@ endif
 LIB_OUT = crtlib.a
 LIB_KOUT = crtlib_km.a
 
-LIBS_SRC = sha256.c char2hex.c error.c obj_id.c
+LIBS_SRC = random.c sha256.c char2hex.c error.c obj_id.c
 
 OBJS = $(LIBS_OBJ) $(LIBS_KOBJ)
 

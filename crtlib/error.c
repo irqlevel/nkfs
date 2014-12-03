@@ -19,6 +19,8 @@ asmlinkage char *ds_error(int err)
 		return "connection initialization failed";
 	case DS_E_OBJ_GET:
 		return "failed to get object";
+	case DS_E_INVAL:
+		return "invalid value";
 	default:
 		return "unknown err code";
 	}

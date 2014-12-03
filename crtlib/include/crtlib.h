@@ -1,11 +1,8 @@
 #pragma once
 
-typedef __SIZE_TYPE__ size_t;
-typedef unsigned int uint32_t;
-
-#ifndef NULL
-#define NULL 0
-#endif
+#include <include/types.h>
+#include <include/ds_obj_id.h>
+#include <include/ds_net_cmd.h>
 
 #ifndef asmlinkage
 #define asmlinkage __attribute__((regparm(0)))
@@ -58,4 +55,6 @@ extern asmlinkage void crt_log(int level, const char *file, int line,
 #include <crtlib/include/error.h>
 #include <crtlib/include/sha256.h>
 #include <crtlib/include/clog.h>
+#include <crtlib/include/netcmd.h>
+#include <crtlib/include/random.h>
 

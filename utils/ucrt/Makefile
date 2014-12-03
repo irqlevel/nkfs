@@ -1,7 +1,6 @@
-CC=gcc
-AR=ar
+include $(PROJ_ROOT)/Makefile.inc
 
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT)
+CFLAGS+=-D __CRT_LIB__
 
 LIB_OUT = ucrt.a
 

@@ -13,10 +13,10 @@
 #ifndef GET_UINT32_BE
 #define GET_UINT32_BE(n,b,i)                            \
 {                                                       \
-    (n) = ( (uint32_t) (b)[(i)    ] << 24 )             \
-        | ( (uint32_t) (b)[(i) + 1] << 16 )             \
-        | ( (uint32_t) (b)[(i) + 2] <<  8 )             \
-        | ( (uint32_t) (b)[(i) + 3]       );            \
+    (n) = ( (u32) (b)[(i)    ] << 24 )             \
+        | ( (u32) (b)[(i) + 1] << 16 )             \
+        | ( (u32) (b)[(i) + 2] <<  8 )             \
+        | ( (u32) (b)[(i) + 3]       );            \
 }
 #endif
 
@@ -35,8 +35,8 @@ static void polarssl_zeroize( void *v, size_t n ) {
 
 asmlinkage void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
 {
-    uint32_t temp1, temp2, W[64];
-    uint32_t A, B, C, D, E, F, G, H;
+    u32 temp1, temp2, W[64];
+    u32 A, B, C, D, E, F, G, H;
 
     GET_UINT32_BE( W[ 0], data,  0 );
     GET_UINT32_BE( W[ 1], data,  4 );
@@ -206,7 +206,7 @@ asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *
                     size_t ilen )
 {
     size_t fill;
-    uint32_t left;
+    u32 left;
 
     if( ilen == 0 )
         return;
@@ -214,10 +214,10 @@ asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *
     left = ctx->total[0] & 0x3F;
     fill = 64 - left;
 
-    ctx->total[0] += (uint32_t) ilen;
+    ctx->total[0] += (u32) ilen;
     ctx->total[0] &= 0xFFFFFFFF;
 
-    if( ctx->total[0] < (uint32_t) ilen )
+    if( ctx->total[0] < (u32) ilen )
         ctx->total[1]++;
 
     if( left && ilen >= fill )
@@ -244,8 +244,8 @@ asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *
 
 asmlinkage void sha256_finish( struct sha256_context *ctx, unsigned char output[32] )
 {
-    uint32_t last, padn;
-    uint32_t high, low;
+    u32 last, padn;
+    u32 high, low;
     unsigned char msglen[8];
 
     high = ( ctx->total[0] >> 29 )

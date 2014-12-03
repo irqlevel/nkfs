@@ -1,6 +1,4 @@
-CC=gcc
-AR=ar
-CFLAGS=-c -Wall -Werror -I$(PROJ_ROOT) 
+include $(PROJ_ROOT)/Makefile.inc
 
 LIB_OUT=ds_client.a
 BIN_OUT=ds_client

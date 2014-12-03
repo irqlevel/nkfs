@@ -13,21 +13,23 @@
 #include <errno.h>
 #include <utils/ucrt/include/ucrt.h>
 #include <include/ds_obj_id.h>
+#include <include/types.h>
 
-/* Represent host connection */
+#pragma pack(push, 1)
 struct ds_con {
 	int sock;
 	int err;
 };
+#pragma pack(pop)
 
-int  ds_connect(struct ds_con *con,char *ip,int port);
+int  ds_connect(struct ds_con *con, char *ip, int port);
 
 void ds_close(struct ds_con *con);
 
-int  ds_create_object(struct ds_con *con, struct ds_obj_id *id, uint64_t obj_size); 
+int  ds_create_object(struct ds_con *con, struct ds_obj_id *id, u64 obj_size); 
 
-int  ds_put_object(struct ds_con *con, struct ds_obj_id *id, uint64_t off, void *data, uint32_t data_size);
+int  ds_put_object(struct ds_con *con, struct ds_obj_id *id, u64 off, void *data, u32 data_size);
 
-int  ds_get_object(struct ds_con *con,struct ds_obj_id *id, uint64_t off, void *data, uint32_t data_size, uint32_t *read_size);
+int  ds_get_object(struct ds_con *con,struct ds_obj_id *id, u64 off, void *data, u32 data_size, u32 *read_size);
 
 int  ds_delete_object(struct ds_con *con,struct ds_obj_id *id);

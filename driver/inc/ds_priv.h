@@ -25,6 +25,7 @@
 #include <include/ds_cmd.h>
 #include <include/ds_obj_id.h>
 #include <include/ds_image.h>
+#include <include/ds_net_cmd.h>
 
 #include <crtlib/include/crtlib.h>
 
