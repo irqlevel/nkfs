@@ -73,7 +73,7 @@ int main(int argc, const char *argv[])
 		goto discon;
 	}	
 
-	if (sizeof(obj_body) != memcmp(obj_body_ret, obj_body, sizeof(obj_body))) {
+	if (0 != memcmp(obj_body_ret, obj_body, sizeof(obj_body))) {
 		CLOG(CL_ERR, "memcmp objects err");
 		err = -EINVAL;
 		goto discon;
