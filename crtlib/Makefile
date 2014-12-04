@@ -1,6 +1,6 @@
 include $(PROJ_ROOT)/Makefile.inc
 
-CFLAGS+= -D __CRT_LIB__
+CFLAGS= $(COMMON_CFLAGS) -D __CRT_LIB__
 
 CFLAGS_KERNEL=$(CFLAGS) -D __KERNEL__
 ifeq ($(ARCH_BITS), 64)

@@ -1,6 +1,6 @@
 include $(PROJ_ROOT)/Makefile.inc
 
-CFLAGS+=-D __CRT_LIB__
+CFLAGS=$(COMMON_CFLAGS) -D __CRT_LIB__
 
 LIB_OUT = ucrt.a
 

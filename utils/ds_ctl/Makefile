@@ -1,5 +1,7 @@
 include $(PROJ_ROOT)/Makefile.inc
 
+CFLAGS = $(COMMON_CFLAGS)
+
 all: ds_ctl
 	cp ds_ctl $(PROJ_ROOT)/bin/ds_ctl
 

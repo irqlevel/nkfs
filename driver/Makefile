@@ -1,6 +1,8 @@
+include $(PROJ_ROOT)/Makefile.inc
+
 obj-m = ds.o
 
-ccflags-y := -I$(src) -I$(PROJ_ROOT) -g3 -Wall -Werror -D __KERNEL__
+ccflags-y := -I$(src) -g3 -D __KERNEL__ $(COMMON_CFLAGS)
 
 ds-y := module.o dev_io.o dev.o net.o random.o file.o \
 	image.o crt.o btree.o amap.o \

@@ -4,6 +4,12 @@
 #define NULL 0
 #endif
 
+#if ARCH_BITS == 64
+#elif ARCH_BITS == 32
+#else
+#error "unsupported arch bits"
+#endif
+
 #ifdef __CRT_LIB__
 typedef __UINT16_TYPE__ u16;
 typedef __UINT32_TYPE__ u32;
