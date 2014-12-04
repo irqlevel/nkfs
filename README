@@ -1,36 +1,38 @@
-Проект - распределенная децентрализованная система постоянного хранения объектов.
+Distributed decentralized persistent object storage system.
 
-Особенности:
-0. распределенность - система состоит из неограниченного числа компьютеров связанных по сети в виде графа - сети малого мира.
-1. децентрализация - ни один из компьютеров сети не имеет преимущества и не хранит метаинформацию о всей системе.
-каждый компьютер хранит только часть информации о соседях и соседних объектах.
-2. поддержка следующего API: 
-К любому компьютеру сети можно подключиться и выполнить следующие операции:
-obj_id = put_object(object_data), del_object(obj_id), object_data = get_object(obj_id).
-3. гибкая репликация. репликация объектов будет осуществляться с помощью алгоритма (n,k) схемы.
-каждый объект будет распилен на n кусков и распределен по системе серверов. из любых k кусков данного
-обьекта можно будет собрать оригинальный объект.
-4. гибкая топология сети - компьютеры добавляются и удаляются, соседи меняются - но сеть работает.
-5. отказоустойчивость - достигается 0,1,3 пунктами.
-6. быстрый поиск и извлечения объекта по его id с любого компьютера сети.
+Features:
+0. Distributed - system consists of unlimited computer nodes connected in
+"small world" network.
+1. Decentralized - no one computer node is a center and no one computer node
+holds meta information about all system. Each computer node holds only a piace
+of meta and data of storage system.
+2. Object storage API - CREATE/PUT/GET/DELETE.
+3. Flexible replication of meta/data of storage system by so called algorithm
+ - "(n, k) schema".
+Each data can be converted to a N parts, and only K (K < N) parts is need
+to restore origin object.
+4. Flexible network topology - computer nodes can be added/removed to/from
+storage.
+5. Self-healing system. system should resurects in many cases of faults.
+6. Fast object searching by assigned unique id.
 
-Как это будет сделано:
-1. в ядре linux в виде kernel module(KM)
-2. KM будет являться сетевым клиентом(в том смысле что он будет обращаться к другим компьютерам сети) и сервером одновременно(для
-приема соседей, поисковых запросов и размещения кусков объектов).
-3. KM будет осуществлять хранения кусков обьектов в заданных пользователем девайсах. реализуя над девайсом -
-что-то вроде файловой системы, но это не совсем так. на девайсе будут в прямом виде лежать куски объектов.
-4. каждый компьютер сети ставит себе KM, настраивает девайсы(для хранения кусков объектов) и подключается
-к остальным компьютерам сети.
-5. клиенты могут подключиться к любому компьютеру сети и воспользоваться API (смотри пункт 2 из "особенности).
+Implementaion:
+we do that in linux kernel mode primary for perfomance reasons.
+In each computer node of system we build and run linux kernel module
+that:
+1) can lock/control block devices to store piaces of meta/data of objects.
+2) is a server that can connects to other computers nodes
+and receive client requests.
 
-HOW TO BUILD:
+How to build:
 cd project_dir
-export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL(full sources or just kernel-devel package).
+export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES.
 make
-HOW TO RUN:
+
+How to run:
 sudo insmod bin/ds.ko #load kernel module
 sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
 sudo bin/ds_ctl --server_start PORT_NUMBER #run network server on 0.0.0.0:PORT_NUMBER
-HOW TO CHECK DS EXECUTION LOG:
+
+How to check storage log:
 See dmesg or /var/log/ds.log
