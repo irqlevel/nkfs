@@ -15,6 +15,7 @@ to restore origin object.
 storage.
 5. Self-healing system. system should resurects in many cases of faults.
 6. Fast object searching by assigned unique id.
+7. Persistent - we store objects at persistent linux devices like HDDs.
 
 Implementaion:
 we do that in linux kernel mode primary for perfomance reasons.
