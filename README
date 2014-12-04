@@ -4,7 +4,7 @@ Features:
 0. Distributed - system consists of unlimited computer nodes connected in
 "small world" network.
 1. Decentralized - no one computer node is a center and no one computer node
-holds meta information about all system. Each computer node holds only a piace
+holds meta information about all system. Each computer node holds only a parts
 of meta and data of storage system.
 2. Object storage API - CREATE/PUT/GET/DELETE.
 3. Flexible replication of meta/data of storage system by so called algorithm
@@ -20,7 +20,7 @@ Implementaion:
 we do that in linux kernel mode primary for perfomance reasons.
 In each computer node of system we build and run linux kernel module
 that:
-1) can lock/control block devices to store piaces of meta/data of objects.
+1) can lock/control block devices to store parts of meta/data of objects.
 2) is a server that can connects to other computers nodes
 and receive client requests.
 
