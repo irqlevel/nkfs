@@ -1,4 +1,4 @@
-Distributed decentralized persistent object storage system.
+Distributed decentralized persistent data storage system.
 
 Features:
 0. Distributed - system consists of unlimited computer nodes connected in
@@ -6,16 +6,16 @@ Features:
 1. Decentralized - no one computer node is a center and no one computer node
 holds meta information about all system. Each computer node holds only a parts
 of meta and data of storage system.
-2. Object storage API - CREATE/PUT/GET/DELETE.
+2. Data storage API - CREATE/PUT/GET/DELETE.
 3. Flexible replication of meta/data of storage system by so called algorithm
  - "(n, k) schema".
 Each data can be converted to a N parts, and only K (K < N) parts is need
-to restore origin object.
+to restore origin data.
 4. Flexible network topology - computer nodes can be added/removed to/from
 storage.
 5. Self-healing system. system should resurects in many cases of faults.
-6. Fast object searching by assigned unique id.
-7. Persistent - we store objects at persistent linux devices like HDDs.
+6. Fast data searching by assigned unique id.
+7. Persistent - we store data at persistent pool of linux devices like HDDs.
 
 Implementaion:
 we do that in linux kernel mode primary for perfomance reasons.
