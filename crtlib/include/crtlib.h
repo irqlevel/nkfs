@@ -55,6 +55,6 @@ extern asmlinkage void crt_log(int level, const char *file, int line,
 #include <crtlib/include/error.h>
 #include <crtlib/include/sha256.h>
 #include <crtlib/include/clog.h>
-#include <crtlib/include/netcmd.h>
+#include <crtlib/include/net_cmd.h>
 #include <crtlib/include/random.h>
 
