@@ -8,7 +8,7 @@
 struct ds_image_header {
 	__be32			magic;
 	__be32			version;
-	__u64			size;
+	__be64			size;
 	struct ds_obj_id	id;
 };
 #pragma pack(pop)
