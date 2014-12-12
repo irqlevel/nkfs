@@ -28,7 +28,7 @@ static void prepare_logging()
 int main(int argc, const char *argv[])
 {
 #define OBJ_BODY "This is object body bytes"
-	struct ds_obj_id *obj_id;
+	struct ds_obj_id obj_id;
 	int err;
 	struct ds_con con;
 	char obj_body[] = OBJ_BODY;
@@ -37,31 +37,31 @@ int main(int argc, const char *argv[])
 
 	prepare_logging();
 
-	obj_id = ds_obj_id_gen();
-	if (!obj_id) {
-		CLOG(CL_ERR, "cant gen obj id");
+	err = ds_obj_id_gen(&obj_id);
+	if (err) {
+		CLOG(CL_ERR, "cant gen obj id err %d", err);
 		goto out;
 	}
 
 	err = ds_connect(&con, "127.0.0.1", 9111);
 	if (err) {
 		CLOG(CL_ERR, "ds_connect failed err %d", err);
-		goto obj_id_free;
+		goto out;
 	}
 	
-	err = ds_create_object(&con, obj_id, sizeof(obj_body));
+	err = ds_create_object(&con, &obj_id, sizeof(obj_body));
 	if (err) {
 		CLOG(CL_ERR, "ds_create_object err %d", err);
 		goto discon;
 	}
 
-	err = ds_put_object(&con, obj_id, 0, obj_body, sizeof(obj_body));
+	err = ds_put_object(&con, &obj_id, 0, obj_body, sizeof(obj_body));
 	if (err) {
 		CLOG(CL_ERR, "ds_put_object err %d", err);
 		goto discon;
 	}
 
-	err = ds_get_object(&con, obj_id, 0, obj_body_ret, sizeof(obj_body_ret), &obj_size);
+	err = ds_get_object(&con, &obj_id, 0, obj_body_ret, sizeof(obj_body_ret), &obj_size);
 	if (err) {
 		CLOG(CL_ERR, "ds_get_object err %d", err);
 		goto discon;
@@ -81,8 +81,6 @@ int main(int argc, const char *argv[])
 
 discon:
 	ds_close(&con);
-obj_id_free:
-	crt_free(obj_id);
 out:
 	return err;
 }

@@ -1,15 +1,13 @@
 #pragma once
 
 struct ds_image {
-	__u32	magic;
-	__u32	version;
-	__u64	size;
-	struct ds_obj_id id;
+	struct ds_image_header header;
+	struct amap map;
+	struct ds_dev *dev;
 };
 
+void ds_image_delete(struct ds_image *image);
+void ds_image_stop(struct ds_image *image);
 
-int ds_image_check(struct ds_dev *dev);
-int ds_image_format(struct ds_dev *dev);
-void ds_image_dev_free(struct ds_dev *dev);
-void ds_image_dev_stop(struct ds_dev *dev);
-
+int ds_image_format(struct ds_dev *dev, struct ds_image **pimage);
+int ds_image_load(struct ds_dev *dev, struct ds_image **pimage);

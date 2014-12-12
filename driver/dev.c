@@ -7,7 +7,8 @@ static LIST_HEAD(dev_list);
 
 static void ds_dev_free(struct ds_dev *dev)
 {
-	ds_image_dev_free(dev);
+	if (dev->image)
+		ds_image_delete(dev->image);
 	if (dev->dev_name)
 		kfree(dev->dev_name);
 	kfree(dev);
@@ -130,7 +131,9 @@ static int ds_dev_thread_routine(void *data)
 		if (dev->stopping)
 			break;
 	}
-	ds_image_dev_stop(dev);
+
+	if (dev->image)
+		ds_image_stop(dev->image);
 	klog(KL_DBG, "dev %p exiting", dev);
 	return err;
 }
@@ -139,10 +142,11 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 {
 	int err;
 
+	BUG_ON(dev->image);
 	if (!format)
-		err = ds_image_check(dev);
+		err = ds_image_load(dev, &dev->image);
 	else
-		err = ds_image_format(dev);
+		err = ds_image_format(dev, &dev->image);
 
 	if (err) {
 		klog(KL_ERR, "check or format err %d", err);
