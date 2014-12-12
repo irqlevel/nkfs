@@ -555,7 +555,7 @@ void amap_node_io_complete(void *context, int err, int rw, struct page *page, u6
 void amap_io(struct amap *map, int rw, struct page *page, u64 off,
 		void *context, io_complete_t complete)
 {
-	unsigned long index = off/PAGE_SIZE;
+	unsigned long index = off >> PAGE_SHIFT;
 	int err;
 	struct amap_req *req;
 	struct amap_node *node;

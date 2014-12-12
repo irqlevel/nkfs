@@ -69,8 +69,8 @@ int ds_image_format(struct ds_dev *dev)
 	ds_image_header_set_id(header, &dev->image->id);
 	ds_image_header_set_size(header,  dev->image->size);
 
-	err = ds_dev_io_page(dev, DIO_CONTEXT_NULL, page, 0, REQ_WRITE|REQ_FUA,
-			DIO_SYNC, DIO_COMPCLB_NULL);
+	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0, REQ_WRITE|REQ_FUA,
+			DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		kfree(dev->image);
@@ -102,8 +102,8 @@ int ds_image_check(struct ds_dev *dev)
 	header = kmap(page);
 	memset(header, 0, PAGE_SIZE);
 
-	err = ds_dev_io_page(dev, DIO_CONTEXT_NULL, page, 0, DIO_RW_FLAGS_READ,
-			DIO_SYNC, DIO_COMPCLB_NULL);
+	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0, DS_IO_READ,
+			DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		goto free_page;

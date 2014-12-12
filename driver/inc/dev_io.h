@@ -1,11 +1,11 @@
 #pragma once
 
-#define DIO_ASYNC		0
-#define DIO_SYNC		1
+#define DS_IO_ASYNC		0
+#define DS_IO_SYNC		1
 
-#define DIO_RW_FLAGS_READ	0
-#define DIO_CONTEXT_NULL	NULL
-#define	DIO_COMPCLB_NULL	NULL
+#define DS_IO_READ		0
+#define DS_IO_CTX_NULL		NULL
+#define	DS_IO_COMP_NULL		NULL
 
 typedef void (*ds_dev_io_complete_t)(int err, struct ds_dev *dev,
 		void *context, struct page *page, u64 off,

@@ -123,15 +123,15 @@ int ds_dev_io_touch0_page(struct ds_dev *dev)
 		return -ENOMEM;
 	}
 
-	err = ds_dev_io_page(dev, DIO_CONTEXT_NULL, page, 0,
-			DIO_RW_FLAGS_READ, DIO_SYNC, DIO_COMPCLB_NULL);
+	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0,
+			DS_IO_READ, DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);
 		goto out;
 	}
 
-	err = ds_dev_io_page(dev, DIO_CONTEXT_NULL, page, 0,
-			REQ_WRITE, DIO_SYNC, DIO_COMPCLB_NULL);
+	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0,
+			REQ_WRITE, DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
 		klog(KL_ERR, "ds_dev_io_page err %d", err);	
 		goto out;
