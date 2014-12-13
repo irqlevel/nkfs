@@ -139,7 +139,7 @@ int ds_dev_io_touch0_page(struct ds_dev *dev)
 
 	err = 0;
 out:
-	__free_page(page);
+	put_page(page);
 	return err;
 }
 
