@@ -10,9 +10,8 @@
 holds meta information about all system. Each computer node holds only a parts
 of meta and data of storage system.
 3. Data storage API - CREATE/PUT/GET/DELETE.
-4. Flexible replication of meta/data of storage system by so called algorithm
- - "(n, k) schema".
-Each data can be converted to a N parts, and only K (K < N) parts is need
+4. Flexible replication of meta/data of storage system by so called algorithm "(n, k) schema":
+each data can be converted to a N parts, and only K (K < N) parts is need
 to restore origin data.
 5. Flexible network topology - computer nodes can be added/removed to/from
 storage.
