@@ -6,11 +6,11 @@ before_install:
     - sudo apt-get update -qq
 
 install:
-    - pwd
+    - mkdir linux-stable
 
 script:
-    - pwd
-    - export DS_KERNEL_PATH=linux-stable
+    - ls -al $(pwd)/linux-stable
+    - export DS_KERNEL_PATH=$(pwd)/linux-stable
     - make
 
 notifications:
