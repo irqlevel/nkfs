@@ -6,6 +6,7 @@ before_install:
     - sudo apt-get update -qq
 
 install:
+    - sudo apt-get install linux-headers-$(uname -r)
     - sudo apt-get install make
 
 script:
