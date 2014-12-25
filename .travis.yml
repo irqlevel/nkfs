@@ -1,0 +1,17 @@
+language: c
+
+compiler: gcc
+
+before_install:
+    - sudo apt-get update -qq
+
+install:
+    - sudo apt-get install make
+
+script:
+    - make
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
