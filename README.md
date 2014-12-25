@@ -2,8 +2,7 @@ Distributed decentralized persistent data storage system.
 
 ### build status
 [![build status](https://travis-ci.org/irqlevel/ds.svg?branch=master)](https://travis-ci.org/irqlevel/ds)
-
-```
+`
 Features:
 1. Distributed - system consists of unlimited computer nodes connected in
 "small world" network.
@@ -41,4 +40,4 @@ sudo bin/ds_ctl --server_start PORT_NUMBER #run network server on 0.0.0.0:PORT_N
 
 How to check storage log:
 See dmesg or /var/log/ds.log
-```
+`
