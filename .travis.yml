@@ -4,12 +4,14 @@ compiler: gcc
 
 before_install:
     - sudo apt-get update -qq
+    - git clone git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 
 install:
-    - mkdir linux-stable
+    - pushd .
+    - cd $(pwd)/linux-stable && git checkout master && git pull && git checkout -b b3.17.3 v3.17.3
+    - popd
 
 script:
-    - ls -al $(pwd)/linux-stable
     - export DS_KERNEL_PATH=$(pwd)/linux-stable
     - make
 
