@@ -1,5 +1,8 @@
 Distributed decentralized persistent data storage system.
 
+### Build status
+[![Build Status](https://travis-ci.org/irqlevel/ds.svg?branch=master)](https://travis-ci.org/irqlevel/ds)
+
 Features:
 0. Distributed - system consists of unlimited computer nodes connected in
 "small world" network.
