@@ -37,5 +37,5 @@ and receive client requests.
 - sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
 - sudo bin/ds_ctl --server_start PORT_NUMBER #run network server on 0.0.0.0:PORT_NUMBER
 
-#### How to check storage log:
+#### How to check execution log:
 See dmesg or /var/log/ds.log
