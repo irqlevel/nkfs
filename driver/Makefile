@@ -9,6 +9,10 @@ ds-y := module.o dev_io.o dev.o net.o random.o file.o \
 	klog.o 	ksocket.o \
 	crtlib.o_shipped
 
+ifndef DS_KERNEL_PATH
+DS_KERNEL_PATH=/lib/modules/$(shell uname -r)/build
+endif
+
 all:
 	cp $(PROJ_ROOT)/libs/crtlib_km.a crtlib.o_shipped
 	make -C $(DS_KERNEL_PATH) M=$(PWD) modules
