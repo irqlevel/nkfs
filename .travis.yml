@@ -6,9 +6,10 @@ before_install:
     - sudo apt-get update -qq
 
 install:
-    - git clone git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+    - pwd
 
 script:
+    - pwd
     - export DS_KERNEL_PATH=linux-stable
     - make
 
