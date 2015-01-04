@@ -73,8 +73,10 @@ static void klog_msg_queue(struct klog_msg *msg)
 	unsigned long irqf;
 	int queued = 0;
 	
-	if (klog_stopping)
-		return;
+	if (klog_stopping) {
+		printk(KERN_ERR "klog : stopping drop one msg");
+		klog_msg_free(msg);
+	}
 
 	spin_lock_irqsave(&klog_msg_lock, irqf);
 	if (!klog_stopping) {
@@ -83,8 +85,12 @@ static void klog_msg_queue(struct klog_msg *msg)
 	}
 	spin_unlock_irqrestore(&klog_msg_lock, irqf);
 
-	if (queued)
+	if (!queued) {
+		printk(KERN_ERR "klog : stopping drop one msg");
+		klog_msg_free(msg);
+	} else {
 		wake_up_interruptible(&klog_thread_wait);
+	}
 }
 
 static int klog_file_sync(void)
@@ -160,8 +166,6 @@ static void klog_msg_list_write(struct list_head *msg_list)
 	
 	pos = 0;
 	while (1) {
-		if (list_empty(msg_list))
-			break;
 		list_for_each_entry_safe(msg, tmp, msg_list, list) {
 			if ((pos + msg->len + 1) <= size) {
 				memcpy((char *)buf + pos, msg->data, msg->len);
@@ -173,8 +177,13 @@ static void klog_msg_list_write(struct list_head *msg_list)
 				break;
 			}
 		}
-		klog_file_write(buf, pos);
+
+		if (pos > 0)
+			klog_file_write(buf, pos);
+
 		pos = 0;
+		if (list_empty(msg_list))
+			break;
 	}
 
 	kfree(buf);	
@@ -205,6 +214,16 @@ static void klog_msg_queue_process(void)
 		spin_unlock_irq(&klog_msg_lock);
 		if (!list_empty(&msg_list))
 			klog_msg_list_write(&msg_list);
+	}
+}
+
+static void klog_msg_list_drop(void)
+{
+	struct klog_msg *msg;
+	while (!list_empty(&klog_msg_list)) {
+		msg = list_first_entry(&klog_msg_list, struct klog_msg, list);
+		list_del_init(&msg->list);
+		klog_msg_free(msg);
 	}
 }
 
@@ -254,7 +273,7 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
     	msg->data[count-1] = '\0';
 	msg->len = strlen(msg->data);
 	printk("%s\n", msg->data);
-	klog_msg_queue(msg);	
+	klog_msg_queue(msg);
 }
 
 void klog(int level, const char *subcomp, const char *file,
@@ -321,6 +340,7 @@ void klog_release(void)
 {
 	klog_stopping = 1;	
 	kthread_stop(klog_thread);
+	klog_msg_list_drop();
 	mempool_destroy(klog_msg_pool);
 	kmem_cache_destroy(klog_msg_cache);
 }
