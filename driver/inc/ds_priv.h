@@ -50,5 +50,5 @@
 
 #define SECTOR_SHIFT 9
 
-#define __BTREE_TEST__	1
-#define __SHA_TEST__	1
+#define __BTREE_TEST__	0
+#define __SHA_TEST__	0
