@@ -2,7 +2,7 @@
 
 asmlinkage char *ds_obj_id_to_str(struct ds_obj_id *id)
 {
-	return char_buf_to_hex_str((char *)id, sizeof(*id));
+	return bytes_hex((char *)id, sizeof(*id));
 }
 
 asmlinkage int ds_obj_id_gen(struct ds_obj_id *id)

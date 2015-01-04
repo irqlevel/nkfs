@@ -1,14 +1,11 @@
 #include <inc/ds_priv.h>
 
 #define KLOG_MSG_BYTES	200
-#define KLOG_NAME_BYTES	20
-#define KLOG_PATH "/var/log/"
 
 struct klog_msg {
-	struct list_head 	msg_list;
-	int			level;
-	char			log_name[KLOG_NAME_BYTES];
+	struct list_head 	list;
 	char 			data[KLOG_MSG_BYTES];
+	int			len;
 };
 
 static LIST_HEAD(klog_msg_list);
@@ -21,6 +18,8 @@ static long klog_stopping = 0;
 
 static struct task_struct *klog_thread;
 static DECLARE_WAIT_QUEUE_HEAD(klog_thread_wait);
+
+static char *klog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "TST", "MAX"};
 
 static int klog_write_msg2(char **buff, int *left, const char *fmt, va_list args)
 {
@@ -79,7 +78,7 @@ static void klog_msg_queue(struct klog_msg *msg)
 
 	spin_lock_irqsave(&klog_msg_lock, irqf);
 	if (!klog_stopping) {
-		list_add_tail(&msg->msg_list, &klog_msg_list);
+		list_add_tail(&msg->list, &klog_msg_list);
 		queued = 1;
 	}
 	spin_unlock_irqrestore(&klog_msg_lock, irqf);
@@ -88,75 +87,16 @@ static void klog_msg_queue(struct klog_msg *msg)
 		wake_up_interruptible(&klog_thread_wait);
 }
 
-static void klog_msg_printk(struct klog_msg *msg)
+static int klog_file_sync(void)
 {
-	switch (msg->level) {
-		case KL_INF:
-			printk(KERN_INFO "%s\n", msg->data);
-			break;
-		case KL_ERR:
-			printk(KERN_ERR "%s\n", msg->data);
-			break;
-		case KL_WRN:
-			printk(KERN_WARNING "%s\n", msg->data);
-			break;
-		case KL_DBG:
-			printk(KERN_DEBUG "%s\n", msg->data);
-			break;
-		default:	
-			printk(KERN_INFO "%s\n", msg->data);
-			break;
-	}
-}
-
-static char *klog_full_path(char *log_name)
-{
-	char *full_path = NULL;
-	int path_len = strlen(KLOG_PATH);
-	int name_len = strlen(log_name);
-	int len = path_len + name_len;
-	
-	full_path = kmalloc((len + 1)*sizeof(char), GFP_KERNEL);
-	if (!full_path) {
-		printk(KERN_ERR "klog : cant alloc mem for path");
-		return NULL;
-	}
-	memcpy(full_path, KLOG_PATH, path_len*sizeof(char));
-	memcpy(full_path + path_len, log_name, name_len*sizeof(char));
-	full_path[len] = '\0';
-
-	return full_path;
-}
-
-static void klog_msg_write(struct klog_msg *msg)
-{
-	struct file * file = NULL;
-	loff_t pos = 0;
 	int err;
-	char *path = NULL;
+	struct file * file = NULL;
 
-	path = klog_full_path(msg->log_name);
-	if (!path) {
-		printk(KERN_ERR "klog : cant query full log path");
-		return;
-	}
-
-	file = filp_open(path, O_APPEND|O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
+	file = filp_open(KLOG_PATH, O_APPEND|O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
 	if (!file) {
 		printk(KERN_ERR "klog : cant open log file");
+		err = -EIO;
 		goto cleanup;	
-	}
-
-	err = vfile_write(file, msg->data, strlen(msg->data), &pos);
-	if (err) {
-		printk(KERN_ERR "klog : vfile_write err %d", err);
-		goto cleanup;
-	}
-
-	err = vfile_write(file, "\n", 1, &pos);
-	if (err) {
-		printk(KERN_ERR "klog : vfile_write err %d", err);
-		goto cleanup;
 	}
 
 	err = vfile_sync(file);
@@ -168,39 +108,112 @@ static void klog_msg_write(struct klog_msg *msg)
 cleanup:
 	if (file)
 		filp_close(file, NULL);
-	kfree(path);
+	
+	return err;
+}
+
+static void klog_file_write(void *buf, u32 len)
+{
+	struct file * file = NULL;
+	loff_t pos = 0;
+	int err;
+
+	file = filp_open(KLOG_PATH, O_APPEND|O_WRONLY|O_CREAT,
+			S_IRUSR|S_IWUSR);
+	if (!file) {
+		printk(KERN_ERR "klog : cant open log file");
+		err = -EIO;
+		goto cleanup;	
+	}
+
+	err = vfile_write(file, buf, len, &pos);
+	if (err) {
+		printk(KERN_ERR "klog : vfile_write err %d", err);
+		goto cleanup;
+	}
+
+cleanup:
+	if (file)
+		filp_close(file, NULL);
+}
+
+#define KLOG_BUF_MAX (64*1024)
+
+static void klog_msg_list_write(struct list_head *msg_list)
+{
+	struct klog_msg *msg, *tmp;
+	u32 size, pos;
+	void *buf;
+
+	size = 0;
+	list_for_each_entry(msg, msg_list, list) {
+		size+= msg->len + 1;
+	}
+
+	if (size > KLOG_BUF_MAX)
+		size = KLOG_BUF_MAX;
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf) {
+		printk(KERN_ERR "klog: cant alloc buf for klog");
+		goto cleanup;
+	}
+	
+	pos = 0;
+	while (1) {
+		if (list_empty(msg_list))
+			break;
+		list_for_each_entry_safe(msg, tmp, msg_list, list) {
+			if ((pos + msg->len + 1) <= size) {
+				memcpy((char *)buf + pos, msg->data, msg->len);
+				memcpy((char *)buf + pos + msg->len, "\n", 1);
+				pos+= msg->len + 1;
+				list_del_init(&msg->list);
+				klog_msg_free(msg);
+			} else {
+				break;
+			}
+		}
+		klog_file_write(buf, pos);
+		pos = 0;
+	}
+
+	kfree(buf);	
+cleanup:
+	list_for_each_entry_safe(msg, tmp, msg_list, list) {
+		list_del_init(&msg->list);
+		klog_msg_free(msg);
+		printk(KERN_ERR "klog: dropped one msg for file log");	
+	}
 }
 
 static void klog_msg_queue_process(void)
 {
 	struct klog_msg *msg = NULL;
-	unsigned long irqf;
+	struct list_head msg_list;
 
 	for (;;) {
 		if (list_empty(&klog_msg_list))
 			break;
-		msg = NULL;
-		spin_lock_irqsave(&klog_msg_lock, irqf);
-		if (!list_empty(&klog_msg_list)) {
-			msg = list_first_entry(&klog_msg_list, struct klog_msg, msg_list);
-			list_del_init(&msg->msg_list);
+
+		INIT_LIST_HEAD(&msg_list);
+		spin_lock_irq(&klog_msg_lock);
+		while (!list_empty(&klog_msg_list)) {
+			msg = list_first_entry(&klog_msg_list, struct klog_msg, list);
+			list_del_init(&msg->list);
+			list_add_tail(&msg->list, &msg_list);
 		}
-		spin_unlock_irqrestore(&klog_msg_lock, irqf);
-		if (msg) {
-			klog_msg_write(msg);
-			klog_msg_free(msg);
-		}
-	} 
+		spin_unlock_irq(&klog_msg_lock);
+		if (!list_empty(&msg_list))
+			klog_msg_list_write(&msg_list);
+	}
 }
 
-static char *klog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "MAX"};
-
-void klog_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args)
-{
-	
+void klog_v(int level, const char *subcomp, const char *file, int line,
+		const char *func, const char *fmt, va_list args)
+{	
     	struct klog_msg *msg = NULL;
     	char *pos;
-	int left, count, log_name_count;
+	int left, count;
     	struct timespec ts;
 	struct tm tm;
 	char *level_s;
@@ -223,10 +236,6 @@ void klog_v(int level, const char *log_name, const char *subcomp, const char *fi
 		return;
 	}
 
-	log_name_count = sizeof(msg->log_name)/sizeof(char);
-	snprintf(msg->log_name, log_name_count-1, "%s", log_name);
-	msg->log_name[log_name_count-1] = '\0';
- 
 	pos = msg->data;
 	count = sizeof(msg->data)/sizeof(char);
 	left = count - 1;
@@ -243,16 +252,17 @@ void klog_v(int level, const char *log_name, const char *subcomp, const char *fi
     	klog_write_msg2(&pos,&left,fmt,args);
 
     	msg->data[count-1] = '\0';
-	msg->level = level;
-	klog_msg_printk(msg);
+	msg->len = strlen(msg->data);
+	printk("%s\n", msg->data);
 	klog_msg_queue(msg);	
 }
 
-void klog(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...)
+void klog(int level, const char *subcomp, const char *file,
+		int line, const char *func, const char *fmt, ...)
 {
 	va_list args;
     	va_start(args,fmt);
-    	klog_v(level, log_name, subcomp, file, line, func, fmt, args);
+    	klog_v(level, subcomp, file, line, func, fmt, args);
     	va_end(args);
 }
 
@@ -265,7 +275,8 @@ static int klog_thread_routine(void *data)
 		klog_msg_queue_process();	
 	}
 
-	klog_msg_queue_process();	
+	klog_msg_queue_process();
+	klog_file_sync();	
 	return 0;
 }
 

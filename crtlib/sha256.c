@@ -300,11 +300,11 @@ asmlinkage void __sha256_test(void)
 	char *hex_sum;
 
 	sha256(data, crt_strlen((char *)data), sum, 0);
-	hex_sum = char_buf_to_hex_str((char *)sum, sizeof(sum));
+	hex_sum = bytes_hex((char *)sum, sizeof(sum));
 	if (!hex_sum) {
 		CLOG(CL_ERR, "char_buf_to_hex_str failed");
 		return;
 	}
-	CLOG(CL_INF, "sha256 for %s is %s", data, hex_sum);
+	CLOG(CL_TST, "sha256 for %s is %s", data, hex_sum);
 	crt_free(hex_sum);
 }

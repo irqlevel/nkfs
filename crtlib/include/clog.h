@@ -5,7 +5,8 @@
 #define CL_INF	2
 #define CL_WRN	3
 #define CL_ERR	4
-#define CL_MAX	5
+#define CL_TST	5
+#define CL_MAX	6
 
 #define CLOG_ENABLED	1
 #define CLOG_SRC	1

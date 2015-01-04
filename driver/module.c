@@ -99,8 +99,6 @@ static int __init ds_init(void)
 
 	KLOG(KL_DBG, "initing");
 
-	__sha256_test();
-
 	err = ds_random_init();
 	if (err) {
 		KLOG(KL_ERR, "ds_random_init err %d", err);
@@ -119,6 +117,16 @@ static int __init ds_init(void)
 	}
 
 	KLOG(KL_DBG, "inited");
+
+#if __SHA_TEST__
+	__sha256_test();
+#endif
+
+#if __BTREE_TEST__
+	btree_test(100000);
+#endif
+
+
 	return 0;
 
 out_amap_release:

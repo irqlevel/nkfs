@@ -30,7 +30,7 @@ asmlinkage void crt_log(int level, const char *file, int line,
 {
 	va_list args;
 	va_start(args, fmt);
-	klog_v(level,  __LOGNAME__, "crt", file, line, func, fmt, args);  
+	klog_v(level, "crt", file, line, func, fmt, args);  
 	va_end(args);
 }
 
