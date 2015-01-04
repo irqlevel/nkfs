@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-amap"
+#define __SUBCOMPONENT__ "amap"
 
 /* Disk map is a limited cache of pages of on disk data that
  * frequently used by client of disk map.

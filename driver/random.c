@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-random"
+#define __SUBCOMPONENT__ "random"
 static struct file *dev_random;
 static struct file *dev_urandom;
 
@@ -9,7 +9,7 @@ int ds_random_buf_read(void *buf, __u32 len, int urandom)
 	loff_t off = 0;
 	int err;
 
-	err = file_read((urandom) ? dev_urandom : dev_random, buf, len, &off);
+	err = vfile_read((urandom) ? dev_urandom : dev_random, buf, len, &off);
 	return err;
 }
 

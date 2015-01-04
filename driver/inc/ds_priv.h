@@ -45,7 +45,7 @@
 #include <inc/dev_io.h>
 #include <inc/net.h>
 #include <inc/random.h>
-#include <inc/file.h>
+#include <inc/vfile.h>
 #include <inc/image.h>
 
 #define __LOGNAME__ "ds.log"

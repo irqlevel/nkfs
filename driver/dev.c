@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-dev"
+#define __SUBCOMPONENT__ "dev"
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);

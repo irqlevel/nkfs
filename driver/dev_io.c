@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-devio"
+#define __SUBCOMPONENT__ "devio"
 
 static void ds_dev_io_free(struct ds_dev_io *io)
 {

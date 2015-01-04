@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-net"
+#define __SUBCOMPONENT__ "net"
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 

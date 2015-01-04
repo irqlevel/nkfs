@@ -1,8 +1,8 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-file"
+#define __SUBCOMPONENT__ "vfile"
 
-int file_write(struct file *file, const void *buf, u32 len, loff_t *off)
+int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
 {	
 	int ret;
 	mm_segment_t old_fs;
@@ -26,7 +26,7 @@ out:
 }
 
 
-int file_sync(struct file *file)
+int vfile_sync(struct file *file)
 {
 	int err = vfs_fsync(file, 0);
 	if (err) {
@@ -35,7 +35,7 @@ int file_sync(struct file *file)
 	return err;
 }
 
-int file_read(struct file *file, const void *buf, u32 len, loff_t *off)
+int vfile_read(struct file *file, const void *buf, u32 len, loff_t *off)
 {	
 	int ret;
 	mm_segment_t old_fs;

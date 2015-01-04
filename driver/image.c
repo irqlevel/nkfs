@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define __SUBCOMPONENT__ "ds-image"
+#define __SUBCOMPONENT__ "image"
 	
 #define IMAGE_AMAP_PAGES 128
 

@@ -147,21 +147,21 @@ static void klog_msg_write(struct klog_msg *msg)
 		goto cleanup;	
 	}
 
-	err = file_write(file, msg->data, strlen(msg->data), &pos);
+	err = vfile_write(file, msg->data, strlen(msg->data), &pos);
 	if (err) {
-		printk(KERN_ERR "klog : file_write err %d", err);
+		printk(KERN_ERR "klog : vfile_write err %d", err);
 		goto cleanup;
 	}
 
-	err = file_write(file, "\n", 1, &pos);
+	err = vfile_write(file, "\n", 1, &pos);
 	if (err) {
-		printk(KERN_ERR "klog : file_write err %d", err);
+		printk(KERN_ERR "klog : vfile_write err %d", err);
 		goto cleanup;
 	}
 
-	err = file_sync(file);
-	if (err < 0) {
-		printk(KERN_ERR "klog : file_sync err %d", err);
+	err = vfile_sync(file);
+	if (err) {
+		printk(KERN_ERR "klog : vfile_sync err %d", err);
 		goto cleanup;
 	}
 

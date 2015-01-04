@@ -2,7 +2,7 @@
 
 MODULE_LICENSE("GPL");
 
-#define __SUBCOMPONENT__ "ds-mod"
+#define __SUBCOMPONENT__ "mod"
 #define DS_MISC_DEV_NAME "ds_ctl"
 
 static int ds_mod_get(struct inode *inode, struct file *file)
