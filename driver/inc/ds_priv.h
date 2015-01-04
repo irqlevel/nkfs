@@ -48,9 +48,7 @@
 #include <inc/vfile.h>
 #include <inc/image.h>
 
-#define __LOGNAME__ "ds.log"
 #define SECTOR_SHIFT 9
 
 #define __BTREE_TEST__	1
 #define __SHA_TEST__	1
-
