@@ -35,7 +35,7 @@ static int ds_dev_insert(struct ds_dev *cand)
 
 static void ds_dev_release(struct ds_dev *dev)
 {
-	klog(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
+	KLOG(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
 
 	if (dev->bdev)
 		blkdev_put(dev->bdev, dev->fmode);
@@ -73,20 +73,20 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 
 	len = strlen(dev_name);
 	if (len == 0) {
-		klog(KL_ERR, "len=%d", len);
+		KLOG(KL_ERR, "len=%d", len);
 		return NULL;
 	}
 
 	dev = kmalloc(sizeof(struct ds_dev), GFP_KERNEL);
 	if (!dev) {
-		klog(KL_ERR, "dev alloc failed");
+		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
 	}
 
 	memset(dev, 0, sizeof(*dev));
 	dev->dev_name = kmalloc(len + 1, GFP_KERNEL);
 	if (!dev->dev_name) {
-		klog(KL_ERR, "dev_name alloc failed");
+		KLOG(KL_ERR, "dev_name alloc failed");
 		ds_dev_free(dev);
 		return NULL;
 	}
@@ -99,7 +99,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		fmode, dev);
 	if ((err = IS_ERR(dev->bdev))) {
 		dev->bdev = NULL;
-		klog(KL_ERR, "bkdev_get_by_path failed err %d", err);
+		KLOG(KL_ERR, "bkdev_get_by_path failed err %d", err);
 		ds_dev_free(dev);
 		
 		return NULL;
@@ -114,18 +114,18 @@ static int ds_dev_thread_routine(void *data)
 	struct ds_dev *dev = (struct ds_dev *)data;
 	int err = 0;
 
-	klog(KL_DBG, "dev %p thread starting", dev);
+	KLOG(KL_DBG, "dev %p thread starting", dev);
 
 	if (dev->thread != current)
 		BUG_ON(1);
 
 	err = ds_dev_io_touch0_page(dev);
 	if (err) {
-		klog(KL_ERR, "ds_dev_touch0_page dev %p err %d",
+		KLOG(KL_ERR, "ds_dev_touch0_page dev %p err %d",
 			dev, err);
 	}
 
-	klog(KL_DBG, "going to run main loop dev=%p", dev);
+	KLOG(KL_DBG, "going to run main loop dev=%p", dev);
 	while (!kthread_should_stop()) {
 		msleep_interruptible(100);
 		if (dev->stopping)
@@ -134,7 +134,7 @@ static int ds_dev_thread_routine(void *data)
 
 	if (dev->image)
 		ds_image_stop(dev->image);
-	klog(KL_DBG, "dev %p exiting", dev);
+	KLOG(KL_DBG, "dev %p exiting", dev);
 	return err;
 }
 
@@ -149,7 +149,7 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 		err = ds_image_format(dev, &dev->image);
 
 	if (err) {
-		klog(KL_ERR, "check or format err %d", err);
+		KLOG(KL_ERR, "check or format err %d", err);
 		return err;
 	}
 
@@ -157,7 +157,7 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 	if (IS_ERR(dev->thread)) {
 		err = PTR_ERR(dev->thread);
 		dev->thread = NULL;
-		klog(KL_ERR, "kthread_create err=%d", err);
+		KLOG(KL_ERR, "kthread_create err=%d", err);
 		return err;
 	}
 	get_task_struct(dev->thread);
@@ -183,7 +183,7 @@ int ds_dev_add(char *dev_name, int format)
 	int err;
 	struct ds_dev *dev;
 
-	klog(KL_DBG, "inserting dev %s", dev_name);
+	KLOG(KL_DBG, "inserting dev %s", dev_name);
 	dev = ds_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	if (!dev) {
 		return -ENOMEM;
@@ -191,7 +191,7 @@ int ds_dev_add(char *dev_name, int format)
 
 	err = ds_dev_insert(dev);
 	if (err) {
-		klog(KL_ERR, "ds_dev_insert err %d", err);
+		KLOG(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_release(dev);
 		ds_dev_free(dev);
 		return err;
@@ -199,7 +199,7 @@ int ds_dev_add(char *dev_name, int format)
 
 	err = ds_dev_start(dev, format);
 	if (err) {
-		klog(KL_ERR, "ds_dev_insert err %d", err);
+		KLOG(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_unlink(dev);		
 		ds_dev_release(dev);
 		ds_dev_free(dev);
@@ -214,7 +214,7 @@ int ds_dev_remove(char *dev_name)
 	int err;
 	struct ds_dev *dev;
 
-	klog(KL_DBG, "removing dev %s", dev_name);
+	KLOG(KL_DBG, "removing dev %s", dev_name);
 	dev = ds_dev_lookup_unlink(dev_name);
 	if (dev) {
 		ds_dev_stop(dev);
@@ -222,7 +222,7 @@ int ds_dev_remove(char *dev_name)
 		ds_dev_free(dev);
 		err = 0;
 	} else {
-		klog(KL_ERR, "dev with name %s not found", dev_name);
+		KLOG(KL_ERR, "dev with name %s not found", dev_name);
 		err = -ENOENT;
 	}
 

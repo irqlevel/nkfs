@@ -47,7 +47,7 @@ static void amap_node_free(struct amap_node *node)
 void amap_node_deref(struct amap_node *node)
 {
 	if (atomic_read(&node->refs) < 1) {
-		klog(KL_ERR, "node=%p, index=%lu", node, node->index);
+		KLOG(KL_ERR, "node=%p, index=%lu", node, node->index);
 	}
 
 	BUG_ON(atomic_read(&node->refs) < 1);
@@ -63,7 +63,7 @@ amap_node *amap_node_alloc(unsigned long index)
 
 	node = kmem_cache_alloc(amap_nodes_cachep, GFP_NOIO);
 	if (!node) {
-		klog(KL_ERR, "cant alloc node");
+		KLOG(KL_ERR, "cant alloc node");
 		return NULL;
 	}
 	atomic_inc(&amn_count);
@@ -72,7 +72,7 @@ amap_node *amap_node_alloc(unsigned long index)
 	node->index = index;
 	node->page = alloc_page(GFP_NOIO);
 	if (!node->page) {
-		klog(KL_ERR, "cant alloc page");
+		KLOG(KL_ERR, "cant alloc page");
 		goto fail;
 	}
 
@@ -106,7 +106,7 @@ int amap_init(struct amap *map, void *io, int nr_max_nodes, io_op_t io_op)
 	list_add_tail(&map->maps_list, &amaps_list);
 	mutex_unlock(&amaps_list_lock);
 
-	klog(KL_INF, "nr_max_nodes %u", map->nr_max_nodes);
+	KLOG(KL_INF, "nr_max_nodes %u", map->nr_max_nodes);
 
 	return 0;
 }
@@ -190,8 +190,8 @@ static void amap_nodes_free(struct amap *map)
 	int nr_found, index;
 	struct amap_node *node, *removed;
 
-	klog(KL_INF, "map->nr_nodes=%d", map->nr_nodes);
-	klog(KL_INF, "amn_count=%d", atomic_read(&amn_count));
+	KLOG(KL_INF, "map->nr_nodes=%d", map->nr_nodes);
+	KLOG(KL_INF, "amn_count=%d", atomic_read(&amn_count));
 
 	for (;;) {
 		spin_lock(&map->nodes_lock);
@@ -214,8 +214,8 @@ static void amap_nodes_free(struct amap *map)
 		}
 	}
 
-	klog(KL_INF, "amn_count=%d", atomic_read(&amn_count));
-	klog(KL_INF, "map->nr_nodes=%d", map->nr_nodes);
+	KLOG(KL_INF, "amn_count=%d", atomic_read(&amn_count));
+	KLOG(KL_INF, "map->nr_nodes=%d", map->nr_nodes);
 	BUG_ON(map->nr_nodes != 0);
 	BUG_ON(!list_empty(&map->lru_list));
 }
@@ -223,13 +223,13 @@ static void amap_nodes_free(struct amap *map)
 static void __amap_release(struct amap *map)
 {
 	amap_nodes_free(map);
-	klog(KL_INF, "released");
+	KLOG(KL_INF, "released");
 }
 
 static void amap_deref(struct amap *map)
 {
 	if (atomic_read(&map->refs) < 1) {
-		klog(KL_ERR, "map=%p", map);
+		KLOG(KL_ERR, "map=%p", map);
 	}
 
 	BUG_ON(atomic_read(&map->refs) < 1);
@@ -240,7 +240,7 @@ static void amap_deref(struct amap *map)
 
 void amap_release(struct amap *map)
 {
-	klog(KL_INF, "releasing");
+	KLOG(KL_INF, "releasing");
 	mutex_lock(&amaps_list_lock);
 	list_del(&map->maps_list);
 	mutex_unlock(&amaps_list_lock);
@@ -292,7 +292,7 @@ static void amap_lru_frees(struct amap *map)
 	 */
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
-		klog(KL_ERR, "no memory");
+		KLOG(KL_ERR, "no memory");
 		return;
 	}
 
@@ -331,7 +331,7 @@ static void amap_lru_frees(struct amap *map)
 			if (nr_nodes < nodes_limit) {
 				nodes[nr_nodes++] = node;
 			} else {
-				klog(KL_ERR, "nr_nodes=%d\
+				KLOG(KL_ERR, "nr_nodes=%d\
 						vs. nodes_limit=%d",
 						nr_nodes, nodes_limit);
 				goto release;
@@ -350,7 +350,7 @@ static void amap_lru_frees(struct amap *map)
 			struct amap_node *n;
 			for (i = 0; i < nr_nodes; i++) {
 				n = nodes[i];
-				klog(KL_ERR, "node=%p, age=%lx, index=%lu",
+				KLOG(KL_ERR, "node=%p, age=%lx, index=%lu",
 						n, n->age, n->index);
 			}
 			BUG_ON(1);
@@ -400,7 +400,7 @@ void amap_dump(struct amap *map)
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
-			klog(KL_INF, "n=%p i=%lu age=%lx refs=%d",
+			KLOG(KL_INF, "n=%p i=%lu age=%lx refs=%d",
 					node, node->index, node->age, atomic_read(&node->refs));
 			amap_node_deref(node);
 		}
@@ -436,14 +436,14 @@ static int amap_get_node(struct amap *map, unsigned long index,
 	amap_compact(map);
 	node = amap_node_alloc(index);
 	if (!node) {
-		klog(KL_ERR, "cant alloc map node");
+		KLOG(KL_ERR, "cant alloc map node");
 		return -ENOMEM;
 	}
 
 	err = amap_insert(map, node);
 	if (err) {
 		amap_node_deref(node);
-		klog(KL_ERR, "cant insert map node, err=%d", err);
+		KLOG(KL_ERR, "cant insert map node, err=%d", err);
 		return err;
 	}
 	atomic_inc(&node->refs);
@@ -674,14 +674,14 @@ static int amap_queue_work(work_func_t func)
 
 	work = kzalloc(sizeof(struct work_struct), GFP_ATOMIC);
 	if (!work) {
-		klog(KL_ERR, "cant alloc work");
+		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
 	}
 
 	INIT_WORK(work, func);
 	if (!queue_work(amap_wq, work)) {
 		kfree(work);
-		klog(KL_ERR, "cant queue work");
+		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}
 	return 0;
@@ -704,7 +704,7 @@ int amap_sys_init(void)
 		sizeof(struct amap_node),
 		__alignof__(struct amap_node), 0, NULL);
 	if (!amap_nodes_cachep) {
-		klog(KL_ERR, "kmem_cache_create failed");
+		KLOG(KL_ERR, "kmem_cache_create failed");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -712,7 +712,7 @@ int amap_sys_init(void)
 	amap_wq = alloc_workqueue("amap_wq",
 			WQ_MEM_RECLAIM|WQ_UNBOUND, 1);
 	if (!amap_wq) {
-		klog(KL_ERR, "cant create wq");
+		KLOG(KL_ERR, "cant create wq");
 		err = -ENOMEM;
 		goto rel_cache;
 	}
@@ -722,7 +722,7 @@ int amap_sys_init(void)
 			jiffies +
 			msecs_to_jiffies(AMAP_TIMER_TIMEOUT_MSECS));
 	if (err) {
-		klog(KL_ERR, "mod_timer failed with err=%d", err);
+		KLOG(KL_ERR, "mod_timer failed with err=%d", err);
 		goto del_wq;
 	}
 

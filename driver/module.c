@@ -7,20 +7,20 @@ MODULE_LICENSE("GPL");
 
 static int ds_mod_get(struct inode *inode, struct file *file)
 {
-	klog(KL_DBG, "in open");
+	KLOG(KL_DBG, "in open");
 	if (!try_module_get(THIS_MODULE)) {
-		klog(KL_ERR, "cant ref module");
+		KLOG(KL_ERR, "cant ref module");
 		return -EINVAL;
 	}
-	klog(KL_DBG, "opened");
+	KLOG(KL_DBG, "opened");
 	return 0;
 }
 
 static int ds_mod_put(struct inode *inode, struct file *file)
 {
-	klog(KL_DBG, "in release");
+	KLOG(KL_DBG, "in release");
 	module_put(THIS_MODULE);
-	klog(KL_DBG, "released");
+	KLOG(KL_DBG, "released");
 	return 0;
 }
 
@@ -29,7 +29,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	int err = -EINVAL;
 	struct ds_cmd *cmd = NULL;	
 
-	klog(KL_DBG, "ctl code %d", code);
+	KLOG(KL_DBG, "ctl code %d", code);
 
 	cmd = kmalloc(sizeof(struct ds_cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -42,7 +42,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		goto out_free_cmd;
 	}
 
-	klog(KL_DBG, "ctl code %d", code);	
+	KLOG(KL_DBG, "ctl code %d", code);
 	switch (code) {
 		case IOCTL_DS_DEV_ADD:
 			err = ds_dev_add(cmd->u.dev_add.dev_name, cmd->u.dev_add.format);
@@ -57,7 +57,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			err = ds_server_stop(cmd->u.server_stop.port);
 			break;
 		default:
-			klog(KL_ERR, "unknown ioctl=%d", code);
+			KLOG(KL_ERR, "unknown ioctl=%d", code);
 			err = DS_E_UNK_IOCTL;
 			break;
 	}
@@ -91,34 +91,34 @@ static int __init ds_init(void)
 {	
 	int err = -EINVAL;
 	
-	err = klog_init(KL_DBG_L);
+	err = klog_init();
 	if (err) {
-		printk(KERN_ERR "klog_init failed with err=%d", err);
+		printk(KERN_ERR "KLOG_init failed with err=%d", err);
 		goto out;
 	}
 
-	klog(KL_DBG, "initing");
+	KLOG(KL_DBG, "initing");
 
 	__sha256_test();
 
 	err = ds_random_init();
 	if (err) {
-		klog(KL_ERR, "ds_random_init err %d", err);
+		KLOG(KL_ERR, "ds_random_init err %d", err);
 		goto out_klog_release;
 	}
 	err = amap_sys_init();
 	if (err) {
-		klog(KL_ERR, "amap_sys_init err %d", err);
+		KLOG(KL_ERR, "amap_sys_init err %d", err);
 		goto out_random_release;
 	}
 
 	err = misc_register(&ds_misc);
 	if (err) {
-		klog(KL_ERR, "misc_register err=%d", err);
+		KLOG(KL_ERR, "misc_register err=%d", err);
 		goto out_amap_release; 
 	}
 
-	klog(KL_DBG, "inited");
+	KLOG(KL_DBG, "inited");
 	return 0;
 
 out_amap_release:
@@ -133,7 +133,7 @@ out:
 
 static void __exit ds_exit(void)
 {
-	klog(KL_DBG, "exiting");
+	KLOG(KL_DBG, "exiting");
 
 	ds_random_release();	
 	misc_deregister(&ds_misc);
@@ -141,7 +141,7 @@ static void __exit ds_exit(void)
 	ds_dev_release_all();
 	amap_sys_release();
 
-	klog(KL_DBG, "exited");
+	KLOG(KL_DBG, "exited");
 	klog_release();
 }
 

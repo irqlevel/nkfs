@@ -14,7 +14,7 @@ static void ds_con_wait(struct ds_con *con)
 
 static void ds_con_free(struct ds_con *con)
 {
-	klog(KL_DBG, "releasing sock %p", con->sock);
+	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
 	put_task_struct(con->thread);
 	kfree(con);
@@ -27,10 +27,10 @@ static int ds_con_thread_routine(void *data)
 
 	BUG_ON(con->thread != current);
 
-	klog(KL_DBG, "inside con thread %p, sock %p", con->thread, con->sock);
+	KLOG(KL_DBG, "inside con thread %p, sock %p", con->thread, con->sock);
 
 
-	klog(KL_DBG, "closing sock %p", con->sock);
+	KLOG(KL_DBG, "closing sock %p", con->sock);
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&con->con_list))
@@ -52,7 +52,7 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 	struct ds_con *con = kmalloc(sizeof(struct ds_con), GFP_KERNEL);
 	int err = -EINVAL;
 	if (!con) {
-		klog(KL_ERR, "cant alloc ds_con");
+		KLOG(KL_ERR, "cant alloc ds_con");
 		return NULL;
 	}
 
@@ -63,7 +63,7 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 	if (IS_ERR(con->thread)) {
 		err = PTR_ERR(con->thread);
 		con->thread = NULL;
-		klog(KL_ERR, "kthread_create err=%d", err);
+		KLOG(KL_ERR, "kthread_create err=%d", err);
 		goto out;
 	}
 
@@ -95,11 +95,11 @@ static int ds_server_thread_routine(void *data)
 		if (!server->sock) {
 			err = ksock_listen(&lsock, INADDR_ANY, server->port, 5);
 			if (err) {
-				klog(KL_ERR, "csock_listen err=%d", err);
+				KLOG(KL_ERR, "csock_listen err=%d", err);
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
 				continue;
 			} else {
-				klog(KL_ERR, "listen done at port=%d",
+				KLOG(KL_ERR, "listen done at port=%d",
 						server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
@@ -108,19 +108,20 @@ static int ds_server_thread_routine(void *data)
 		}
 
 		if (server->sock && !server->stopping) {
-			klog(KL_DBG, "accepting");
+			KLOG(KL_DBG, "accepting");
 			err = ksock_accept(&con_sock, server->sock);
 			if (err) {
-				if (err == -EAGAIN)
-					klog(KL_WRN, "accept err=%d", err);
-				else
-					klog(KL_ERR, "accept err=%d", err);
+				if (err == -EAGAIN) {
+					KLOG(KL_WRN, "accept err=%d", err);
+				} else {
+					KLOG(KL_ERR, "accept err=%d", err);
+				}
 				continue;
 			}
-			klog(KL_DBG, "accepted con_sock=%p", con_sock);
+			KLOG(KL_DBG, "accepted con_sock=%p", con_sock);
 
 			if (!ds_con_start(server, con_sock)) {
-				klog(KL_ERR, "ds_con_start failed");
+				KLOG(KL_ERR, "ds_con_start failed");
 				ksock_release(con_sock);
 				continue;
 			}
@@ -130,14 +131,14 @@ static int ds_server_thread_routine(void *data)
 	err = 0;
 	mutex_lock(&server->lock);
 	lsock = server->sock;
-	klog(KL_DBG, "releasing listen socket=%p", lsock);
+	KLOG(KL_DBG, "releasing listen socket=%p", lsock);
 	server->sock = NULL;
 	mutex_unlock(&server->lock);
 
 	if (lsock)
 		ksock_release(lsock);
 	
-	klog(KL_DBG, "releasing cons");
+	KLOG(KL_DBG, "releasing cons");
 
 	for (;;) {
 		con = NULL;
@@ -155,7 +156,7 @@ static int ds_server_thread_routine(void *data)
 		ds_con_free(con);
 	}
 
-	klog(KL_DBG, "released cons");	
+	KLOG(KL_DBG, "released cons");
 	return 0;
 }
 
@@ -181,7 +182,7 @@ struct ds_server *ds_server_create_start(int port)
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
-		klog(KL_ERR, "kthread_create err=%d", err);
+		KLOG(KL_ERR, "kthread_create err=%d", err);
 		kfree(server);
 		return NULL;
 	}
@@ -199,7 +200,7 @@ int ds_server_start(int port)
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port) {
-			klog(KL_INF, "server for port %d already exists", port);
+			KLOG(KL_INF, "server for port %d already exists", port);
 			err = -EEXIST;
 			mutex_unlock(&srv_list_lock);
 			return err;
@@ -219,7 +220,7 @@ int ds_server_start(int port)
 static void ds_server_do_stop(struct ds_server *server)
 {
 	if (server->stopping) {
-		klog(KL_ERR, "server %p-%d already stopping",
+		KLOG(KL_ERR, "server %p-%d already stopping",
 			server, server->port);
 		return;
 	}

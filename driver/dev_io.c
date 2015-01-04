@@ -17,7 +17,7 @@ static void ds_dev_io_bio_complete(struct bio *bio, int err)
 	BUG_ON(bio != io->bio);
 	io->err = err;
 
-	klog(KL_DBG, "bio %p io %p dev %p err %d", bio, io, io->dev, err);
+	KLOG(KL_DBG, "bio %p io %p dev %p err %d", bio, io, io->dev, err);
 
 	if (io->complete_clb)
 		io->complete_clb(io->err, io->dev, io->context, io->page, io->off, io->rw_flags);
@@ -99,7 +99,7 @@ int ds_dev_io_page(struct ds_dev *dev, void *context, struct page *page, u64 off
 	list_add_tail(&io->io_list, &dev->io_list);
 	spin_unlock_irq(&dev->io_lock);
 
-	klog(KL_DBG, "bio %p io %p queued dev %p", bio, io, dev);
+	KLOG(KL_DBG, "bio %p io %p queued dev %p", bio, io, dev);
 	generic_make_request(bio);
 
 	if (io->complete) {
@@ -119,21 +119,21 @@ int ds_dev_io_touch0_page(struct ds_dev *dev)
 
 	page = alloc_page(GFP_NOIO);
 	if (!page) {
-		klog(KL_ERR, "cant alloc page");
+		KLOG(KL_ERR, "cant alloc page");
 		return -ENOMEM;
 	}
 
 	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0,
 			DS_IO_READ, DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
-		klog(KL_ERR, "ds_dev_io_page err %d", err);
+		KLOG(KL_ERR, "ds_dev_io_page err %d", err);
 		goto out;
 	}
 
 	err = ds_dev_io_page(dev, DS_IO_CTX_NULL, page, 0,
 			REQ_WRITE, DS_IO_SYNC, DS_IO_COMP_NULL);
 	if (err) {
-		klog(KL_ERR, "ds_dev_io_page err %d", err);	
+		KLOG(KL_ERR, "ds_dev_io_page err %d", err);
 		goto out;
 	}
 

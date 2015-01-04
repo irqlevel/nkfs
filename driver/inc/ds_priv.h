@@ -21,6 +21,14 @@
 #include <linux/file.h>
 #include <linux/sort.h>
 #include <asm/uaccess.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/delay.h>
+#include <net/sock.h>
+
 
 #include <include/ds_cmd.h>
 #include <include/ds_obj_id.h>
