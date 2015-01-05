@@ -20,6 +20,7 @@
 #include <linux/miscdevice.h>
 #include <linux/file.h>
 #include <linux/sort.h>
+#include <linux/buffer_head.h>
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -37,6 +38,7 @@
 
 #include <crtlib/include/crtlib.h>
 
+#include <inc/helpers.h>
 #include <inc/klog.h>
 #include <inc/ksocket.h>
 #include <inc/btree.h>

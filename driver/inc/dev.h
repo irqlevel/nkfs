@@ -9,6 +9,7 @@ struct ds_dev {
 	spinlock_t		io_lock;
 	int			fmode;
 	int			stopping;
+	int			bsize;
 	struct	ds_image	*image;
 };
 

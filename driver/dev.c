@@ -105,6 +105,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 	dev->fmode = fmode;
+	dev->bsize = PAGE_SIZE;
 
 	return dev;
 }
@@ -118,12 +119,6 @@ static int ds_dev_thread_routine(void *data)
 
 	if (dev->thread != current)
 		BUG_ON(1);
-
-	err = ds_dev_io_touch0_page(dev);
-	if (err) {
-		KLOG(KL_ERR, "ds_dev_touch0_page dev %p err %d",
-			dev, err);
-	}
 
 	KLOG(KL_DBG, "going to run main loop dev=%p", dev);
 	while (!kthread_should_stop()) {
