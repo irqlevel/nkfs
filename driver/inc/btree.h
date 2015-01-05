@@ -2,45 +2,43 @@
 
 #include <linux/types.h>
 
-#define BTREE_T 1024
+#define BTREE_T 64
 
 #pragma pack(push, 1)
 
 struct btree_key {
 	u8 bytes[16];
 };
-
-struct btree_value {
-	union {
-		__be64	off;
-		void	*addr;
-		u64	value;
-	};
-};
-
-struct btree_link {
-	union {
-		__be64			off;
-		struct btree_node 	*addr;
-	};
-};
+/* size = 16 */
 
 #define BTREE_NODE_PAD 8
 
-struct btree_node {
+struct btree_node_disk {
 	struct btree_key	keys[2*BTREE_T-1];
-	struct btree_value	values[2*BTREE_T-1];
-	struct btree_link	childs[2*BTREE_T];
+	__be64			values[2*BTREE_T-1];
+	__be64			childs[2*BTREE_T];
+	__be32			leaf;
+	__be32			nr_keys;
+	__be8			pad[BTREE_NODE_PAD];
+};
+
+struct btree;
+
+struct btree_node {
+	struct btree		*tree;
+	u64			block;
+	struct btree_key	keys[2*BTREE_T-1];
+	u64			values[2*BTREE_T-1];
+	u64			childs[2*BTREE_T];
 	u32			leaf;
 	u32			nr_keys;
-	u32			max_nr_keys;
-	u32			t;
-	u8			pad[BTREE_NODE_PAD];
 };
+
+/* size = (2T-1)*16 + (2T-1)*8 + 2T*8 + 4*4 + pad */
 
 struct btree {
 	struct btree_node	*root;
-	u32			t;
+	struct ds_sb		*sb;
 };
 
 struct btree_info {
@@ -50,28 +48,28 @@ struct btree_info {
 
 #pragma pack(pop)
 
+_Static_assert(sizeof(struct __btree_node) <= 4096, "size is not correct");
 
-_Static_assert(sizeof(struct btree_node) == 65536, "size is not correct");
+struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
-struct btree *btree_create(void);
-
-void btree_delete(struct btree *tree);
+void btree_delete(struct btree *tree, int from_disk);
 
 int btree_insert_key(struct btree *tree, struct btree_key *key,
-	struct btree_value *value, int replace);
+	u64 value, int replace);
 
 int btree_find_key(struct btree *tree,
 	struct btree_key *key,
-	struct btree_value **value);
+	struct u64 *pvalue);
 
 int btree_delete_key(struct btree *tree,
 	struct btree_key *key);
 
 struct btree_key *btree_gen_key(void);
-struct btree_value *btree_gen_value(void);
+struct u64 btree_gen_value(void);
 
 char *btree_key_hex(struct btree_key *key);
-char *btree_value_hex(struct btree_value *value);
+char *btree_value_hex(u64 value);
+
 void btree_log(struct btree *tree, int llevel);
 
 void btree_stats(struct btree *tree, struct btree_info *info);
