@@ -49,6 +49,7 @@
 #include <inc/random.h>
 #include <inc/vfile.h>
 #include <inc/super.h>
+#include <inc/balloc.h>
 
 #define SECTOR_SHIFT 9
 

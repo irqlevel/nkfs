@@ -216,7 +216,10 @@ static int ds_sb_create(struct ds_dev *dev,
 		goto free_sb;
 	}
 
+	sb->nr_blocks = ds_div(sb->size, sb->bsize);
 	sb->dev = dev;
+	sb->bdev = dev->bdev;
+
 	*psb = sb;
 	return 0;
 
@@ -231,6 +234,7 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 	struct ds_image_header *header;
 	int err;
 	struct ds_sb *sb = NULL;
+	u64 i;
 
 	bh = __bread(dev->bdev, 0, dev->bsize);
 	if (!bh) {
@@ -251,6 +255,21 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto free_header;
 	}
 
+	err = ds_balloc_bm_clear(sb);
+	if (err) {
+		KLOG(KL_ERR, "cant clear balloc bm err %d", err);
+		goto del_sb;
+	}
+
+	for (i = 0; i < sb->bm_block + sb->bm_blocks; i++) {
+		err = ds_balloc_block_mark(sb, i, 1);
+		if (err) {
+			KLOG(KL_ERR, "cant mark block %llu as used err %d",
+				i, err);
+			goto del_sb;
+		}
+	}
+	
 	memset(bh->b_data, 0, dev->bsize);
 	ds_sb_fill_header(sb, header);
 	memcpy(bh->b_data, header, sizeof(*header));

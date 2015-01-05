@@ -3,12 +3,14 @@
 struct ds_sb {
 	struct list_head	list;
 	struct ds_dev 		*dev;
+	struct block_device 	*bdev;	
 	atomic_t		refs;
 	struct ds_obj_id	id;	
 	u32			magic;
 	u32			version;
 	u64			size;
 	u32			bsize;
+	u64			nr_blocks;
 	u32			bm_block;
 	u64			bm_blocks;
 };
