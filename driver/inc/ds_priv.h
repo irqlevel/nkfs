@@ -48,7 +48,7 @@
 #include <inc/net.h>
 #include <inc/random.h>
 #include <inc/vfile.h>
-#include <inc/image.h>
+#include <inc/super.h>
 
 #define SECTOR_SHIFT 9
 

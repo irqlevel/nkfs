@@ -10,7 +10,7 @@ struct ds_dev {
 	int			fmode;
 	int			stopping;
 	int			bsize;
-	struct	ds_image	*image;
+	struct	ds_sb		*sb;
 };
 
 int ds_dev_add(char *dev_name, int format);
