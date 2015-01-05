@@ -175,6 +175,11 @@ asmlinkage void *crt_memset(void *ptr, int value, size_t len)
 	return memset(ptr, value, len);
 }
 
+asmlinkage int crt_memcmp(const void *ptr1, const void *ptr2, size_t len)
+{
+	return memcmp(ptr1, ptr2, len);
+}
+
 asmlinkage void crt_free(void *ptr)
 {
 	free(ptr);

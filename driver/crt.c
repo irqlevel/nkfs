@@ -2,17 +2,22 @@
 
 asmlinkage void *crt_malloc(size_t size)
 {
-	return kmalloc(size, GFP_KERNEL);
-}
-
-asmlinkage void * crt_memcpy(void *dst, const void *src, size_t len)
-{
-	return memcpy(dst, src, len);
+	return kmalloc(size, GFP_NOFS);
 }
 
 asmlinkage void * crt_memset(void *ptr, int value, size_t len)
 {
 	return memset(ptr, value, len);
+}
+
+asmlinkage void * crt_memcpy(void *ptr1, const void *ptr2, size_t len)
+{
+	return memcpy(ptr1, ptr2, len);
+}
+
+asmlinkage int crt_memcmp(const void *ptr1, const void *ptr2, size_t len)
+{
+	return memcmp(ptr1, ptr2, len);
 }
 
 asmlinkage void crt_free(void *ptr)

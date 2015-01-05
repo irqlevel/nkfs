@@ -10,6 +10,11 @@ asmlinkage int ds_obj_id_gen(struct ds_obj_id *id)
 	return crt_random_buf(id, sizeof(*id));
 }
 
+asmlinkage int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
+{
+	return crt_memcmp(id1, id2, sizeof(*id2));
+}
+
 asmlinkage struct ds_obj_id *ds_obj_id_create(void)
 {
 	struct ds_obj_id *id;

@@ -8,7 +8,7 @@ static LIST_HEAD(dev_list);
 static void ds_dev_free(struct ds_dev *dev)
 {
 	if (dev->sb)
-		ds_sb_delete(dev->sb);
+		ds_sb_deref(dev->sb);
 	if (dev->dev_name)
 		kfree(dev->dev_name);
 	kfree(dev);
@@ -136,12 +136,13 @@ static int ds_dev_thread_routine(void *data)
 static int ds_dev_start(struct ds_dev *dev, int format)
 {
 	int err;
+	struct ds_sb *sb;
 
 	BUG_ON(dev->sb);
 	if (!format)
-		err = ds_sb_load(dev, &dev->sb);
+		err = ds_sb_load(dev, &sb);
 	else
-		err = ds_sb_format(dev, &dev->sb);
+		err = ds_sb_format(dev, &sb);
 
 	if (err) {
 		KLOG(KL_ERR, "check or format err %d", err);
@@ -152,13 +153,24 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 	if (IS_ERR(dev->thread)) {
 		err = PTR_ERR(dev->thread);
 		dev->thread = NULL;
+		ds_sb_deref(sb);
 		KLOG(KL_ERR, "kthread_create err=%d", err);
 		return err;
 	}
+
+	err = ds_sb_insert(sb);
+	if (err) {
+		ds_sb_deref(sb);
+		put_task_struct(dev->thread);
+		dev->thread = NULL;
+		KLOG(KL_ERR, "sb insert err=%d", err);
+		return err;
+	}
+
+	dev->sb = sb;
 	get_task_struct(dev->thread);
 	wake_up_process(dev->thread);
-	err = 0;
-	return err;
+	return 0;
 }
 
 static void ds_dev_stop(struct ds_dev *dev)

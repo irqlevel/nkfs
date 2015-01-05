@@ -2,6 +2,77 @@
 
 #define __SUBCOMPONENT__ "super"
 
+static DEFINE_MUTEX(sb_list_lock);
+static LIST_HEAD(sb_list);
+
+static void ds_sb_release(struct ds_sb *sb)
+{
+	KLOG(KL_DBG, "sb %p", sb);
+}
+
+static void ds_sb_delete(struct ds_sb *sb)
+{
+	ds_sb_release(sb);
+	kfree(sb);
+}
+
+void ds_sb_stop(struct ds_sb *sb)
+{
+	KLOG(KL_ERR, "sb %p dev %s stopping",
+			sb, sb->dev->dev_name);
+
+	mutex_lock(&sb_list_lock);
+	list_del_init(&sb->list);
+	mutex_unlock(&sb_list_lock);	
+}
+
+void ds_sb_ref(struct ds_sb *sb)
+{
+	BUG_ON(atomic_read(&sb->refs) <= 0);
+	atomic_inc(&sb->refs);
+}
+
+void ds_sb_deref(struct ds_sb *sb)
+{
+	BUG_ON(atomic_read(&sb->refs) <= 0);
+	if (atomic_dec_and_test(&sb->refs))
+		ds_sb_delete(sb);
+}
+
+struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
+{
+	struct ds_sb *sb, *found = NULL;
+
+	mutex_lock(&sb_list_lock);
+	list_for_each_entry(sb, &sb_list, list) {
+		if (0 == ds_obj_id_cmp(&sb->id, id)) {
+			ds_sb_ref(sb);
+			found = sb;
+			break;
+		}	
+	}
+	mutex_unlock(&sb_list_lock);
+	return found;
+}
+
+int ds_sb_insert(struct ds_sb *cand)
+{
+	struct ds_sb *sb;
+	int err;
+
+	mutex_lock(&sb_list_lock);
+	list_for_each_entry(sb, &sb_list, list) {
+		if (0 == ds_obj_id_cmp(&sb->id, &cand->id)) {
+			err = -EEXIST;
+			break;
+		}
+	}
+	list_add_tail(&cand->list, &sb_list);
+	err = 0;
+	mutex_unlock(&sb_list_lock);
+	return err;
+}
+
 static int ds_sb_gen_header(struct ds_sb *sb,
 	u64 size,
 	u32 bsize)
@@ -125,6 +196,8 @@ static int ds_sb_create(struct ds_dev *dev,
 		return -ENOMEM;
 	}
 	memset(sb, 0, sizeof(*sb));
+	INIT_LIST_HEAD(&sb->list);
+	atomic_set(&sb->refs, 1);
 
 	if (!header) {
 		err = ds_sb_gen_header(sb, i_size_read(dev->bdev->bd_inode),
@@ -150,23 +223,6 @@ static int ds_sb_create(struct ds_dev *dev,
 free_sb:
 	kfree(sb);
 	return err;
-}
-
-static void ds_sb_release(struct ds_sb *sb)
-{
-	KLOG(KL_DBG, "sb %p", sb);
-}
-
-void ds_sb_delete(struct ds_sb *sb)
-{
-	ds_sb_release(sb);
-	kfree(sb);
-}
-
-void ds_sb_stop(struct ds_sb *sb)
-{
-	KLOG(KL_ERR, "sb %p dev %s stopping",
-			sb, sb->dev->dev_name);
 }
 
 int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)

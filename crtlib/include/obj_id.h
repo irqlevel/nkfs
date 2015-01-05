@@ -5,4 +5,5 @@
 extern asmlinkage char *ds_obj_id_to_str(struct ds_obj_id *id);
 extern asmlinkage int ds_obj_id_gen(struct ds_obj_id *id);
 extern asmlinkage struct ds_obj_id *ds_obj_id_create(void);
-
+extern asmlinkage int ds_obj_id_cmp(struct ds_obj_id *id1,
+			struct ds_obj_id *id2);

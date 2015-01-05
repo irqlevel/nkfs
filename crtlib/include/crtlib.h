@@ -43,6 +43,7 @@
 
 extern asmlinkage void *crt_memset(void *ptr, int value, size_t num);
 extern asmlinkage void *crt_memcpy(void * destination, const void * source, size_t num);
+extern asmlinkage int crt_memcmp(const void *ptr1, const void * ptr2, size_t num);
 extern asmlinkage void *crt_malloc(size_t size);
 extern asmlinkage void crt_free(void *ptr);
 extern asmlinkage int crt_random_buf(void *buf, size_t len);
