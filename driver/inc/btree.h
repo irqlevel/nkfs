@@ -33,6 +33,7 @@ struct btree_node {
 	u64			childs[2*BTREE_T];
 	u32			leaf;
 	u32			nr_keys;
+	u32			t;
 };
 
 /* size = (2T-1)*16 + (2T-1)*8 + 2T*8 + 4*4 + pad */
@@ -53,7 +54,7 @@ _Static_assert(sizeof(struct btree_node_disk) <= 4096, "size is not correct");
 
 struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
-void btree_delete(struct btree *tree, int from_disk);
+void btree_release(struct btree *tree);
 
 int btree_insert_key(struct btree *tree, struct btree_key *key,
 	u64 value, int replace);

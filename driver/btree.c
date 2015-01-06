@@ -3,18 +3,6 @@
 #define __SUBCOMPONENT__ "btree"
 
 
-static int btree_node_block_alloc(struct btree *tree, u64 *pblock)
-{
-	int err;
-
-	err = ds_balloc_block_alloc(tree->sb, pblock);
-	if (err) {
-		KLOG(KL_ERR, "cant alloc block err=%d", err);
-		return err;
-	}
-	return 0;
-}
-
 static struct btree_node *btree_node_alloc(void) 
 {
 	struct btree_node *node;
@@ -25,6 +13,10 @@ static struct btree_node *btree_node_alloc(void)
 		return NULL;
 	}
 	memset(node, 0, sizeof(*node));	
+
+	BUG_ON((ARRAY_SIZE(node->keys) + 1) & 1);	
+	node->t = (ARRAY_SIZE(node->keys) + 1)/2;
+
 	atomic_set(&node->ref, 1);
 	return node;
 }
@@ -92,6 +84,8 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 	struct btree_node *node;
 	struct buffer_head *bh;
 
+	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
+
 	node = btree_node_alloc();
 	if (!node)
 		return NULL;
@@ -117,6 +111,8 @@ static int btree_node_write(struct btree_node *node)
 	int err;
 
 	BUG_ON(!node->block);
+	BUG_ON(sizeof(struct btree_node_disk) > node->tree->sb->bsize);
+
 	bh = __getblk(node->tree->sb->bdev,
 			node->block,
 			node->tree->sb->bsize);
@@ -167,16 +163,13 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	return node;	
 }
 
-static void btree_node_delete(struct btree_node *node, int from_disk)
+static void btree_node_delete(struct btree_node *node)
 {	
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
 
-	btree_node_write(node);
-
-	if (from_disk)
-		ds_balloc_block_free(node->tree->sb, node->block);
-
+	ds_balloc_block_free(node->tree->sb, node->block);
+	node->block = 0;
 	btree_node_deref(node);
 }
 
@@ -248,14 +241,14 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	KLOG(KL_DBG, "tree %p created", tree);
 	return tree;
 fail:
-	btree_delete(tree, 1);
+	btree_release(tree);
 	return NULL;
 }
 
-void btree_delete(struct btree *tree, int from_disk)
+void btree_release(struct btree *tree)
 {
 	if (tree->root)
-		btree_node_delete(tree->root, from_disk);
+		btree_node_deref(tree->root);
 
 	ds_sb_deref(tree->sb);
 
@@ -462,14 +455,14 @@ btree_node_find_key_index(struct btree_node *node,
 }
 
 static int btree_node_insert_nonfull(
-	struct btree_node *node;
+	struct btree_node *first,
 	struct btree_key *key,
-	struct u64 *value,
+	u64 *value,
 	int replace)
 {
 	int i;
-	int err;
-
+	struct btree_node *node = first;
+	
 	while (1) {
 		KLOG(KL_DBG, "node [%p %d] leaf %d",
 			node, node->nr_keys, node->leaf);
@@ -481,10 +474,12 @@ static int btree_node_insert_nonfull(
 						&node->values[i],
 						value);
 				btree_node_write(node);
-				btree_node_deref(node);
+				if (node != first)
+					btree_node_deref(node);
 				return 0;
 			} else {
-				btree_node_deref(node);
+				if (node != first)
+					btree_node_deref(node);
 				return -1;
 			}
 		}
@@ -499,14 +494,16 @@ static int btree_node_insert_nonfull(
 			KLOG(KL_DBG, "inserted key into node=%p nr_keys=%d",
 					node, node->nr_keys);
 			btree_node_write(node);
-			btree_node_deref(node);
+			if (node != first)
+				btree_node_deref(node);
 			return 0;
 		} else {
 			struct btree_node *child;
 			i = btree_node_find_key_index(node, key);
 			child = btree_node_read(node->tree, node->childs[i]);
 			if (!child) {
-				btree_node_deref(node);
+				if (node != first)
+					btree_node_deref(node);
 				return -EIO;
 			}
 
@@ -514,7 +511,8 @@ static int btree_node_insert_nonfull(
 				struct btree_node *new;
 				new = btree_node_create(node->tree);
 				if (!new) {
-					btree_node_deref(node);
+					if (node != first)
+						btree_node_deref(node);
 					btree_node_deref(child);
 					return -EIO;
 				}
@@ -528,7 +526,8 @@ static int btree_node_insert_nonfull(
 				btree_node_deref(child);
 				continue; /* restart */
 			}
-			btree_node_deref(node);
+			if (node != first)
+				btree_node_deref(node);
 			node = child;
 		}
 	}
@@ -550,7 +549,8 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 			return -1;
 		new2 = btree_node_create(tree);
 		if (new2 == NULL) {
-			btree_node_delete(new, 1);
+			btree_node_delete(new);
+			btree_node_deref(new);	
 			return -1;
 		}
 
@@ -568,19 +568,20 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 
 		tree->root = new;
 	}
-	btree_node_ref(tree->root);
-	return btree_node_insert_nonfull(tree->root, key, value, replace);
+
+	return btree_node_insert_nonfull(tree->root, key, &value, replace);
 }
 
-static struct btree_node *btree_node_find_key(struct btree_node *node,
+static struct btree_node *btree_node_find_key(struct btree_node *first,
 		struct btree_key *key, int *pindex)
 {
 	int i;
-	struct btree_node *node;
-
+	struct btree_node *node = first;
+	
 	while (1) {
 		if (node->nr_keys == 0) {
-			btree_node_deref(node);
+			if (node != first)
+				btree_node_deref(node);
 			return NULL;
 		}
 
@@ -588,28 +589,28 @@ static struct btree_node *btree_node_find_key(struct btree_node *node,
 		if (i < node->nr_keys &&
 				btree_cmp_key(key, &node->keys[i]) == 0) {
 			*pindex = i;
-			btree_node_deref(node);
-			btree_node_ref(node);
+			if (node == first)
+				btree_node_ref(node);
 			return node;
 		} else if (node->leaf) {
-			btree_node_deref(node);
+			if (node != first)
+				btree_node_deref(node);
 			return NULL;
 		} else {
 			struct btree_node *prev = node;
 			node = btree_node_read(node->tree, node->childs[i]);
-			if (!node) {
-				btree_node_deref(prev);
-				return NULL;
-			}
+			BUG_ON(!node);
+			if (prev != first)
+				btree_node_deref(prev);	
 		}
 	}
 }
 
 int btree_find_key(struct btree *tree,
 	struct btree_key *key,
-	struct u64 *pvalue)
+	u64 *pvalue)
 {
-	struct btree_node *node;
+	struct btree_node *found;
 	int index;
 
 	if (btree_key_is_zero(key)) {
@@ -617,14 +618,12 @@ int btree_find_key(struct btree *tree,
 		return -1;
 	}
 
-	btree_node_ref(tree->root);
-	node = btree_node_find_key(tree->root, key, &index);
-	if (node == NULL)
+	found = btree_node_find_key(tree->root, key, &index);
+	if (found == NULL)
 		return -1;
 
-	btree_copy_value(pvalue, &node->values[index]);
-	if (node != tree->root)
-		__btree_node_free(node);
+	btree_copy_value(pvalue, &found->values[index]);
+	btree_node_deref(found);
 
 	return 0;
 }
@@ -636,10 +635,10 @@ static void __btree_node_delete_child_index(struct btree_node *node,
 	
 	/* do shift to the left by one */
 	for (i = (index + 1); i < node->nr_keys + 1; i++) {
-		node->childs[i-1].addr = node->childs[i].addr;
+		node->childs[i-1] = node->childs[i];
 	}
 	/* zero last slot */
-	node->childs[i-1].addr = NULL;	
+	node->childs[i-1] = 0;	
 }
 
 static void __btree_node_delete_key_index(struct btree_node *node,
@@ -655,7 +654,6 @@ static void __btree_node_delete_key_index(struct btree_node *node,
 	/* zero last slot */
 	btree_node_zero_kv(node, i-1);
 }
-
 
 static void btree_node_leaf_delete_key(struct btree_node *node,
 		struct btree_key *key)
@@ -675,35 +673,59 @@ btree_node_child_balance(struct btree_node *node,
 static struct btree_node *
 btree_node_find_left_most(struct btree_node *node, int *pindex)
 {
-	struct btree_node *curr = node;
+	struct btree_node *curr, *next;
 
+	BUG_ON(node->nr_keys == 0);
+	if (node->leaf) {
+		*pindex = node->nr_keys - 1;
+		btree_node_ref(node);
+		return node;
+	}
+
+	curr = btree_node_child_balance(node, node->nr_keys);
+	BUG_ON(!curr);
 	while (1) {
 		BUG_ON(curr->nr_keys == 0);
 		if (curr->leaf) {
 			*pindex = curr->nr_keys - 1;
 			return curr;
 		}
-		curr = btree_node_child_balance(curr, curr->nr_keys);
+		next = btree_node_child_balance(curr, curr->nr_keys);
+		btree_node_deref(curr);
+		curr = next;
+		BUG_ON(!curr);
 	}
 }
 
 static struct btree_node *
 btree_node_find_right_most(struct btree_node *node, int *pindex)
 {
-	struct btree_node *curr = node;
+	struct btree_node *curr, *next;
+
+	BUG_ON(node->nr_keys == 0);
+	if (node->leaf) {
+		*pindex = 0;
+		btree_node_ref(node);
+		return node;
+	}
+
+	curr = btree_node_child_balance(node, 0);
+	BUG_ON(!curr);
 	while (1) {
 		BUG_ON(curr->nr_keys == 0);
 		if (curr->leaf) {
 			*pindex = 0;
 			return curr;
 		}
-		curr = btree_node_child_balance(curr, 0);
+		next = btree_node_child_balance(curr, 0);
+		btree_node_deref(curr);
+		curr = next;
 	}
 }
 
 static void btree_node_merge(struct btree_node *dst,
 	struct btree_node *src, struct btree_key *key,
-	struct btree_value *value)
+	u64 *value)
 {
 	int i, pos;
 
@@ -769,6 +791,9 @@ static void btree_node_child_give_key(struct btree_node *node,
 	}
 	child->nr_keys++;
 	sib->nr_keys--;
+	btree_node_write(sib);
+	btree_node_write(child);
+	btree_node_write(node);
 }
 
 static struct btree_node * btree_node_child_merge(struct btree_node *node,
@@ -792,7 +817,9 @@ static struct btree_node * btree_node_child_merge(struct btree_node *node,
 		__btree_node_delete_key_index(node, child_index-1);
 		__btree_node_delete_child_index(node, child_index);
 		node->nr_keys--;
-		__btree_node_free(child);
+		btree_node_write(sib);
+		btree_node_write(node);
+		btree_node_delete(child);
 		merged = sib;
 	} else {
 		btree_node_merge(child, sib, &node->keys[child_index],
@@ -800,13 +827,16 @@ static struct btree_node * btree_node_child_merge(struct btree_node *node,
 		__btree_node_delete_key_index(node, child_index);
 		__btree_node_delete_child_index(node, child_index+1);
 		node->nr_keys--;
-		__btree_node_free(sib);
+		btree_node_write(child);
+		btree_node_write(node);
+		btree_node_delete(sib);
 		merged = child;
 	}
 
 	if (node->nr_keys == 0) {
 		btree_node_copy(node, merged);
-		__btree_node_free(merged);
+		btree_node_write(node);
+		btree_node_delete(merged);
 		return node;
 	} else {
 		return merged;
@@ -817,47 +847,68 @@ static struct btree_node *
 btree_node_child_balance(struct btree_node *node,
 	int child_index)
 {
-	struct btree_node *child;
+	struct btree_node *child, *next;
 
 	BUG_ON(node->leaf);
-	child = node->childs[child_index].addr;
-	BUG_ON(!child);
+	child = btree_node_read(node->tree, node->childs[child_index]);
+	if (!child) {
+		KLOG(KL_ERR, "cant read child");
+		return NULL;
+	}
 
 	KLOG(KL_DBG, "child %p nr_keys %d t %d",
 		child, child->nr_keys, child->t);
 
 	if (child->nr_keys < child->t) {
 		struct btree_node *left = (child_index > 0) ?
-			node->childs[child_index-1].addr : NULL;
+			btree_node_read(node->tree,
+				node->childs[child_index-1]) : NULL;
 		struct btree_node *right = (child_index < node->nr_keys) ?
-			node->childs[child_index+1].addr : NULL;
-		
+			btree_node_read(node->tree,
+				node->childs[child_index+1]) : NULL;
+
 		if (left && left->nr_keys >= left->t) {
 			btree_node_child_give_key(node, child,
 				child_index, left, 1);
+			next = child;
 		} else if (right && right->nr_keys >= right->t) {
 			btree_node_child_give_key(node, child,
 				child_index, right, 0);
+			next = child;
 		} else if (left && left->nr_keys < left->t) {
-			child = btree_node_child_merge(node, child,
+			next = btree_node_child_merge(node, child,
 				child_index, left, 1);
 		} else if (right->nr_keys < right->t) {
-			child = btree_node_child_merge(node, child,
+			next = btree_node_child_merge(node, child,
 				child_index, right, 0);
 		} else {
 			KLOG(KL_ERR, "no way to add key to child=%p",
 				child);
 			BUG();
+			next = NULL;
 		}
+
+		if (next != child) {
+			btree_node_deref(child);
+			btree_node_ref(next);
+		}
+
+		if (right)
+			btree_node_deref(right);
+		if (left)
+			btree_node_deref(left);
+
+		child = next;
 	}
 
 	return child;
 }
 
-static int btree_node_delete_key(struct btree_node *node,
+static int btree_node_delete_key(struct btree_node *first,
 		struct btree_key *key)
 {
 	struct btree_key key_copy;
+	struct btree_node *node = first;
 	int i;
 
 restart:
@@ -867,6 +918,9 @@ restart:
 	if ((i = btree_node_has_key(node, key)) >= 0) {
 		if (node->leaf) {
 			btree_node_leaf_delete_key(node, key);
+			btree_node_write(node);
+			if (node != first)
+				btree_node_deref(node);
 			return 0;
 		} else {
 			struct btree_node *pre_child = NULL;
@@ -876,17 +930,26 @@ restart:
 			index = btree_node_has_key(node, key);
 			BUG_ON(index < 0);
 
-			pre_child = node->childs[index].addr;
-			suc_child = node->childs[index+1].addr;
+			pre_child = btree_node_read(node->tree,
+					node->childs[index]);
+			suc_child = btree_node_read(node->tree,
+					node->childs[index+1]);
+			BUG_ON(!pre_child);
+			BUG_ON(!suc_child);
 
 			if (pre_child->nr_keys >= pre_child->t) {
 				struct btree_node *pre;
 				int pre_index;
-
+	
 				pre = btree_node_find_left_most(pre_child,
 					&pre_index);
 				btree_node_copy_kv(node, index,
 					pre, pre_index);
+				btree_node_write(node);
+				if (node != first)
+					btree_node_deref(node);
+				btree_node_deref(pre_child);
+				btree_node_deref(suc_child);
 				node = pre;
 				key = &pre->keys[pre_index];
 				goto restart;
@@ -898,6 +961,11 @@ restart:
 					&suc_index);
 				btree_node_copy_kv(node, index,
 					suc, suc_index);
+				btree_node_write(node);
+				if (node != first)
+					btree_node_deref(node);
+				btree_node_deref(suc_child);
+				btree_node_deref(pre_child);
 				node = suc;
 				key = &suc->keys[suc_index];
 				goto restart;
@@ -917,27 +985,40 @@ restart:
 				__btree_node_delete_child_index(node,
 						index+1);
 				node->nr_keys--;
-
+				btree_node_write(node);
+				btree_node_write(pre_child);
 				/* delete suc_child */
-				__btree_node_free(suc_child);
+				btree_node_delete(suc_child);
 				if (node->nr_keys == 0) {
 					btree_node_copy(node, pre_child);
-					__btree_node_free(pre_child);
+					btree_node_delete(pre_child);
+					btree_node_write(node);
+
+					btree_node_deref(suc_child);
+					btree_node_deref(pre_child);
 					pre_child = node;
+				} else {
+					if (node != first)
+						btree_node_deref(node);
+					btree_node_deref(suc_child);
+					node = pre_child;
 				}
-				node = pre_child;
 				key = &pre_child->keys[key_index];
 				goto restart;
 			}
 		}
 	} else {
 		if (node->leaf) {
+			if (node != first)
+				btree_node_deref(node);
 			return -1;
 		} else {
 			struct btree_node *child;
 			BUG_ON(btree_node_has_key(node, key) >= 0);
 			i = btree_node_find_key_index(node, key);
 			child = btree_node_child_balance(node, i);
+			if (node != first)
+				btree_node_deref(node);
 			node = child;
 			goto restart;
 		}
@@ -953,9 +1034,10 @@ int btree_delete_key(struct btree *tree, struct btree_key *key)
 }
 
 
-static void btree_log_node(struct btree_node *node, u32 height, int llevel)
+static void btree_log_node(struct btree_node *first, u32 height, int llevel)
 {
 	struct btree_node *child;
+	struct btree_node *node = first;
 	int i;
 
 	KLOG(llevel, "node %p nr_keys %d leaf %d height %u",
@@ -963,9 +1045,11 @@ static void btree_log_node(struct btree_node *node, u32 height, int llevel)
 
 	if (node->nr_keys) {
 		for (i = 0; i < node->nr_keys + 1; i++) {
-			child = node->childs[i].addr;
-			if (child != NULL)
-				btree_log_node(child, height+1, llevel);
+			child = btree_node_read(node->tree,
+				node->childs[i]);
+			BUG_ON(!child);
+			btree_log_node(child, height+1, llevel);
+			btree_node_deref(child);
 		}
 	}
 }
@@ -978,9 +1062,11 @@ static void btree_node_stats(struct btree_node *node,
 
 	if (node->nr_keys) {
 		for (i = 0; i < node->nr_keys + 1; i++) {
-			child = node->childs[i].addr;
-			if (child != NULL)
-				btree_node_stats(child, info);
+			child = btree_node_read(node->tree,
+				node->childs[i]);
+			BUG_ON(!child);
+			btree_node_stats(child, info);
+			btree_node_deref(child);
 		}
 	}
 	info->nr_nodes++;
@@ -998,11 +1084,12 @@ void btree_log(struct btree *tree, int llevel)
 	btree_log_node(tree->root, 1, llevel);
 }
 
-static int btree_node_check(struct btree_node *node, int root)
+static int btree_node_check(struct btree_node *first, int root)
 {
 	int i;
 	int errs = 0;
 	struct btree_key *prev_key;
+	struct btree_node *node = first;
 
 	if (root) {
 		if (node->nr_keys > (2*node->t - 1)) {
@@ -1040,7 +1127,7 @@ static int btree_node_check(struct btree_node *node, int root)
 			prev_key = &node->keys[i];
 		}
 		if (!node->leaf) {
-			if (!node->childs[i].addr) {
+			if (!node->childs[i]) {
 				KLOG(KL_ERR, "node %p zero child %d found",
 					node, i);
 				errs++;
@@ -1050,7 +1137,7 @@ static int btree_node_check(struct btree_node *node, int root)
 
 	if (!node->leaf) {
 		if (!root || (node->nr_keys > 0)) {
-			if (!node->childs[i].addr) {
+			if (!node->childs[i]) {
 				KLOG(KL_ERR, "node %p zero child %d found",
 						node, i);
 				errs++;
@@ -1061,388 +1148,18 @@ static int btree_node_check(struct btree_node *node, int root)
 	if (!node->leaf) {
 		for (i = 0; i < node->nr_keys+1; i++) {
 			struct btree_node *child;
-			child = node->childs[i].addr;
+			child = btree_node_read(node->tree,
+				node->childs[i]);
 			BUG_ON(!child);
 			errs+= btree_node_check(child, 0);
+			btree_node_deref(child);
 		}
 	}
+
 	return errs;
 }
 
 int btree_check(struct btree *tree)
 {
 	return btree_node_check(tree->root, 1);
-}
-
-static int btree_test_insert_case(struct btree *t, struct btree_key **keys,
-		struct btree_value **values, int num_keys, int replace,
-		int fail_ok)
-{
-	int i;
-	int err;
-	char *key_hex = NULL, *val_hex = NULL;
-
-	/* insert keys */
-	for (i = 0; i < num_keys; i++) {
-		key_hex = btree_key_hex(keys[i]);
-		if (!key_hex) {
-			KLOG(KL_ERR, "cant get key hex");
-			err = -ENOMEM;
-			goto cleanup;
-		}
-		val_hex = btree_value_hex(values[i]);
-		if (!val_hex) {
-			KLOG(KL_ERR, "cant get val hex");
-			err = -ENOMEM;
-			goto cleanup;
-		}
-
-		err = btree_insert_key(t, keys[i], values[i], replace);
-		if (err && !fail_ok) {
-			KLOG(KL_ERR, "Cant insert key[%d] %s rplc=%d rc=%d",
-					i, key_hex, replace, err);
-			goto cleanup;
-		}
-
-		KLOG(KL_TST, "Insert key[%d] %s -> %s rplc=%d rc=%d",
-				i, key_hex, val_hex, replace, err);
-
-		kfree(key_hex);
-		key_hex = NULL;
-		kfree(val_hex);
-		val_hex = NULL;
-	}
-
-	err = 0;
-cleanup:
-	if (key_hex)
-		kfree(key_hex);
-	if (val_hex)
-		kfree(val_hex);
-	return err;	
-}
-
-static int btree_test_find_case(struct btree *t, struct btree_key **keys,
-		struct btree_value **values, int num_keys)
-{
-	int i;
-	int err;
-	char *key_hex = NULL, *val_hex = NULL;
-	struct btree_value *value = NULL;
-
-	for (i = 0; i < num_keys; i++) {
-		key_hex = btree_key_hex(keys[i]);
-		if (!key_hex) {
-			KLOG(KL_ERR, "cant get key hex");
-			err = -ENOMEM;
-			goto cleanup;
-		}
-
-		err = btree_find_key(t, keys[i], &value);
-		if (err) {
-			KLOG(KL_ERR, "Cant found key[%d] %s, rc=%d",
-					i, key_hex, err);
-			goto cleanup;
-		}
-
-		val_hex = btree_value_hex(value);
-		if (!val_hex) {
-			KLOG(KL_ERR, "cant get val hex");
-			err = -ENOMEM;
-			goto cleanup;
-		}
-
-		KLOG(KL_TST, "Found key[%d] %s -> %s, rc=%d",
-				i, key_hex, val_hex, err);
-		if (0 != memcmp(values[i], value, sizeof(*value))) {
-			KLOG(KL_ERR, "value mismatch");
-			err = -EINVAL;
-			goto cleanup;
-		}
-		kfree(value);
-		value = NULL;
-		kfree(key_hex);
-		key_hex = NULL;
-		kfree(val_hex);
-		val_hex = NULL;
-	}
-
-	err = 0;
-cleanup:
-	if (value)
-		kfree(value);
-	if (key_hex)
-		kfree(key_hex);
-	if (val_hex)
-		kfree(val_hex);
-	return err;	
-}
-
-static int btree_test_delete_case(struct btree *t, struct btree_key **keys,
-		struct btree_value **values, int num_keys)
-{
-	int i;
-	int err;
-	char *key_hex = NULL;
-
-	for (i = 0; i < num_keys; i++) {
-		key_hex = btree_key_hex(keys[i]);
-		if (!key_hex) {
-			KLOG(KL_ERR, "cant get key hex");
-			err = -ENOMEM;
-			goto cleanup;
-		}
-
-		err = btree_delete_key(t, keys[i]);
-		if (err) {
-			KLOG(KL_ERR, "Cant delete key[%d] %s, rc=%d",
-					i, key_hex, err);
-			goto cleanup;
-		} else {
-			KLOG(KL_TST, "Deleted key[%d] %s, rc=%d", i, key_hex, err);
-		}
-		kfree(key_hex);
-		key_hex = NULL;
-	}
-
-	err = 0;
-cleanup:
-	if (key_hex)
-		kfree(key_hex);
-	return err;	
-}
-
-
-static int btree_test_stats_case(struct btree *t)
-{
-	struct btree_info info;
-	/* output some stats */
-	btree_log(t, KL_TST);
-	btree_stats(t, &info);
-
-	KLOG(KL_TST, "tree %p nr_keys=%llu nr_nodes=%llu",
-		t, info.nr_keys, info.nr_nodes);
-
-	return 0;
-}
-
-void btree_test_free_kvs(struct btree_key **keys,
-	struct btree_value **values, int num_keys)
-{
-	int i;
-
-	if (values) {
-		for (i = 0; i < num_keys; i++)
-			if (values[i])
-				kfree(values[i]);
-		kfree(values);
-	}
-
-	if (keys) {
-		for (i = 0; i < num_keys; i++)
-			if (keys[i])
-				kfree(keys[i]);
-		kfree(keys);
-	}
-}
-
-int btree_test_gen_kvs(struct btree_key ***pkeys,
-	struct btree_value ***pvalues, int num_keys)
-{
-	struct btree_key **keys = NULL;
-	struct btree_value **values = NULL;
-	int i, err;
-
-	*pkeys = NULL;
-	*pvalues = NULL;
-
-	keys = kmalloc(num_keys*sizeof(struct btree_key *), GFP_NOFS);
-	if (!keys) {
-		KLOG(KL_ERR, "cant malloc keys");
-		err = -ENOMEM;
-		goto cleanup;
-	}
-	memset(keys, 0, num_keys*sizeof(struct btree_key *));
-
-	values = kmalloc(num_keys*sizeof(struct btree_value *), GFP_NOFS);
-	if (!values) {
-		KLOG(KL_ERR,"cant malloc values");
-		err = -ENOMEM;
-		goto cleanup;
-	}
-	memset(values, 0, num_keys*sizeof(struct btree_value *));
-
-	for (i = 0; i < num_keys; i++) {
-		keys[i] = btree_gen_key();
-		if (!keys[i]) {
-			KLOG(KL_ERR, "cant gen key[%d]", i);
-			err = -ENOMEM;
-			goto cleanup;
-		}
-		values[i] = btree_gen_value();
-		if (!values[i]) {
-			KLOG(KL_ERR, "cant gen value[%d]", i);
-			err = -ENOMEM;
-			goto cleanup;
-		}
-	}
-
-	*pkeys = keys;
-	*pvalues = values;
-	return 0;
-cleanup:
-	btree_test_free_kvs(keys, values, num_keys);
-	return err;
-}
-
-int btree_test(int num_keys)
-{
-	struct btree *t = NULL;
-	struct btree_key **keys = NULL;
-	struct btree_value **values = NULL;
-	int err;
-
-	err = btree_test_gen_kvs(&keys, &values, num_keys);
-	if (err)
-		goto cleanup;
-
-	t = btree_create();
-	if (!t) {
-		KLOG(KL_ERR, "cant create tree");
-		err = -ENOMEM;
-		goto cleanup;
-	}
-	KLOG(KL_TST, "t=%p, root=%p sz=%zu",
-			t, t->root, sizeof(*t->root));
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* insert keys */
-	err = btree_test_insert_case(t, keys, values, num_keys, 0, 0);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-
-	/* output tree structures and stats */
-	err = btree_test_stats_case(t);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* insert keys again */
-	err = btree_test_insert_case(t, keys, values, num_keys, 0, 1);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-
-	/* output tree structures and stats */
-	err = btree_test_stats_case(t);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* replace keys */
-	err = btree_test_insert_case(t, keys, values, num_keys, 1, 0);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* output tree structures and stats */
-	err = btree_test_stats_case(t);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* find keys */
-	err = btree_test_find_case(t, keys, values, num_keys);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* output tree structures and stats */
-	err = btree_test_stats_case(t);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* delete keys */
-	err = btree_test_delete_case(t, keys, values, num_keys);
-	if (err)
-		goto cleanup;
-	
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	/* output tree structures and stats */
-	err = btree_test_stats_case(t);
-	if (err)
-		goto cleanup;
-
-	err = btree_check(t);
-	if (err) {
-		KLOG(KL_ERR, "t=%p check errs=%d", t, err);
-		goto cleanup;
-	}
-
-	KLOG(KL_TST, "PASSED");
-
-	err = 0;
-cleanup:
-	if (err)
-		KLOG(KL_TST, "FAILED");
-
-	btree_test_free_kvs(keys, values, num_keys);
-
-	if (t)
-		btree_delete(t);
-	return 0;
 }
