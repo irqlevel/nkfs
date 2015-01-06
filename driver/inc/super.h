@@ -11,8 +11,10 @@ struct ds_sb {
 	u64			size;
 	u32			bsize;
 	u64			nr_blocks;
-	u32			bm_block;
+	u64			bm_block;
 	u64			bm_blocks;
+	u64			obj_tree_block;	
+	struct btree		*obj_tree;
 };
 
 void ds_sb_stop(struct ds_sb *sb);

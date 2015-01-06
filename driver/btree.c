@@ -273,6 +273,7 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	inserted = btree_nodes_insert(tree, node);
 	BUG_ON(inserted != node);
 
+	btree_node_write(node);
 	KLOG(KL_DBG, "node %p created", node);
 
 	return node;	
@@ -336,6 +337,17 @@ void btree_deref(struct btree *tree)
 	if (atomic_dec_and_test(&tree->ref)) {
 		btree_release(tree);
 	}
+}
+
+u64 btree_get_root_block(struct btree *tree)
+{
+	u64 block;
+
+	down_write(&tree->rw_lock);
+	block = tree->root->block;
+	up_write(&tree->rw_lock);
+
+	return block;
 }
 
 struct btree *btree_create(struct ds_sb *sb, u64 root_block)

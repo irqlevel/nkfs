@@ -7,7 +7,9 @@ static LIST_HEAD(sb_list);
 
 static void ds_sb_release(struct ds_sb *sb)
 {
-	KLOG(KL_DBG, "sb %p", sb);
+	KLOG(KL_DBG, "sb %p obj tree", sb, sb->obj_tree);
+	if (sb->obj_tree)
+		btree_deref(sb->obj_tree);
 }
 
 static void ds_sb_delete(struct ds_sb *sb)
@@ -119,6 +121,8 @@ static void ds_sb_parse_header(struct ds_sb *sb,
 	sb->bsize = be32_to_cpu(header->bsize);
 	sb->bm_block = be32_to_cpu(header->bm_block);
 	sb->bm_blocks = be64_to_cpu(header->bm_blocks);
+	sb->obj_tree_block = be64_to_cpu(header->obj_tree_block);
+
 	memcpy(&sb->id, &header->id, sizeof(header->id));	
 }
 
@@ -133,6 +137,8 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	header->bsize = cpu_to_be32(sb->bsize);
 	header->bm_block = cpu_to_be32(sb->bm_block);
 	header->bm_blocks = cpu_to_be64(sb->bm_blocks);
+	header->obj_tree_block =
+		cpu_to_be64(btree_get_root_block(sb->obj_tree));
 	memcpy(&header->id, &sb->id, sizeof(sb->id));
 }
 
@@ -228,10 +234,16 @@ free_sb:
 	return err;
 }
 
+void ds_sb_log(struct ds_sb *sb)
+{
+	KLOG(KL_DBG, "sb %p blocks %llu obj tree %llu bm %llu bm_blocks %llu",
+		sb, sb->nr_blocks, sb->obj_tree_block, sb->bm_block,
+		sb->bm_blocks);
+}
+
 int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 {
 	struct buffer_head *bh;
-	struct ds_image_header *header;
 	int err;
 	struct ds_sb *sb = NULL;
 	u64 i;
@@ -243,16 +255,10 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto out;	
 	}
 
-	header = kmalloc(sizeof(*header), GFP_NOFS);
-	if (!header) {
-		err = -ENOMEM;
-		goto free_bh;
-	}
-
 	err = ds_sb_create(dev, NULL, &sb);
 	if (err) {
 		KLOG(KL_ERR, "cant create sb");
-		goto free_header;
+		goto out;
 	}
 
 	err = ds_balloc_bm_clear(sb);
@@ -270,9 +276,15 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		}
 	}
 	
+	sb->obj_tree = btree_create(sb, 0);
+	if (!sb->obj_tree) {
+		KLOG(KL_ERR, "cant create obj btree");
+		goto del_sb;
+	}
+
+	sb->obj_tree_block = btree_get_root_block(sb->obj_tree);
 	memset(bh->b_data, 0, dev->bsize);
-	ds_sb_fill_header(sb, header);
-	memcpy(bh->b_data, header, sizeof(*header));
+	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
 
 	mark_buffer_dirty(bh);
 	err = sync_dirty_buffer(bh);
@@ -281,14 +293,13 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto del_sb;
 	}
 
-	err = 0;
+	ds_sb_log(sb);
 	*psb = sb;
-	goto free_header;
+	err = 0;
+	goto free_bh;
 
 del_sb:
 	ds_sb_delete(sb);
-free_header:
-	kfree(header);
 free_bh:
 	brelse(bh);
 out:
@@ -321,6 +332,22 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 		err = -EINVAL;
 		goto free_sb;
 	}
+
+	if (sb->obj_tree_block >= sb->nr_blocks) {
+		KLOG(KL_ERR, "sb %p obj tree %llu nr_blocks %llud",
+			sb, sb->obj_tree_block, sb->nr_blocks);
+		err = -EINVAL;
+		goto free_sb;
+	}
+	sb->obj_tree = btree_create(sb, sb->obj_tree_block);
+	if (!sb->obj_tree) {
+		KLOG(KL_ERR, "sb %p cant load obj tree %llu",
+			sb, sb->obj_tree_block);
+		err = -EINVAL;
+		goto free_sb;
+	}
+
+	ds_sb_log(sb);
 	*psb = sb;
 	err = 0;
 	goto free_bh;
