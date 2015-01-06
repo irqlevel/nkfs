@@ -25,6 +25,7 @@ static struct btree_node *btree_node_alloc(void)
 		return NULL;
 	}
 	memset(node, 0, sizeof(*node));	
+	atomic_set(&node->ref, 1);
 	return node;
 }
 
@@ -33,6 +34,19 @@ static void __btree_node_free(struct btree_node *node)
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
 	kfree(node);
+}
+
+static void btree_node_ref(struct btree_node *node)
+{
+	BUG_ON(atomic_read(&node->ref) <= 0);
+	atomic_inc(&node->ref);
+}
+
+static void btree_node_deref(struct btree_node *node)
+{
+	BUG_ON(atomic_read(&node->ref) <= 0);
+	if (atomic_dec_and_test(&node->ref))
+		__btree_node_free(node);
 }
 
 static void btree_node_by_ondisk(struct btree_node *node,
@@ -80,14 +94,14 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 
 	node = btree_node_alloc();
 	if (!node)
-		return node;
+		return NULL;
 
 	node->tree = tree;
 	bh = __bread(tree->sb->bdev, block, tree->sb->bsize);
 	if (!bh) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
-		__btree_node_free(node);
-		return -EIO;
+		btree_node_deref(node);
+		return NULL;
 	}
 
 	btree_node_by_ondisk(node,
@@ -102,6 +116,7 @@ static int btree_node_write(struct btree_node *node)
 	struct buffer_head *bh;
 	int err;
 
+	BUG_ON(!node->block);
 	bh = __getblk(node->tree->sb->bdev,
 			node->block,
 			node->tree->sb->bsize);
@@ -135,7 +150,7 @@ static struct btree_node *btree_node_create(struct btree *tree)
 		
 	err = ds_balloc_block_alloc(tree->sb, &node->block);
 	if (err) {
-		__btree_node_free(node);
+		btree_node_deref(node);
 		return NULL;
 	}
 	
@@ -144,25 +159,16 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	err = btree_node_write(node);
 	if (err) {
 		ds_balloc_block_free(tree->sb, node->block);
-		__btree_node_free(node);
+		btree_node_deref(node);
+		return NULL;
 	}
 	KLOG(KL_DBG, "node %p created", node);
 
 	return node;	
 }
 
-static void __btree_node_free(struct btree_node *node)
-{
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
-		node, node->leaf, node->nr_keys);
-	kfree(node);
-}
-
 static void btree_node_delete(struct btree_node *node, int from_disk)
-{
-	struct btree_node *child;
-	int i;
-	
+{	
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
 
@@ -171,7 +177,7 @@ static void btree_node_delete(struct btree_node *node, int from_disk)
 	if (from_disk)
 		ds_balloc_block_free(node->tree->sb, node->block);
 
-	__btree_node_free(node);
+	btree_node_deref(node);
 }
 
 struct btree_key *btree_gen_key(void)
@@ -188,7 +194,7 @@ struct btree_key *btree_gen_key(void)
 	return key;
 }
 
-struct u64 btree_gen_value(void)
+u64 btree_gen_value(void)
 {
 	u64 value;
 
@@ -206,12 +212,13 @@ char *btree_key_hex(struct btree_key *key)
 
 char *btree_value_hex(u64 value)
 {
-	return bytes_hex(&value, sizeof(value));
+	return bytes_hex((char *)&value, sizeof(value));
 }
 
-struct btree *btree_create(struct ds_sb *sb, u64 begin)
+struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 {
 	struct btree *tree;
+	int err;
 
 	tree = kmalloc(sizeof(*tree), GFP_NOFS);
 	if (!tree) {
@@ -221,17 +228,17 @@ struct btree *btree_create(struct ds_sb *sb, u64 begin)
 
 	memset(tree, 0, sizeof(*tree));
 	tree->sb = sb;
-	sb_ref(sb);
+	ds_sb_ref(sb);
 
-	if (start)
-		tree->root = btree_node_read(tree, start);
+	if (root_block)
+		tree->root = btree_node_read(tree, root_block);
 	else
 		tree->root = btree_node_create(tree);
-	
+
 	if (!tree->root)
 		goto fail;
 
-	if (!start) {
+	if (!root_block) {
 		tree->root->leaf = 1;
 		err = btree_node_write(tree->root);
 		if (err)
@@ -250,7 +257,7 @@ void btree_delete(struct btree *tree, int from_disk)
 	if (tree->root)
 		btree_node_delete(tree->root, from_disk);
 
-	sb_deref(tree->sb);
+	ds_sb_deref(tree->sb);
 
 	kfree(tree);
 	KLOG(KL_DBG, "tree %p deleted", tree);
@@ -394,19 +401,17 @@ static void btree_node_zero_kv(struct btree_node *dst, int dst_index)
 }
 
 static void btree_node_split_child(struct btree_node *node,
-		int index, struct btree_node *new)
+		struct btree_node *child,
+		int child_index, struct btree_node *new)
 {
-	struct btree_node *child;
 	int i;
 
-	BUG_ON(index < 0 || index > node->nr_keys);
-	child = node->childs[index].addr;
+	BUG_ON(child_index < 0 || child_index > node->nr_keys);
 	BUG_ON(!child || !btree_node_is_full(child));	
 	BUG_ON(!new);
 
 	KLOG(KL_DBG, "Splitting node [%p %d] child[%d]=[%p %d]",
-		node, node->nr_keys, index, child, child->nr_keys);
-
+		node, node->nr_keys, child_index, child, child->nr_keys);
 
 	new->leaf = child->leaf;
 	/* copy T-1 keys from child to new */
@@ -425,14 +430,14 @@ static void btree_node_split_child(struct btree_node *node,
 	child->nr_keys = new->t - 1;
 
 	/* setup node new child */
-	btree_node_put_child_value(node, index + 1, new);
+	btree_node_put_child_value(node, child_index + 1, new);
 
 	/* move mid key from child to node */
-	btree_node_put_kv(node, index, child, new->t - 1);
+	btree_node_put_kv(node, child_index, child, new->t - 1);
 	node->nr_keys++;
 
 	KLOG(KL_DBG, "Splitted node [%p %d] child[%d]=[%p %d] new [%p %d]",
-		node, node->nr_keys, index, child, child->nr_keys,
+		node, node->nr_keys, child_index, child, child->nr_keys,
 		new, new->nr_keys);
 }
 
@@ -457,16 +462,13 @@ btree_node_find_key_index(struct btree_node *node,
 }
 
 static int btree_node_insert_nonfull(
-	struct btree_node *root;
+	struct btree_node *node;
 	struct btree_key *key,
 	struct u64 *value,
 	int replace)
 {
 	int i;
 	int err;
-	struct btree_node *node;
-	
-	node = root;
 
 	while (1) {
 		KLOG(KL_DBG, "node [%p %d] leaf %d",
@@ -479,12 +481,10 @@ static int btree_node_insert_nonfull(
 						&node->values[i],
 						value);
 				btree_node_write(node);
-				if (node != root)
-					__btree_node_free(node);
+				btree_node_deref(node);
 				return 0;
 			} else {
-				if (node != root)
-					__btree_node_free(node);
+				btree_node_deref(node);
 				return -1;
 			}
 		}
@@ -499,16 +499,14 @@ static int btree_node_insert_nonfull(
 			KLOG(KL_DBG, "inserted key into node=%p nr_keys=%d",
 					node, node->nr_keys);
 			btree_node_write(node);
-			if (node != root)
-				__btree_node_free(node);
+			btree_node_deref(node);
 			return 0;
 		} else {
 			struct btree_node *child;
 			i = btree_node_find_key_index(node, key);
 			child = btree_node_read(node->tree, node->childs[i]);
 			if (!child) {
-				if (node != root)
-					__btree_node_free(node);
+				btree_node_deref(node);
 				return -EIO;
 			}
 
@@ -516,21 +514,21 @@ static int btree_node_insert_nonfull(
 				struct btree_node *new;
 				new = btree_node_create(node->tree);
 				if (!new) {
-					if (node != root)
-						__btree_node_free(node);
-					__btree_node_free(child);
+					btree_node_deref(node);
+					btree_node_deref(child);
 					return -EIO;
 				}
-				btree_node_split_child(node, i, new);
+				btree_node_split_child(node, child, i, new);
+				
 				btree_node_write(node);
 				btree_node_write(child);
 				btree_node_write(new);
-				__btree_node_free(new);
-				__btree_node_free(child);
+				
+				btree_node_deref(new);
+				btree_node_deref(child);
 				continue; /* restart */
 			}
-			if (node != root)
-				__btree_node_free(node);
+			btree_node_deref(node);
 			node = child;
 		}
 	}
@@ -559,31 +557,30 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		new->leaf = 0;
 		new->nr_keys = 0;
 		new->childs[0] = root->block;
-		btree_node_split_child(new, 0, new2);
+		btree_node_split_child(new, root, 0, new2);
 
 		btree_node_write(root);
 		btree_node_write(new);
 		btree_node_write(new2);
 
-		__btree_node_free(root);
-		__btree_node_free(new2);
+		btree_node_deref(root);
+		btree_node_deref(new2);
 
 		tree->root = new;
 	}
-
+	btree_node_ref(tree->root);
 	return btree_node_insert_nonfull(tree->root, key, value, replace);
 }
 
-static struct btree_node *btree_node_find_key(struct btree_node *root,
+static struct btree_node *btree_node_find_key(struct btree_node *node,
 		struct btree_key *key, int *pindex)
 {
 	int i;
-	struct btree_node *node = root;
+	struct btree_node *node;
 
 	while (1) {
 		if (node->nr_keys == 0) {
-			if (node != root)
-				__btree_node_free(node);
+			btree_node_deref(node);
 			return NULL;
 		}
 
@@ -591,17 +588,17 @@ static struct btree_node *btree_node_find_key(struct btree_node *root,
 		if (i < node->nr_keys &&
 				btree_cmp_key(key, &node->keys[i]) == 0) {
 			*pindex = i;
+			btree_node_deref(node);
+			btree_node_ref(node);
 			return node;
 		} else if (node->leaf) {
-			if (node != root)
-				__btree_node_free(node);
+			btree_node_deref(node);
 			return NULL;
 		} else {
 			struct btree_node *prev = node;
 			node = btree_node_read(node->tree, node->childs[i]);
 			if (!node) {
-				if (prev != root)
-					__btree_node_free(prev);
+				btree_node_deref(prev);
 				return NULL;
 			}
 		}
@@ -620,6 +617,7 @@ int btree_find_key(struct btree *tree,
 		return -1;
 	}
 
+	btree_node_ref(tree->root);
 	node = btree_node_find_key(tree->root, key, &index);
 	if (node == NULL)
 		return -1;

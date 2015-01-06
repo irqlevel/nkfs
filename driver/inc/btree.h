@@ -19,7 +19,7 @@ struct btree_node_disk {
 	__be64			childs[2*BTREE_T];
 	__be32			leaf;
 	__be32			nr_keys;
-	__be8			pad[BTREE_NODE_PAD];
+	u8			pad[BTREE_NODE_PAD];
 };
 
 struct btree;
@@ -27,6 +27,7 @@ struct btree;
 struct btree_node {
 	struct btree		*tree;
 	u64			block;
+	atomic_t		ref;
 	struct btree_key	keys[2*BTREE_T-1];
 	u64			values[2*BTREE_T-1];
 	u64			childs[2*BTREE_T];
@@ -48,7 +49,7 @@ struct btree_info {
 
 #pragma pack(pop)
 
-_Static_assert(sizeof(struct __btree_node) <= 4096, "size is not correct");
+_Static_assert(sizeof(struct btree_node_disk) <= 4096, "size is not correct");
 
 struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
@@ -59,13 +60,13 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 
 int btree_find_key(struct btree *tree,
 	struct btree_key *key,
-	struct u64 *pvalue);
+	u64 *pvalue);
 
 int btree_delete_key(struct btree *tree,
 	struct btree_key *key);
 
 struct btree_key *btree_gen_key(void);
-struct u64 btree_gen_value(void);
+u64 btree_gen_value(void);
 
 char *btree_key_hex(struct btree_key *key);
 char *btree_value_hex(u64 value);
