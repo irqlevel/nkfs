@@ -183,15 +183,14 @@ static int btree_node_check_sigs(struct btree_node *node)
 
 static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 {
-	struct btree_node *node;
+	struct btree_node *node, *inserted;
 	struct buffer_head *bh;
 
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
-	BUG_ON(block = 0 || block >= tree->sb->nr_blocks);
+	BUG_ON(block == 0 || block >= tree->sb->nr_blocks);
 
 	node = btree_nodes_lookup(tree, block);
 	if (!node) {
-		struct btree_node *inserted;
 		node = btree_node_alloc();
 		if (!node)
 			return NULL;
@@ -201,10 +200,12 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 		if (node != inserted) {
 			__btree_node_free(node);
 			node = inserted;
+		} else {
+			btree_node_deref(inserted);
 		}
 	}
 
-	bh = __bread(tree->sb->bdev, block, tree->sb->bsize);
+	bh = __bread(tree->sb->bdev, node->block, tree->sb->bsize);
 	if (!bh) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
 		btree_node_deref(node);
@@ -231,9 +232,11 @@ static int btree_node_write(struct btree_node *node)
 	BUG_ON(btree_node_check_sigs(node));
 	BUG_ON(!node->tree);
 	BUG_ON(sizeof(struct btree_node_disk) > node->tree->sb->bsize);
-	BUG_ON(node->block = 0 || node->block >= node->tree->sb->nr_blocks);
+	BUG_ON(node->block == 0 || node->block >= node->tree->sb->nr_blocks);
 
-	bh = __getblk(node->tree->sb->bdev,
+	KLOG(KL_DBG, "node %p block %llu", node, node->block);
+
+	bh = __bread(node->tree->sb->bdev,
 			node->block,
 			node->tree->sb->bsize);
 	if (!bh) {
@@ -258,23 +261,27 @@ static int btree_node_write(struct btree_node *node)
 static struct btree_node *btree_node_create(struct btree *tree)
 {
 	struct btree_node *node, *inserted;
+	u64 block;
 	int err;
 
 	node = btree_node_alloc();
 	if (!node)
 		return NULL;
 		
-	err = ds_balloc_block_alloc(tree->sb, &node->block);
+	err = ds_balloc_block_alloc(tree->sb, &block);
 	if (err) {
 		__btree_node_free(node);
 		return NULL;
 	}
+	node->block = block;
+	BUG_ON(node->block == 0);
+
 	node->tree = tree;
 	inserted = btree_nodes_insert(tree, node);
 	BUG_ON(inserted != node);
-
+	btree_node_deref(inserted);
 	btree_node_write(node);
-	KLOG(KL_DBG, "node %p created", node);
+	KLOG(KL_DBG, "node %p created block %llu", node, node->block);
 
 	return node;	
 }
@@ -367,7 +374,6 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	spin_lock_init(&tree->lock);
 	tree->nodes = RB_ROOT;
 	tree->sb = sb;
-	ds_sb_ref(sb);
 
 	if (root_block)
 		tree->root = btree_node_read(tree, root_block);
@@ -384,7 +390,9 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 			goto fail;
 	}
 
-	KLOG(KL_DBG, "tree %p created", tree);
+	KLOG(KL_DBG, "tree %p created root %p ref=%d",
+		tree, tree->root, atomic_read(&tree->root->ref));
+
 	return tree;
 fail:
 	btree_deref(tree);
@@ -401,7 +409,6 @@ static void btree_release(struct btree *tree)
 		btree_node_deref(tree->root);
 
 	BUG_ON(tree->nodes_active);
-	ds_sb_deref(tree->sb);
 
 	kfree(tree);
 	KLOG(KL_DBG, "tree %p deleted", tree);

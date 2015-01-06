@@ -7,9 +7,10 @@ static LIST_HEAD(sb_list);
 
 static void ds_sb_release(struct ds_sb *sb)
 {
-	KLOG(KL_DBG, "sb %p obj tree", sb, sb->obj_tree);
+	KLOG(KL_DBG, "sb %p obj tree %p", sb, sb->obj_tree);
 	if (sb->obj_tree)
 		btree_deref(sb->obj_tree);
+	KLOG(KL_DBG, "sb %p released");
 }
 
 static void ds_sb_delete(struct ds_sb *sb)
@@ -20,7 +21,7 @@ static void ds_sb_delete(struct ds_sb *sb)
 
 void ds_sb_stop(struct ds_sb *sb)
 {
-	KLOG(KL_ERR, "sb %p dev %s stopping",
+	KLOG(KL_DBG, "sb %p dev %s stopping",
 			sb, sb->dev->dev_name);
 
 	mutex_lock(&sb_list_lock);
@@ -137,8 +138,7 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	header->bsize = cpu_to_be32(sb->bsize);
 	header->bm_block = cpu_to_be32(sb->bm_block);
 	header->bm_blocks = cpu_to_be64(sb->bm_blocks);
-	header->obj_tree_block =
-		cpu_to_be64(btree_get_root_block(sb->obj_tree));
+	header->obj_tree_block = cpu_to_be64(sb->obj_tree_block);
 	memcpy(&header->id, &sb->id, sizeof(sb->id));
 }
 

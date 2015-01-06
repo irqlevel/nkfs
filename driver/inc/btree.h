@@ -30,13 +30,13 @@ struct btree_node_disk {
 struct btree;
 
 struct btree_node {
-	struct btree		*tree;
 	u64			block;
-	atomic_t		ref;
-	struct rb_node		nodes_link;
 	struct btree_key	keys[2*BTREE_T-1];
 	u64			values[2*BTREE_T-1];
 	u64			childs[2*BTREE_T];
+	struct btree		*tree;
+	atomic_t		ref;
+	struct rb_node		nodes_link;
 	u32			leaf;
 	u32			nr_keys;
 	u32			t;

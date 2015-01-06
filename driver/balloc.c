@@ -138,8 +138,11 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 		err = ds_balloc_block_find_set_free_bit(sb, bh,
 			&byte, &bit);
 		if (!err) {
-			*pblock = ((i - sb->bm_block)*sb->bsize + byte)*8
+			u64 block = ((i - sb->bm_block)*sb->bsize + byte)*8
 				+ bit;
+			KLOG(KL_DBG, "alloc byte %u bit %u i %llu block %llu",
+				byte, bit , i, block);
+			*pblock = block;
 			brelse(bh);
 			return 0;
 		}			
