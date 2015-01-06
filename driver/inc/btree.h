@@ -11,14 +11,19 @@ struct btree_key {
 };
 /* size = 16 */
 
+#define BTREE_SIG1 ((u32)0xCBACBADA)
+#define BTREE_SIG2 ((u32)0x3EFFEEFE)
+
 #define BTREE_NODE_PAD 8
 
 struct btree_node_disk {
+	__be32			sig1;
 	struct btree_key	keys[2*BTREE_T-1];
 	__be64			values[2*BTREE_T-1];
 	__be64			childs[2*BTREE_T];
 	__be32			leaf;
 	__be32			nr_keys;
+	__be32			sig2;
 	u8			pad[BTREE_NODE_PAD];
 };
 
@@ -34,6 +39,8 @@ struct btree_node {
 	u32			leaf;
 	u32			nr_keys;
 	u32			t;
+	u32			sig1;
+	u32			sig2;
 };
 
 /* size = (2T-1)*16 + (2T-1)*8 + 2T*8 + 4*4 + pad */

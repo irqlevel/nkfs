@@ -16,6 +16,8 @@ static struct btree_node *btree_node_alloc(void)
 
 	BUG_ON((ARRAY_SIZE(node->keys) + 1) & 1);	
 	node->t = (ARRAY_SIZE(node->keys) + 1)/2;
+	node->sig1 = BTREE_SIG1;
+	node->sig2 = BTREE_SIG2;
 
 	atomic_set(&node->ref, 1);
 	return node;
@@ -58,6 +60,8 @@ static void btree_node_by_ondisk(struct btree_node *node,
 
 	node->leaf = be32_to_cpu(ondisk->leaf);
 	node->nr_keys = be32_to_cpu(ondisk->nr_keys);
+	node->sig1 = be32_to_cpu(ondisk->sig1);
+	node->sig2 = be32_to_cpu(ondisk->sig2);
 }
 
 static void btree_node_to_ondisk(struct btree_node *node,
@@ -77,6 +81,18 @@ static void btree_node_to_ondisk(struct btree_node *node,
 
 	ondisk->leaf = cpu_to_be32(node->leaf);
 	ondisk->nr_keys = cpu_to_be32(node->nr_keys);
+	ondisk->sig1 = cpu_to_be32(node->sig1);
+	ondisk->sig2 = cpu_to_be32(node->sig2);
+}
+
+static int btree_node_check_sigs(struct btree_node *node)
+{
+	if (node->sig1 != BTREE_SIG1 || node->sig2 != BTREE_SIG2) {
+		KLOG(KL_ERR, "node %p block %llu invalid sig1 %x or sig2 %x",
+			node, node->block, node->sig1, node->sig2);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static struct btree_node *btree_node_read(struct btree *tree, u64 block)
@@ -85,21 +101,28 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 	struct buffer_head *bh;
 
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
+	BUG_ON(block = 0 || block >= tree->sb->nr_blocks);
 
 	node = btree_node_alloc();
 	if (!node)
 		return NULL;
 
 	node->tree = tree;
+	node->block = block;
 	bh = __bread(tree->sb->bdev, block, tree->sb->bsize);
 	if (!bh) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
 		btree_node_deref(node);
 		return NULL;
 	}
-
 	btree_node_by_ondisk(node,
 		(struct btree_node_disk *)bh->b_data);
+
+	if (btree_node_check_sigs(node)) {
+		btree_node_deref(node);
+		node = NULL;
+	}
+
 	brelse(bh);
 
 	return node;
@@ -110,8 +133,10 @@ static int btree_node_write(struct btree_node *node)
 	struct buffer_head *bh;
 	int err;
 
-	BUG_ON(!node->block);
+	BUG_ON(btree_node_check_sigs(node));
+	BUG_ON(!node->tree);
 	BUG_ON(sizeof(struct btree_node_disk) > node->tree->sb->bsize);
+	BUG_ON(node->block = 0 || node->block >= node->tree->sb->nr_blocks);
 
 	bh = __getblk(node->tree->sb->bdev,
 			node->block,
@@ -1110,6 +1135,11 @@ static int btree_node_check(struct btree_node *first, int root)
 	int errs = 0;
 	struct btree_key *prev_key;
 	struct btree_node *node = first;
+
+	if (btree_node_check_sigs(node)) {
+		KLOG(KL_ERR, "node %p invalid sigs");
+		errs++;
+	}
 
 	if (root) {
 		if (node->nr_keys > (2*node->t - 1)) {
