@@ -220,6 +220,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	}
 
 	memset(tree, 0, sizeof(*tree));
+	init_rwsem(&tree->lock);
 	tree->sb = sb;
 	ds_sb_ref(sb);
 
@@ -537,20 +538,26 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 	u64 value,
 	int replace)
 {
+	int rc;
+
 	if (btree_key_is_zero(key)) {
 		KLOG(KL_ERR, "key is zero");
 		return -1;
 	}
 
+	down_write(&tree->lock);
 	if (btree_node_is_full(tree->root)) {
 		struct btree_node *new, *new2, *root = tree->root;
 		new = btree_node_create(tree);
-		if (new == NULL)
+		if (new == NULL) {
+			up_write(&tree->lock);
 			return -1;
+		}
 		new2 = btree_node_create(tree);
 		if (new2 == NULL) {
 			btree_node_delete(new);
 			btree_node_deref(new);	
+			up_write(&tree->lock);
 			return -1;
 		}
 
@@ -569,7 +576,9 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		tree->root = new;
 	}
 
-	return btree_node_insert_nonfull(tree->root, key, &value, replace);
+	rc = btree_node_insert_nonfull(tree->root, key, &value, replace);
+	up_write(&tree->lock);
+	return rc;
 }
 
 static struct btree_node *btree_node_find_key(struct btree_node *first,
@@ -618,12 +627,16 @@ int btree_find_key(struct btree *tree,
 		return -1;
 	}
 
+	down_read(&tree->lock);
 	found = btree_node_find_key(tree->root, key, &index);
-	if (found == NULL)
+	if (found == NULL) {
+		up_read(&tree->lock);
 		return -1;
+	}
 
 	btree_copy_value(pvalue, &found->values[index]);
 	btree_node_deref(found);
+	up_read(&tree->lock);
 
 	return 0;
 }
@@ -1027,12 +1040,15 @@ restart:
 
 int btree_delete_key(struct btree *tree, struct btree_key *key)
 {
+	int rc;
 	if (btree_key_is_zero(key))
 		return -1;
 
-	return btree_node_delete_key(tree->root, key);
+	down_write(&tree->lock);
+	rc = btree_node_delete_key(tree->root, key);
+	up_write(&tree->lock);
+	return rc;
 }
-
 
 static void btree_log_node(struct btree_node *first, u32 height, int llevel)
 {
@@ -1076,12 +1092,16 @@ static void btree_node_stats(struct btree_node *node,
 void btree_stats(struct btree *tree, struct btree_info *info)
 {
 	memset(info, 0, sizeof(*info));
+	down_read(&tree->lock);
 	btree_node_stats(tree->root, info);
+	up_read(&tree->lock);
 }
 
 void btree_log(struct btree *tree, int llevel)
 {
+	down_read(&tree->lock);
 	btree_log_node(tree->root, 1, llevel);
+	up_read(&tree->lock);
 }
 
 static int btree_node_check(struct btree_node *first, int root)
@@ -1161,5 +1181,9 @@ static int btree_node_check(struct btree_node *first, int root)
 
 int btree_check(struct btree *tree)
 {
-	return btree_node_check(tree->root, 1);
+	int rc;
+	down_read(&tree->lock);
+	rc = btree_node_check(tree->root, 1);
+	up_read(&tree->lock);
+	return rc;
 }

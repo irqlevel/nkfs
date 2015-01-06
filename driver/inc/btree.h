@@ -41,6 +41,7 @@ struct btree_node {
 struct btree {
 	struct btree_node	*root;
 	struct ds_sb		*sb;
+	struct rw_semaphore	lock;
 };
 
 struct btree_info {
