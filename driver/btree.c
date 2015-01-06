@@ -2,7 +2,6 @@
 
 #define __SUBCOMPONENT__ "btree"
 
-
 static struct btree_node *btree_node_alloc(void) 
 {
 	struct btree_node *node;
@@ -18,16 +17,27 @@ static struct btree_node *btree_node_alloc(void)
 	node->t = (ARRAY_SIZE(node->keys) + 1)/2;
 	node->sig1 = BTREE_SIG1;
 	node->sig2 = BTREE_SIG2;
-
 	atomic_set(&node->ref, 1);
+
 	return node;
 }
+
+static void btree_nodes_remove(struct btree *tree,
+	struct btree_node *node);
 
 static void __btree_node_free(struct btree_node *node)
 {
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
 	kfree(node);
+}
+
+static void __btree_node_release(struct btree_node *node)
+{
+	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
+		node, node->leaf, node->nr_keys);	
+	btree_nodes_remove(node->tree, node);
+	__btree_node_free(node);
 }
 
 static void btree_node_ref(struct btree_node *node)
@@ -40,7 +50,83 @@ static void btree_node_deref(struct btree_node *node)
 {
 	BUG_ON(atomic_read(&node->ref) <= 0);
 	if (atomic_dec_and_test(&node->ref))
-		__btree_node_free(node);
+		__btree_node_release(node);
+}
+
+static struct btree_node *__btree_nodes_lookup(struct btree *tree,
+	u64 block)
+{
+	struct rb_node *n = tree->nodes.rb_node;
+	struct btree_node *found = NULL;
+
+	while (n) {
+		struct btree_node *node;
+		node = rb_entry(n, struct btree_node, nodes_link);
+		if (block < node->block) {
+			n = n->rb_left;
+		} else if (block > node->block) {
+			n = n->rb_right;
+		} else {
+			found = node;
+			break;
+		}
+	}
+	return found;
+}
+
+static struct btree_node * btree_nodes_lookup(struct btree *tree,
+	u64 block)
+{	
+	struct btree_node *node;
+	spin_lock_irq(&tree->lock);
+	node = __btree_nodes_lookup(tree, block);
+	spin_unlock_irq(&tree->lock);
+	return node;
+}
+
+static void btree_nodes_remove(struct btree *tree,
+	struct btree_node *node)
+{
+	struct btree_node *found;
+	spin_lock_irq(&tree->lock);
+	found = __btree_nodes_lookup(tree, node->block);
+	if (found != node)
+		BUG();
+	rb_erase(&found->nodes_link, &tree->nodes);
+	tree->nodes_active--;
+	spin_unlock_irq(&tree->lock);
+}
+
+static struct btree_node *btree_nodes_insert(struct btree *tree,
+	struct btree_node *node)
+{
+	struct rb_node **p = &tree->nodes.rb_node;
+	struct rb_node *parent = NULL;
+	struct btree_node *inserted = NULL;
+
+	spin_lock_irq(&tree->lock);
+	while (*p) {
+		struct btree_node *found;
+		parent = *p;
+		found = rb_entry(parent, struct btree_node, nodes_link);
+		if (node->block < found->block) {
+			p = &(*p)->rb_left;
+		} else if (node->block > found->block) {
+			p = &(*p)->rb_right;
+		} else {
+			inserted = found;
+			break;
+		}
+	}
+	if (!inserted) {
+		rb_link_node(&node->nodes_link, parent, p);
+		rb_insert_color(&node->nodes_link, &tree->nodes);
+		tree->nodes_active++;
+		inserted = node;
+	}
+	btree_node_ref(inserted);
+	spin_unlock_irq(&tree->lock);
+	return inserted;
 }
 
 static void btree_node_by_ondisk(struct btree_node *node,
@@ -103,12 +189,21 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
 	BUG_ON(block = 0 || block >= tree->sb->nr_blocks);
 
-	node = btree_node_alloc();
-	if (!node)
-		return NULL;
+	node = btree_nodes_lookup(tree, block);
+	if (!node) {
+		struct btree_node *inserted;
+		node = btree_node_alloc();
+		if (!node)
+			return NULL;
+		node->tree = tree;
+		node->block = block;
+		inserted = btree_nodes_insert(tree, node);
+		if (node != inserted) {
+			__btree_node_free(node);
+			node = inserted;
+		}
+	}
 
-	node->tree = tree;
-	node->block = block;
 	bh = __bread(tree->sb->bdev, block, tree->sb->bsize);
 	if (!bh) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
@@ -162,7 +257,7 @@ static int btree_node_write(struct btree_node *node)
 
 static struct btree_node *btree_node_create(struct btree *tree)
 {
-	struct btree_node *node;
+	struct btree_node *node, *inserted;
 	int err;
 
 	node = btree_node_alloc();
@@ -171,18 +266,13 @@ static struct btree_node *btree_node_create(struct btree *tree)
 		
 	err = ds_balloc_block_alloc(tree->sb, &node->block);
 	if (err) {
-		btree_node_deref(node);
+		__btree_node_free(node);
 		return NULL;
 	}
-	
 	node->tree = tree;
-	BUG_ON((ARRAY_SIZE(node->keys) + 1) & 1);	
-	err = btree_node_write(node);
-	if (err) {
-		ds_balloc_block_free(tree->sb, node->block);
-		btree_node_deref(node);
-		return NULL;
-	}
+	inserted = btree_nodes_insert(tree, node);
+	BUG_ON(inserted != node);
+
 	KLOG(KL_DBG, "node %p created", node);
 
 	return node;	
@@ -233,6 +323,21 @@ char *btree_value_hex(u64 value)
 	return bytes_hex((char *)&value, sizeof(value));
 }
 
+static void btree_release(struct btree *tree);
+
+void btree_ref(struct btree *tree)
+{
+	atomic_inc(&tree->ref);
+}
+
+void btree_deref(struct btree *tree)
+{
+	BUG_ON(atomic_read(&tree->ref) <= 0);
+	if (atomic_dec_and_test(&tree->ref)) {
+		btree_release(tree);
+	}
+}
+
 struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 {
 	struct btree *tree;
@@ -245,7 +350,10 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	}
 
 	memset(tree, 0, sizeof(*tree));
-	init_rwsem(&tree->lock);
+	atomic_set(&tree->ref, 1);
+	init_rwsem(&tree->rw_lock);
+	spin_lock_init(&tree->lock);
+	tree->nodes = RB_ROOT;
 	tree->sb = sb;
 	ds_sb_ref(sb);
 
@@ -267,15 +375,20 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	KLOG(KL_DBG, "tree %p created", tree);
 	return tree;
 fail:
-	btree_release(tree);
+	btree_deref(tree);
 	return NULL;
 }
 
-void btree_release(struct btree *tree)
+static void btree_release(struct btree *tree)
 {
+	tree->releasing = 1;
+	down_write(&tree->rw_lock);
+	up_write(&tree->rw_lock);
+
 	if (tree->root)
 		btree_node_deref(tree->root);
 
+	BUG_ON(tree->nodes_active);
 	ds_sb_deref(tree->sb);
 
 	kfree(tree);
@@ -570,19 +683,27 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		return -1;
 	}
 
-	down_write(&tree->lock);
+	if (tree->releasing)
+		return -EAGAIN;
+
+	down_write(&tree->rw_lock);
+	if (tree->releasing) {
+		up_write(&tree->rw_lock);
+		return -EAGAIN;
+	}
+
 	if (btree_node_is_full(tree->root)) {
 		struct btree_node *new, *new2, *root = tree->root;
 		new = btree_node_create(tree);
 		if (new == NULL) {
-			up_write(&tree->lock);
+			up_write(&tree->rw_lock);
 			return -1;
 		}
 		new2 = btree_node_create(tree);
 		if (new2 == NULL) {
 			btree_node_delete(new);
 			btree_node_deref(new);	
-			up_write(&tree->lock);
+			up_write(&tree->rw_lock);
 			return -1;
 		}
 
@@ -602,7 +723,7 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 	}
 
 	rc = btree_node_insert_nonfull(tree->root, key, &value, replace);
-	up_write(&tree->lock);
+	up_write(&tree->rw_lock);
 	return rc;
 }
 
@@ -652,16 +773,24 @@ int btree_find_key(struct btree *tree,
 		return -1;
 	}
 
-	down_read(&tree->lock);
+	if (tree->releasing)
+		return -EAGAIN;
+
+	down_read(&tree->rw_lock);
+	if (tree->releasing) {
+		up_read(&tree->rw_lock);
+		return -EAGAIN;
+	}
+
 	found = btree_node_find_key(tree->root, key, &index);
 	if (found == NULL) {
-		up_read(&tree->lock);
+		up_read(&tree->rw_lock);
 		return -1;
 	}
 
 	btree_copy_value(pvalue, &found->values[index]);
 	btree_node_deref(found);
-	up_read(&tree->lock);
+	up_read(&tree->rw_lock);
 
 	return 0;
 }
@@ -1068,10 +1197,16 @@ int btree_delete_key(struct btree *tree, struct btree_key *key)
 	int rc;
 	if (btree_key_is_zero(key))
 		return -1;
+	if (tree->releasing)
+		return -EAGAIN;
 
-	down_write(&tree->lock);
+	down_write(&tree->rw_lock);
+	if (tree->releasing) {
+		up_write(&tree->rw_lock);
+		return -EAGAIN;
+	}
 	rc = btree_node_delete_key(tree->root, key);
-	up_write(&tree->lock);
+	up_write(&tree->rw_lock);
 	return rc;
 }
 
@@ -1117,16 +1252,24 @@ static void btree_node_stats(struct btree_node *node,
 void btree_stats(struct btree *tree, struct btree_info *info)
 {
 	memset(info, 0, sizeof(*info));
-	down_read(&tree->lock);
-	btree_node_stats(tree->root, info);
-	up_read(&tree->lock);
+	if (tree->releasing)
+		return;
+
+	down_read(&tree->rw_lock);
+	if (!tree->releasing)
+		btree_node_stats(tree->root, info);
+	up_read(&tree->rw_lock);
 }
 
 void btree_log(struct btree *tree, int llevel)
 {
-	down_read(&tree->lock);
-	btree_log_node(tree->root, 1, llevel);
-	up_read(&tree->lock);
+	if (tree->releasing)
+		return;
+
+	down_read(&tree->rw_lock);
+	if (!tree->releasing)
+		btree_log_node(tree->root, 1, llevel);
+	up_read(&tree->rw_lock);
 }
 
 static int btree_node_check(struct btree_node *first, int root)
@@ -1212,8 +1355,15 @@ static int btree_node_check(struct btree_node *first, int root)
 int btree_check(struct btree *tree)
 {
 	int rc;
-	down_read(&tree->lock);
-	rc = btree_node_check(tree->root, 1);
-	up_read(&tree->lock);
+	if (tree->releasing)
+		return -EAGAIN;
+
+	down_read(&tree->rw_lock);
+	if (!tree->releasing)
+		rc = btree_node_check(tree->root, 1);
+	else
+		rc = -EAGAIN;
+
+	up_read(&tree->rw_lock);
 	return rc;
 }

@@ -33,6 +33,7 @@ struct btree_node {
 	struct btree		*tree;
 	u64			block;
 	atomic_t		ref;
+	struct rb_node		nodes_link;
 	struct btree_key	keys[2*BTREE_T-1];
 	u64			values[2*BTREE_T-1];
 	u64			childs[2*BTREE_T];
@@ -48,7 +49,12 @@ struct btree_node {
 struct btree {
 	struct btree_node	*root;
 	struct ds_sb		*sb;
-	struct rw_semaphore	lock;
+	struct rw_semaphore	rw_lock;
+	spinlock_t		lock;
+	struct rb_root		nodes;
+	atomic_t		ref;
+	int			releasing;
+	int			nodes_active;
 };
 
 struct btree_info {
@@ -62,7 +68,8 @@ _Static_assert(sizeof(struct btree_node_disk) <= 4096, "size is not correct");
 
 struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
-void btree_release(struct btree *tree);
+void btree_ref(struct btree *tree);
+void btree_deref(struct btree *tree);
 
 int btree_insert_key(struct btree *tree, struct btree_key *key,
 	u64 value, int replace);
