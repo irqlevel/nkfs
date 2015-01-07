@@ -374,6 +374,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	rwlock_init(&tree->nodes_lock);
 	tree->nodes = RB_ROOT;
 	tree->sb = sb;
+	tree->sig1 = BTREE_SIG1;
 
 	if (root_block)
 		tree->root = btree_node_read(tree, root_block);

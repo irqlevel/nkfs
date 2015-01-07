@@ -25,7 +25,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	int err = -EINVAL;
 	struct ds_cmd *cmd = NULL;	
 
-	cmd = kmalloc(sizeof(struct ds_cmd), GFP_KERNEL);
+	cmd = kmalloc(sizeof(struct ds_cmd), GFP_NOFS);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto out;

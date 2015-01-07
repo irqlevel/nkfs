@@ -255,12 +255,14 @@ static int ds_dev_obj_test(const char *dev_name)
 {
 	struct ds_obj_id sb_id;
 	int err;
+	int i;
 	
 	err = ds_dev_query(dev_name, &sb_id);
 	if (err)
 		goto out;
-
-	err = ds_sb_obj_test(&sb_id);
+	
+	for (i = 0; i < 50000; i++)
+		err = ds_sb_obj_test(&sb_id);
 out:
 	return err;
 }

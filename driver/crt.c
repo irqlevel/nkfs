@@ -27,7 +27,7 @@ asmlinkage void crt_free(void *ptr)
 
 asmlinkage int crt_random_buf(void *buf, size_t len)
 {
-	return ds_random_buf_read(buf, len, 0);
+	return ds_random_buf_read(buf, len, 1);
 }
 
 asmlinkage void crt_log(int level, const char *file, int line,

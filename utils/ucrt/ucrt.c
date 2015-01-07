@@ -187,7 +187,7 @@ asmlinkage void crt_free(void *ptr)
 
 asmlinkage int crt_random_buf(void *buf, size_t len)
 {
-	int fd = open("/dev/random", O_RDONLY);
+	int fd = open("/dev/urandom", O_RDONLY);
 	int err;
 
 	if (fd < 0)

@@ -7,15 +7,15 @@ struct ds_sb {
 	atomic_t		refs;
 	struct ds_obj_id	id;	
 	struct rw_semaphore	rw_lock;
+	struct btree		*obj_tree;
+	u64			nr_blocks;
 	u32			magic;
 	u32			version;
 	u64			size;
-	u32			bsize;
-	u64			nr_blocks;
 	u64			bm_block;
 	u64			bm_blocks;
-	u64			obj_tree_block;	
-	struct btree		*obj_tree;
+	u64			obj_tree_block;
+	u32			bsize;
 };
 
 void ds_sb_stop(struct ds_sb *sb);
