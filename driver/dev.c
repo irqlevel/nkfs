@@ -14,6 +14,18 @@ static void ds_dev_free(struct ds_dev *dev)
 	kfree(dev);
 }
 
+void ds_dev_ref(struct ds_dev *dev)
+{
+	atomic_inc(&dev->ref);
+}
+
+void ds_dev_deref(struct ds_dev *dev)
+{
+	BUG_ON(atomic_read(&dev->ref) <= 0);
+	if (atomic_dec_and_test(&dev->ref))
+		ds_dev_free(dev);
+}
+
 static int ds_dev_insert(struct ds_dev *cand)
 {
 	struct ds_dev *dev;
@@ -46,6 +58,23 @@ static void ds_dev_unlink(struct ds_dev *dev)
 	mutex_lock(&dev_list_lock);
 	list_del(&dev->dev_list);
 	mutex_unlock(&dev_list_lock);
+}
+
+struct ds_dev *ds_dev_lookup(char *dev_name)
+{
+	struct ds_dev *dev;
+
+	mutex_lock(&dev_list_lock);
+	list_for_each_entry(dev, &dev_list, dev_list) {
+		if (0 == strncmp(dev->dev_name, dev_name,
+			strlen(dev_name)+1)) {
+			ds_dev_ref(dev);
+			mutex_unlock(&dev_list_lock);
+			return dev;
+		}
+	}
+	mutex_unlock(&dev_list_lock);
+	return NULL;
 }
 
 static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
@@ -84,10 +113,12 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	}
 
 	memset(dev, 0, sizeof(*dev));
+	atomic_set(&dev->ref, 1);
+
 	dev->dev_name = kmalloc(len + 1, GFP_KERNEL);
 	if (!dev->dev_name) {
 		KLOG(KL_ERR, "dev_name alloc failed");
-		ds_dev_free(dev);
+		ds_dev_deref(dev);
 		return NULL;
 	}
 	spin_lock_init(&dev->io_lock);
@@ -100,8 +131,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	if ((err = IS_ERR(dev->bdev))) {
 		dev->bdev = NULL;
 		KLOG(KL_ERR, "bkdev_get_by_path failed err %d", err);
-		ds_dev_free(dev);
-		
+		ds_dev_deref(dev);
 		return NULL;
 	}
 	dev->fmode = fmode;
@@ -200,7 +230,7 @@ int ds_dev_add(char *dev_name, int format)
 	if (err) {
 		KLOG(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_release(dev);
-		ds_dev_free(dev);
+		ds_dev_deref(dev);
 		return err;
 	}
 
@@ -209,7 +239,7 @@ int ds_dev_add(char *dev_name, int format)
 		KLOG(KL_ERR, "ds_dev_insert err %d", err);
 		ds_dev_unlink(dev);		
 		ds_dev_release(dev);
-		ds_dev_free(dev);
+		ds_dev_deref(dev);
 		return err;
 	}
 
@@ -226,7 +256,7 @@ int ds_dev_remove(char *dev_name)
 	if (dev) {
 		ds_dev_stop(dev);
 		ds_dev_release(dev);
-		ds_dev_free(dev);
+		ds_dev_deref(dev);
 		err = 0;
 	} else {
 		KLOG(KL_ERR, "dev with name %s not found", dev_name);
@@ -245,7 +275,7 @@ void ds_dev_release_all(void)
 		ds_dev_stop(dev);
 		ds_dev_release(dev);
 		list_del(&dev->dev_list);
-		ds_dev_free(dev);
+		ds_dev_deref(dev);
 	}
 	mutex_unlock(&dev_list_lock);
 }

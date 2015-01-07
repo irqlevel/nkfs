@@ -7,20 +7,16 @@ MODULE_LICENSE("GPL");
 
 static int ds_mod_get(struct inode *inode, struct file *file)
 {
-	KLOG(KL_DBG, "in open");
 	if (!try_module_get(THIS_MODULE)) {
 		KLOG(KL_ERR, "cant ref module");
 		return -EINVAL;
 	}
-	KLOG(KL_DBG, "opened");
 	return 0;
 }
 
 static int ds_mod_put(struct inode *inode, struct file *file)
 {
-	KLOG(KL_DBG, "in release");
 	module_put(THIS_MODULE);
-	KLOG(KL_DBG, "released");
 	return 0;
 }
 
@@ -28,8 +24,6 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
 	struct ds_cmd *cmd = NULL;	
-
-	KLOG(KL_DBG, "ctl code %d", code);
 
 	cmd = kmalloc(sizeof(struct ds_cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -42,19 +36,72 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		goto out_free_cmd;
 	}
 
-	KLOG(KL_DBG, "ctl code %d", code);
 	switch (code) {
 		case IOCTL_DS_DEV_ADD:
-			err = ds_dev_add(cmd->u.dev_add.dev_name, cmd->u.dev_add.format);
+			err = ds_dev_add(cmd->u.dev_add.dev_name,
+					cmd->u.dev_add.format);
 			break;
 		case IOCTL_DS_DEV_REMOVE:
 			err = ds_dev_remove(cmd->u.dev_remove.dev_name);
+			break;
+		case IOCTL_DS_DEV_QUERY: {
+				struct ds_dev *dev;
+				dev = ds_dev_lookup(cmd->u.dev_query.dev_name);
+				if (dev) {
+					BUG_ON(!dev->sb);
+					ds_obj_id_copy(&cmd->u.dev_query.sb_id,
+						&dev->sb->id);
+					ds_dev_deref(dev);
+					err = 0;
+				} else {
+					err = -ENOENT;
+				}
+			}
 			break;
 		case IOCTL_DS_SRV_START:
 			err = ds_server_start(cmd->u.server_start.port);	
 			break;
 		case IOCTL_DS_SRV_STOP:
 			err = ds_server_stop(cmd->u.server_stop.port);
+			break;
+		case IOCTL_DS_OBJ_INSERT: {
+				struct ds_sb *sb;
+				sb = ds_sb_lookup(&cmd->u.obj_insert.sb_id);
+				if (sb) {
+					err = ds_sb_insert_obj(sb,
+						&cmd->u.obj_insert.obj_id,
+						cmd->u.obj_insert.value,
+						cmd->u.obj_insert.replace);
+					ds_sb_deref(sb);
+				} else {
+					err = -EINVAL;
+				}
+			}
+			break;
+		case IOCTL_DS_OBJ_FIND: {
+				struct ds_sb *sb;
+				sb = ds_sb_lookup(&cmd->u.obj_find.sb_id);
+				if (sb) {
+					err = ds_sb_find_obj(sb,
+						&cmd->u.obj_find.obj_id,
+						&cmd->u.obj_find.value);
+					ds_sb_deref(sb);
+				} else {
+					err = -EINVAL;
+				}
+			}
+			break;
+		case IOCTL_DS_OBJ_DELETE:{
+				struct ds_sb *sb;
+				sb = ds_sb_lookup(&cmd->u.obj_delete.sb_id);
+				if (sb) {
+					err = ds_sb_delete_obj(sb,
+						&cmd->u.obj_delete.obj_id);
+					ds_sb_deref(sb);
+				} else {
+					err = -EINVAL;
+				}
+			}
 			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);
@@ -66,7 +113,9 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		err = -EFAULT;
 		goto out_free_cmd;
 	}
-	
+
+	KLOG(KL_DBG, "ctl %d err %d", code, err);	
+
 	return 0;
 out_free_cmd:
 	kfree(cmd);

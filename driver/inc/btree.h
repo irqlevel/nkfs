@@ -50,7 +50,7 @@ struct btree {
 	struct btree_node	*root;
 	struct ds_sb		*sb;
 	struct rw_semaphore	rw_lock;
-	spinlock_t		lock;
+	rwlock_t		nodes_lock;
 	struct rb_root		nodes;
 	atomic_t		ref;
 	int			releasing;

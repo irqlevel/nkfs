@@ -6,6 +6,7 @@ struct ds_sb {
 	struct block_device 	*bdev;	
 	atomic_t		refs;
 	struct ds_obj_id	id;	
+	struct rw_semaphore	rw_lock;
 	u32			magic;
 	u32			version;
 	u64			size;
@@ -27,3 +28,12 @@ int ds_sb_insert(struct ds_sb *sb);
 
 int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb);
 int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb);
+
+
+int ds_sb_insert_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
+	u64 value, int replace);
+
+int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
+	u64 *pvalue);
+
+int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id);

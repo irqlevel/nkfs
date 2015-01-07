@@ -2,7 +2,7 @@
 
 #define __SUBCOMPONENT__ "super"
 
-static DEFINE_MUTEX(sb_list_lock);
+static DEFINE_RWLOCK(sb_list_lock);
 static LIST_HEAD(sb_list);
 
 static void ds_sb_release(struct ds_sb *sb)
@@ -24,9 +24,9 @@ void ds_sb_stop(struct ds_sb *sb)
 	KLOG(KL_DBG, "sb %p dev %s stopping",
 			sb, sb->dev->dev_name);
 
-	mutex_lock(&sb_list_lock);
+	write_lock(&sb_list_lock);
 	list_del_init(&sb->list);
-	mutex_unlock(&sb_list_lock);	
+	write_lock(&sb_list_lock);	
 }
 
 void ds_sb_ref(struct ds_sb *sb)
@@ -46,7 +46,7 @@ struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
 {
 	struct ds_sb *sb, *found = NULL;
 
-	mutex_lock(&sb_list_lock);
+	read_lock(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		if (0 == ds_obj_id_cmp(&sb->id, id)) {
 			ds_sb_ref(sb);
@@ -54,7 +54,7 @@ struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
 			break;
 		}	
 	}
-	mutex_unlock(&sb_list_lock);
+	read_unlock(&sb_list_lock);
 	return found;
 }
 
@@ -63,7 +63,7 @@ int ds_sb_insert(struct ds_sb *cand)
 	struct ds_sb *sb;
 	int err;
 
-	mutex_lock(&sb_list_lock);
+	write_lock(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		if (0 == ds_obj_id_cmp(&sb->id, &cand->id)) {
 			err = -EEXIST;
@@ -72,7 +72,7 @@ int ds_sb_insert(struct ds_sb *cand)
 	}
 	list_add_tail(&cand->list, &sb_list);
 	err = 0;
-	mutex_unlock(&sb_list_lock);
+	write_unlock(&sb_list_lock);
 	return err;
 }
 
@@ -196,12 +196,13 @@ static int ds_sb_create(struct ds_dev *dev,
 	int err;
 	struct ds_sb *sb;
 
-	sb = kmalloc(GFP_KERNEL, sizeof(*sb));
+	sb = kmalloc(GFP_NOFS, sizeof(*sb));
 	if (!sb) {
 		KLOG(KL_ERR, "cant alloc sb");
 		return -ENOMEM;
 	}
 	memset(sb, 0, sizeof(*sb));
+	init_rwsem(&sb->rw_lock);
 	INIT_LIST_HEAD(&sb->list);
 	atomic_set(&sb->refs, 1);
 
@@ -358,4 +359,32 @@ free_bh:
 	brelse(bh);
 out:
 	return err;
+}
+
+int ds_sb_insert_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
+	u64 value, int replace)
+{
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
+
+	return btree_insert_key(sb->obj_tree, (struct btree_key *)obj_id,
+		value, replace);
+}
+
+int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
+	u64 *pvalue)
+{
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
+
+	return btree_find_key(sb->obj_tree, (struct btree_key *)obj_id,
+		pvalue);
+}
+
+int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
+{
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
+
+	return btree_delete_key(sb->obj_tree, (struct btree_key *)obj_id);
 }

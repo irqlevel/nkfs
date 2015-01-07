@@ -78,9 +78,9 @@ static struct btree_node * btree_nodes_lookup(struct btree *tree,
 	u64 block)
 {	
 	struct btree_node *node;
-	spin_lock_irq(&tree->lock);
+	read_lock_irq(&tree->nodes_lock);
 	node = __btree_nodes_lookup(tree, block);
-	spin_unlock_irq(&tree->lock);
+	read_unlock_irq(&tree->nodes_lock);
 	return node;
 }
 
@@ -88,13 +88,13 @@ static void btree_nodes_remove(struct btree *tree,
 	struct btree_node *node)
 {
 	struct btree_node *found;
-	spin_lock_irq(&tree->lock);
+	write_lock_irq(&tree->nodes_lock);
 	found = __btree_nodes_lookup(tree, node->block);
 	if (found != node)
 		BUG();
 	rb_erase(&found->nodes_link, &tree->nodes);
 	tree->nodes_active--;
-	spin_unlock_irq(&tree->lock);
+	write_unlock_irq(&tree->nodes_lock);
 }
 
 static struct btree_node *btree_nodes_insert(struct btree *tree,
@@ -104,7 +104,7 @@ static struct btree_node *btree_nodes_insert(struct btree *tree,
 	struct rb_node *parent = NULL;
 	struct btree_node *inserted = NULL;
 
-	spin_lock_irq(&tree->lock);
+	write_lock_irq(&tree->nodes_lock);
 	while (*p) {
 		struct btree_node *found;
 		parent = *p;
@@ -125,7 +125,7 @@ static struct btree_node *btree_nodes_insert(struct btree *tree,
 		inserted = node;
 	}
 	btree_node_ref(inserted);
-	spin_unlock_irq(&tree->lock);
+	write_unlock_irq(&tree->nodes_lock);
 	return inserted;
 }
 
@@ -371,7 +371,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	memset(tree, 0, sizeof(*tree));
 	atomic_set(&tree->ref, 1);
 	init_rwsem(&tree->rw_lock);
-	spin_lock_init(&tree->lock);
+	rwlock_init(&tree->nodes_lock);
 	tree->nodes = RB_ROOT;
 	tree->sb = sb;
 

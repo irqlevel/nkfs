@@ -10,11 +10,14 @@
 #include <malloc.h>
 
 #include <include/ds_cmd.h>
+#include <crtlib/include/crtlib.h>
+#include <utils/ucrt/include/ucrt.h>
 
 #define SERVER_START_OPT "--server_start"
 #define SERVER_STOP_OPT "--server_stop"
 #define DEV_ADD_OPT "--dev_add"
 #define DEV_REM_OPT "--dev_rem"
+#define DEV_QUERY_OPT "--dev_query"
 #define DEV_FORMAT_OPT "--format"
 
 static void usage(void)
@@ -93,7 +96,41 @@ out:
 	return err;
 }
 
+static int ds_dev_query(const char *dev_name,
+			char **psb_id)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	char *sb_id;
+	int fd;
 
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	snprintf(cmd.u.dev_query.dev_name, sizeof(cmd.u.dev_query.dev_name),
+		"%s", dev_name);
+	err = ioctl(fd, IOCTL_DS_DEV_QUERY, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+	sb_id = ds_obj_id_to_str(&cmd.u.dev_query.sb_id);
+	if (!sb_id) {
+		err = -ENOMEM;
+		goto out;
+	}
+	*psb_id = sb_id;
+	err = 0;
+
+out:
+	close(fd);
+	return err;
+}
 
 
 static int ds_server_stop(int port)
@@ -213,6 +250,22 @@ int main(int argc, char *argv[])
 		err = ds_dev_rem(dev_name);
 		if (!err)
 			printf("removed dev=%s\n", dev_name);
+		goto out;
+	} else if (strncmp(argv[1], DEV_QUERY_OPT, strlen(DEV_QUERY_OPT) + 1) == 0) {
+		const char *dev_name = NULL;
+		char *sb_id = NULL;
+		if (argc != 3) {
+			usage();
+			err = -EINVAL;
+			goto out;
+		}
+		dev_name = argv[2];
+		printf("query dev=%s\n", dev_name);
+		err = ds_dev_query(dev_name, &sb_id);
+		if (!err)
+			printf("queried dev=%s sb_id=%s\n", dev_name, sb_id);
+		if (sb_id)
+			crt_free(sb_id);
 		goto out;
 	} else {
 		usage();

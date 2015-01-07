@@ -8,6 +8,7 @@ int ds_balloc_bm_clear(struct ds_sb *sb)
 	u64 i;
 	int err;
 
+	down_write(&sb->rw_lock);
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
 		bh = __bread(sb->bdev, i, sb->bsize);
 		if (!bh) {
@@ -28,6 +29,8 @@ int ds_balloc_bm_clear(struct ds_sb *sb)
 
 	err = 0;
 out:
+	up_write(&sb->rw_lock);
+
 	return err;
 }
 
@@ -62,10 +65,12 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	if (err)
 		return err;
 
+	down_write(&sb->rw_lock);
 	bh = __bread(sb->bdev, bm_block, sb->bsize);	
 	if (!bh) {
 		KLOG(KL_ERR, "cant read bm block %llu", bm_block);
-		return -EIO;
+		err = -EIO;
+		goto out;
 	}
 
 	if (use)
@@ -84,8 +89,9 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 
 cleanup:
 	brelse(bh);
+out:
+	up_write(&sb->rw_lock);
 	return err;
-
 }
 
 int ds_balloc_block_free(struct ds_sb *sb, u64 block)
@@ -99,6 +105,7 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 	u32 pos, bit;
 	int err;
 
+	down_write(&sb->rw_lock);
 	for (pos = 0; pos < sb->bsize; pos++) {
 		for (bit = 0; bit < 8; bit++) {
 			if (!test_bit_le(bit, bh->b_data + pos)) {
@@ -112,12 +119,14 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 					*pbyte = pos;
 					*pbit = bit;
 				}
-				return err;
+				goto out;
 			}
 		}
 	}
-
-	return -ENOENT;
+	err = -ENOENT;
+out:
+	up_write(&sb->rw_lock);
+	return err;
 }
 
 int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
