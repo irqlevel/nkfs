@@ -20,6 +20,8 @@
 #define DEV_QUERY_OPT "--dev_query"
 #define DEV_FORMAT_OPT "--format"
 
+#define DEV_OBJ_TEST_OPT "--dev_obj_test"
+
 static void usage(void)
 {
 	printf("Usage:\nds_ctl " SERVER_START_OPT " PORT\nds_ctl " SERVER_STOP_OPT " PORT\n"\
@@ -97,11 +99,10 @@ out:
 }
 
 static int ds_dev_query(const char *dev_name,
-			char **psb_id)
+			struct ds_obj_id *psb_id)
 {
 	int err = -EINVAL;
 	struct ds_cmd cmd;
-	char *sb_id;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -119,12 +120,7 @@ static int ds_dev_query(const char *dev_name,
 	if (err)
 		goto out;
 
-	sb_id = ds_obj_id_to_str(&cmd.u.dev_query.sb_id);
-	if (!sb_id) {
-		err = -ENOMEM;
-		goto out;
-	}
-	*psb_id = sb_id;
+	memcpy(psb_id, &cmd.u.dev_query.sb_id, sizeof(struct ds_obj_id));
 	err = 0;
 
 out:
@@ -132,6 +128,142 @@ out:
 	return err;
 }
 
+static int ds_obj_insert(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+			u64 value, int replace)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.u.obj_insert.sb_id, sb_id, sizeof(*sb_id));
+	memcpy(&cmd.u.obj_insert.obj_id, obj_id, sizeof(*obj_id));
+	cmd.u.obj_insert.value = value;
+	cmd.u.obj_insert.replace = replace;
+
+	err = ioctl(fd, IOCTL_DS_OBJ_INSERT, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+out:
+	close(fd);
+	return err;
+}
+
+static int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+			u64 *pvalue)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.u.obj_find.sb_id, sb_id, sizeof(*sb_id));
+	memcpy(&cmd.u.obj_find.obj_id, obj_id, sizeof(*obj_id));
+
+	err = ioctl(fd, IOCTL_DS_OBJ_FIND, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+	*pvalue = cmd.u.obj_find.value;
+out:
+	close(fd);
+	return err;
+}
+
+static int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.u.obj_delete.sb_id, sb_id, sizeof(*sb_id));
+	memcpy(&cmd.u.obj_delete.obj_id, obj_id, sizeof(*obj_id));
+
+	err = ioctl(fd, IOCTL_DS_OBJ_DELETE, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+out:
+	close(fd);
+	return err;
+}
+
+static int ds_sb_obj_test(struct ds_obj_id *sb_id)
+{
+	int err;
+	struct ds_obj_id *obj_id;
+	u64 value, val_find;
+
+	obj_id = ds_obj_id_create();
+	if (!obj_id) {
+		err = -ENOMEM;
+		goto out;
+	}
+	value = get_random_u64();
+
+	err = ds_obj_insert(sb_id, obj_id, value, 0);
+	if (err) {
+		goto cleanup;
+	} 
+
+	err = ds_obj_find(sb_id, obj_id, &val_find);
+	if (err) {
+		goto cleanup;
+	} 
+
+	if (value != val_find) {
+		goto cleanup;	
+	}
+
+	err = ds_obj_delete(sb_id, obj_id);
+	if (err) {
+		goto cleanup;
+	}
+
+cleanup:
+	crt_free(obj_id);
+out:
+	return err;
+}
+
+static int ds_dev_obj_test(const char *dev_name)
+{
+	struct ds_obj_id sb_id;
+	int err;
+	
+	err = ds_dev_query(dev_name, &sb_id);
+	if (err)
+		goto out;
+
+	err = ds_sb_obj_test(&sb_id);
+out:
+	return err;
+}
 
 static int ds_server_stop(int port)
 {
@@ -253,7 +385,7 @@ int main(int argc, char *argv[])
 		goto out;
 	} else if (strncmp(argv[1], DEV_QUERY_OPT, strlen(DEV_QUERY_OPT) + 1) == 0) {
 		const char *dev_name = NULL;
-		char *sb_id = NULL;
+		struct ds_obj_id sb_id;
 		if (argc != 3) {
 			usage();
 			err = -EINVAL;
@@ -262,10 +394,34 @@ int main(int argc, char *argv[])
 		dev_name = argv[2];
 		printf("query dev=%s\n", dev_name);
 		err = ds_dev_query(dev_name, &sb_id);
-		if (!err)
-			printf("queried dev=%s sb_id=%s\n", dev_name, sb_id);
-		if (sb_id)
-			crt_free(sb_id);
+		if (!err) {
+			char *ssb_id = NULL;
+			ssb_id = ds_obj_id_to_str(&sb_id);
+			if (!ssb_id) {
+				err = -ENOMEM;
+				goto out;		
+			}
+			printf("queried dev=%s sb_id=%s\n", dev_name, ssb_id);
+			if (ssb_id)
+				crt_free(ssb_id);
+	
+		}
+		goto out;
+	} else if (strncmp(argv[1], DEV_OBJ_TEST_OPT, strlen(DEV_OBJ_TEST_OPT) + 1) == 0) {
+		const char *dev_name = NULL;
+		if (argc != 3) {
+			usage();
+			err = -EINVAL;
+			goto out;
+		}
+		dev_name = argv[2];
+		printf("obj test dev=%s\n", dev_name);
+		err = ds_dev_obj_test(dev_name);
+		if (!err) {
+			printf("obj test dev=%s PASSED\n", dev_name);	
+		} else {
+			printf("obj test dev=%s FAILED err %d\n", dev_name, err);		
+		}
 		goto out;
 	} else {
 		usage();
