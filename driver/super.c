@@ -26,7 +26,7 @@ void ds_sb_stop(struct ds_sb *sb)
 
 	write_lock(&sb_list_lock);
 	list_del_init(&sb->list);
-	write_lock(&sb_list_lock);	
+	write_unlock(&sb_list_lock);	
 }
 
 void ds_sb_ref(struct ds_sb *sb)
