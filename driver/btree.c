@@ -19,6 +19,7 @@ static struct btree_node *btree_node_alloc(void)
 	node->sig2 = BTREE_SIG2;
 	atomic_set(&node->ref, 1);
 
+	KLOG(KL_DBG, "node %p", node);
 	return node;
 }
 
@@ -270,6 +271,7 @@ static struct btree_node *btree_node_create(struct btree *tree)
 		
 	err = ds_balloc_block_alloc(tree->sb, &block);
 	if (err) {
+		KLOG(KL_ERR, "cant alloc block, err=%d", err);
 		__btree_node_free(node);
 		return NULL;
 	}
