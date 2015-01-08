@@ -670,7 +670,7 @@ static int btree_node_insert_nonfull(
 			} else {
 				if (node != first)
 					BTREE_NODE_DEREF(node);
-				return -1;
+				return -EEXIST;
 			}
 		}
 
@@ -733,7 +733,7 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 
 	if (btree_key_is_zero(key)) {
 		KLOG(KL_ERR, "key is zero");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (tree->releasing)
@@ -838,7 +838,7 @@ int btree_find_key(struct btree *tree,
 
 	if (btree_key_is_zero(key)) {
 		KLOG(KL_ERR, "key is zero");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (tree->releasing)
@@ -853,7 +853,7 @@ int btree_find_key(struct btree *tree,
 	found = btree_node_find_key(tree->root, key, &index);
 	if (found == NULL) {
 		up_read(&tree->rw_lock);
-		return -1;
+		return -ENOENT;
 	}
 
 	btree_copy_value(pvalue, &found->values[index]);
@@ -1249,7 +1249,7 @@ restart:
 		if (node->leaf) {
 			if (node != first)
 				BTREE_NODE_DEREF(node);
-			return -1;
+			return -ENOENT;
 		} else {
 			struct btree_node *child;
 			BUG_ON(btree_node_has_key(node, key) >= 0);
@@ -1267,7 +1267,7 @@ int btree_delete_key(struct btree *tree, struct btree_key *key)
 {
 	int rc;
 	if (btree_key_is_zero(key))
-		return -1;
+		return -EINVAL;
 	if (tree->releasing)
 		return -EAGAIN;
 
