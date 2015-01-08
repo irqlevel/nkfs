@@ -41,7 +41,9 @@ static void __btree_node_release(struct btree_node *node)
 {
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);	
-	btree_nodes_remove(node->tree, node);
+
+	if (node->block)
+		btree_nodes_remove(node->tree, node);
 	__btree_node_free(node);
 }
 
@@ -93,10 +95,11 @@ static void btree_nodes_remove(struct btree *tree,
 	struct btree_node *node)
 {
 	struct btree_node *found;
+
+	BUG_ON(!node->block);
 	write_lock_irq(&tree->nodes_lock);
 	found = __btree_nodes_lookup(tree, node->block);
-	if (found != node)
-		BUG();
+	BUG_ON(found != node);
 	rb_erase(&found->nodes_link, &tree->nodes);
 	tree->nodes_active--;
 	write_unlock_irq(&tree->nodes_lock);
@@ -294,12 +297,13 @@ static struct btree_node *btree_node_create(struct btree *tree)
 
 static void btree_node_delete(struct btree_node *node)
 {	
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
-		node, node->leaf, node->nr_keys);
+	KLOG(KL_DBG, "node %p leaf %d nr_keys %d block %llu",
+		node, node->leaf, node->nr_keys, node->block);
 
+	BUG_ON(!node->block);
+	btree_nodes_remove(node->tree, node);
 	ds_balloc_block_free(node->tree->sb, node->block);
 	node->block = 0;
-	btree_node_deref(node);
 }
 
 void btree_key_fee(struct btree_key *key)
