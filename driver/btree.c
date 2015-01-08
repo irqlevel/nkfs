@@ -427,12 +427,16 @@ fail:
 	return NULL;
 }
 
-static void btree_release(struct btree *tree)
+void btree_stop(struct btree *tree)
 {
 	tree->releasing = 1;
 	down_write(&tree->rw_lock);
 	up_write(&tree->rw_lock);
+}
 
+static void btree_release(struct btree *tree)
+{
+	btree_stop(tree);
 	if (tree->root)
 		BTREE_NODE_DEREF(tree->root);
 
@@ -719,6 +723,8 @@ static int btree_node_insert_nonfull(
 	}
 }
 
+static void btree_node_copy(struct btree_node *dst, struct btree_node *src);
+
 int btree_insert_key(struct btree *tree, struct btree_key *key,
 	u64 value,
 	int replace)
@@ -740,36 +746,51 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 	}
 
 	if (btree_node_is_full(tree->root)) {
-		struct btree_node *new, *new2, *root = tree->root;
-		new = btree_node_create(tree);
-		if (new == NULL) {
-			up_write(&tree->rw_lock);
-			return -1;
+		struct btree_node *new, *new2, *root = tree->root, *clone;
+
+		clone = btree_node_create(tree);
+		if (clone == NULL) {
+			rc = -ENOMEM;
+			goto out;
 		}
+
+		new = btree_node_alloc();
+		if (new == NULL) {
+			btree_node_delete(clone);
+			BTREE_NODE_DEREF(clone);
+			rc = -ENOMEM;
+			goto out;
+		}
+
 		new2 = btree_node_create(tree);
 		if (new2 == NULL) {
-			btree_node_delete(new);
-			BTREE_NODE_DEREF(new);	
-			up_write(&tree->rw_lock);
-			return -1;
+			btree_node_delete(clone);
+			BTREE_NODE_DEREF(clone);
+			__btree_node_free(new);
+			rc = -ENOMEM;
+			goto out;
 		}
+
+		btree_node_copy(clone, root);
 
 		new->leaf = 0;
 		new->nr_keys = 0;
-		new->childs[0] = root->block;
-		btree_node_split_child(new, root, 0, new2);
-
-		btree_node_write(root);
-		btree_node_write(new);
+		new->childs[0] = clone->block;
+		btree_node_split_child(new, clone, 0, new2);
+		
+		btree_node_copy(root, new);
+		
+		btree_node_write(clone);
 		btree_node_write(new2);
-
-		BTREE_NODE_DEREF(root);
+		btree_node_write(root);
+	
+		BTREE_NODE_DEREF(clone);
 		BTREE_NODE_DEREF(new2);
-
-		tree->root = new;
+		__btree_node_free(new);
 	}
 
 	rc = btree_node_insert_nonfull(tree->root, key, &value, replace);
+out:
 	up_write(&tree->rw_lock);
 	return rc;
 }

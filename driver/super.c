@@ -6,12 +6,14 @@ static DEFINE_RWLOCK(sb_list_lock);
 static LIST_HEAD(sb_list);
 
 static struct kmem_cache *ds_sb_cachep;
+static int ds_sb_sync(struct ds_sb *sb);
 
 static void ds_sb_release(struct ds_sb *sb)
 {
 	KLOG(KL_DBG, "sb %p obj tree %p", sb, sb->obj_tree);
 	if (sb->obj_tree)
 		btree_deref(sb->obj_tree);
+	
 	KLOG(KL_DBG, "sb %p released");
 }
 
@@ -28,7 +30,12 @@ void ds_sb_stop(struct ds_sb *sb)
 
 	write_lock(&sb_list_lock);
 	list_del_init(&sb->list);
-	write_unlock(&sb_list_lock);	
+	write_unlock(&sb_list_lock);
+
+	if (sb->obj_tree)
+		btree_stop(sb->obj_tree);
+
+	ds_sb_sync(sb);	
 }
 
 void ds_sb_ref(struct ds_sb *sb)
@@ -122,7 +129,7 @@ static void ds_sb_parse_header(struct ds_sb *sb,
 	sb->version = be32_to_cpu(header->version);
 	sb->size = be64_to_cpu(header->size);
 	sb->bsize = be32_to_cpu(header->bsize);
-	sb->bm_block = be32_to_cpu(header->bm_block);
+	sb->bm_block = be64_to_cpu(header->bm_block);
 	sb->bm_blocks = be64_to_cpu(header->bm_blocks);
 	sb->obj_tree_block = be64_to_cpu(header->obj_tree_block);
 
@@ -138,10 +145,33 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	header->version = cpu_to_be32(sb->version);
 	header->size = cpu_to_be64(sb->size);
 	header->bsize = cpu_to_be32(sb->bsize);
-	header->bm_block = cpu_to_be32(sb->bm_block);
+	header->bm_block = cpu_to_be64(sb->bm_block);
 	header->bm_blocks = cpu_to_be64(sb->bm_blocks);
 	header->obj_tree_block = cpu_to_be64(sb->obj_tree_block);
 	memcpy(&header->id, &sb->id, sizeof(sb->id));
+}
+
+static int ds_sb_sync(struct ds_sb *sb)
+{
+	struct buffer_head *bh;
+	int err;
+
+	bh = __bread(sb->bdev, 0, sb->bsize);
+	if (!bh) {
+		KLOG(KL_ERR, "cant read 0block");
+		return -EIO;
+	}
+	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
+	mark_buffer_dirty(bh);
+	err = sync_dirty_buffer(bh);
+	if (err) {
+		KLOG(KL_ERR, "cant sync 0block");
+		goto out;
+	}
+
+out:
+	brelse(bh);
+	return err;
 }
 
 static int ds_sb_check(struct ds_sb *sb)

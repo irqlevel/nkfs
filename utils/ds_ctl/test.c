@@ -123,7 +123,7 @@ int ds_dev_obj_test(const char *dev_name)
 	if (err)
 		goto out;
 	
-	err = ds_sb_obj_test(&sb_id, 200);
+	err = ds_sb_obj_test(&sb_id, 50000);
 	if (err) {
 		printf("obj_test ERR %d\n", err);
 	}

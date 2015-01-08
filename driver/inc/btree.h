@@ -84,6 +84,8 @@ int btree_find_key(struct btree *tree,
 int btree_delete_key(struct btree *tree,
 	struct btree_key *key);
 
+void btree_stop(struct btree *tree);
+
 struct btree_key *btree_gen_key(void);
 u64 btree_gen_value(void);
 
