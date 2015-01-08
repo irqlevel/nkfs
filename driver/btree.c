@@ -53,6 +53,18 @@ static void btree_node_ref(struct btree_node *node)
 	atomic_inc(&node->ref);
 }
 
+#define BTREE_NODE_REF(n)						\
+{									\
+	btree_node_ref((n));						\
+	KLOG(KL_DBG, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
+}
+
+#define BTREE_NODE_DEREF(n)						\
+{									\
+	KLOG(KL_DBG, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
+	btree_node_deref((n));						\
+}
+
 static void btree_node_deref(struct btree_node *node)
 {
 	BUG_ON(atomic_read(&node->ref) <= 0);
@@ -132,7 +144,7 @@ static struct btree_node *btree_nodes_insert(struct btree *tree,
 		tree->nodes_active++;
 		inserted = node;
 	}
-	btree_node_ref(inserted);
+	BTREE_NODE_REF(inserted);
 	write_unlock_irq(&tree->nodes_lock);
 	return inserted;
 }
@@ -209,21 +221,21 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 			__btree_node_free(node);
 			node = inserted;
 		} else {
-			btree_node_deref(inserted);
+			BTREE_NODE_DEREF(inserted);
 		}
 	}
 
 	bh = __bread(tree->sb->bdev, node->block, tree->sb->bsize);
 	if (!bh) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
-		btree_node_deref(node);
+		BTREE_NODE_DEREF(node);
 		return NULL;
 	}
 	btree_node_by_ondisk(node,
 		(struct btree_node_disk *)bh->b_data);
 
 	if (btree_node_check_sigs(node)) {
-		btree_node_deref(node);
+		BTREE_NODE_DEREF(node);
 		node = NULL;
 	}
 
@@ -288,7 +300,7 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	node->tree = tree;
 	inserted = btree_nodes_insert(tree, node);
 	BUG_ON(inserted != node);
-	btree_node_deref(inserted);
+	BTREE_NODE_DEREF(inserted);
 	btree_node_write(node);
 	KLOG(KL_DBG, "node %p created block %llu", node, node->block);
 
@@ -422,9 +434,9 @@ static void btree_release(struct btree *tree)
 	up_write(&tree->rw_lock);
 
 	if (tree->root)
-		btree_node_deref(tree->root);
+		BTREE_NODE_DEREF(tree->root);
 
-	BUG_ON(tree->nodes_active);
+	DS_BUG_ON(tree->nodes_active);
 
 	kmem_cache_free(btree_cachep, tree);
 	KLOG(KL_DBG, "tree %p deleted", tree);
@@ -649,11 +661,11 @@ static int btree_node_insert_nonfull(
 						value);
 				btree_node_write(node);
 				if (node != first)
-					btree_node_deref(node);
+					BTREE_NODE_DEREF(node);
 				return 0;
 			} else {
 				if (node != first)
-					btree_node_deref(node);
+					BTREE_NODE_DEREF(node);
 				return -1;
 			}
 		}
@@ -669,7 +681,7 @@ static int btree_node_insert_nonfull(
 					node, node->nr_keys);
 			btree_node_write(node);
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			return 0;
 		} else {
 			struct btree_node *child;
@@ -677,7 +689,7 @@ static int btree_node_insert_nonfull(
 			child = btree_node_read(node->tree, node->childs[i]);
 			if (!child) {
 				if (node != first)
-					btree_node_deref(node);
+					BTREE_NODE_DEREF(node);
 				return -EIO;
 			}
 
@@ -686,8 +698,8 @@ static int btree_node_insert_nonfull(
 				new = btree_node_create(node->tree);
 				if (!new) {
 					if (node != first)
-						btree_node_deref(node);
-					btree_node_deref(child);
+						BTREE_NODE_DEREF(node);
+					BTREE_NODE_DEREF(child);
 					return -EIO;
 				}
 				btree_node_split_child(node, child, i, new);
@@ -696,12 +708,12 @@ static int btree_node_insert_nonfull(
 				btree_node_write(child);
 				btree_node_write(new);
 				
-				btree_node_deref(new);
-				btree_node_deref(child);
+				BTREE_NODE_DEREF(new);
+				BTREE_NODE_DEREF(child);
 				continue; /* restart */
 			}
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			node = child;
 		}
 	}
@@ -737,7 +749,7 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		new2 = btree_node_create(tree);
 		if (new2 == NULL) {
 			btree_node_delete(new);
-			btree_node_deref(new);	
+			BTREE_NODE_DEREF(new);	
 			up_write(&tree->rw_lock);
 			return -1;
 		}
@@ -751,8 +763,8 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		btree_node_write(new);
 		btree_node_write(new2);
 
-		btree_node_deref(root);
-		btree_node_deref(new2);
+		BTREE_NODE_DEREF(root);
+		BTREE_NODE_DEREF(new2);
 
 		tree->root = new;
 	}
@@ -771,7 +783,7 @@ static struct btree_node *btree_node_find_key(struct btree_node *first,
 	while (1) {
 		if (node->nr_keys == 0) {
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			return NULL;
 		}
 
@@ -780,18 +792,18 @@ static struct btree_node *btree_node_find_key(struct btree_node *first,
 				btree_cmp_key(key, &node->keys[i]) == 0) {
 			*pindex = i;
 			if (node == first)
-				btree_node_ref(node);
+				BTREE_NODE_REF(node);
 			return node;
 		} else if (node->leaf) {
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			return NULL;
 		} else {
 			struct btree_node *prev = node;
 			node = btree_node_read(node->tree, node->childs[i]);
 			BUG_ON(!node);
 			if (prev != first)
-				btree_node_deref(prev);	
+				BTREE_NODE_DEREF(prev);	
 		}
 	}
 }
@@ -824,7 +836,7 @@ int btree_find_key(struct btree *tree,
 	}
 
 	btree_copy_value(pvalue, &found->values[index]);
-	btree_node_deref(found);
+	BTREE_NODE_DEREF(found);
 	up_read(&tree->rw_lock);
 
 	return 0;
@@ -880,7 +892,7 @@ btree_node_find_left_most(struct btree_node *node, int *pindex)
 	BUG_ON(node->nr_keys == 0);
 	if (node->leaf) {
 		*pindex = node->nr_keys - 1;
-		btree_node_ref(node);
+		BTREE_NODE_REF(node);
 		return node;
 	}
 
@@ -893,7 +905,7 @@ btree_node_find_left_most(struct btree_node *node, int *pindex)
 			return curr;
 		}
 		next = btree_node_child_balance(curr, curr->nr_keys);
-		btree_node_deref(curr);
+		BTREE_NODE_DEREF(curr);
 		curr = next;
 		BUG_ON(!curr);
 	}
@@ -907,7 +919,7 @@ btree_node_find_right_most(struct btree_node *node, int *pindex)
 	BUG_ON(node->nr_keys == 0);
 	if (node->leaf) {
 		*pindex = 0;
-		btree_node_ref(node);
+		BTREE_NODE_REF(node);
 		return node;
 	}
 
@@ -920,7 +932,7 @@ btree_node_find_right_most(struct btree_node *node, int *pindex)
 			return curr;
 		}
 		next = btree_node_child_balance(curr, 0);
-		btree_node_deref(curr);
+		BTREE_NODE_DEREF(curr);
 		curr = next;
 	}
 }
@@ -1091,17 +1103,20 @@ btree_node_child_balance(struct btree_node *node,
 		}
 
 		if (next != child) {
-			btree_node_deref(child);
-			btree_node_ref(next);
+			BTREE_NODE_DEREF(child);
+			BTREE_NODE_REF(next);
 		}
 
 		if (right)
-			btree_node_deref(right);
+			BTREE_NODE_DEREF(right);
 		if (left)
-			btree_node_deref(left);
+			BTREE_NODE_DEREF(left);
 
 		child = next;
 	}
+
+	if (child == node)
+		BTREE_NODE_DEREF(child);
 
 	return child;
 }
@@ -1122,7 +1137,7 @@ restart:
 			btree_node_leaf_delete_key(node, key);
 			btree_node_write(node);
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			return 0;
 		} else {
 			struct btree_node *pre_child = NULL;
@@ -1149,9 +1164,9 @@ restart:
 					pre, pre_index);
 				btree_node_write(node);
 				if (node != first)
-					btree_node_deref(node);
-				btree_node_deref(pre_child);
-				btree_node_deref(suc_child);
+					BTREE_NODE_DEREF(node);
+				BTREE_NODE_DEREF(pre_child);
+				BTREE_NODE_DEREF(suc_child);
 				node = pre;
 				key = &pre->keys[pre_index];
 				goto restart;
@@ -1165,9 +1180,9 @@ restart:
 					suc, suc_index);
 				btree_node_write(node);
 				if (node != first)
-					btree_node_deref(node);
-				btree_node_deref(suc_child);
-				btree_node_deref(pre_child);
+					BTREE_NODE_DEREF(node);
+				BTREE_NODE_DEREF(suc_child);
+				BTREE_NODE_DEREF(pre_child);
 				node = suc;
 				key = &suc->keys[suc_index];
 				goto restart;
@@ -1196,13 +1211,13 @@ restart:
 					btree_node_delete(pre_child);
 					btree_node_write(node);
 
-					btree_node_deref(suc_child);
-					btree_node_deref(pre_child);
+					BTREE_NODE_DEREF(suc_child);
+					BTREE_NODE_DEREF(pre_child);
 					pre_child = node;
 				} else {
 					if (node != first)
-						btree_node_deref(node);
-					btree_node_deref(suc_child);
+						BTREE_NODE_DEREF(node);
+					BTREE_NODE_DEREF(suc_child);
 					node = pre_child;
 				}
 				key = &pre_child->keys[key_index];
@@ -1212,7 +1227,7 @@ restart:
 	} else {
 		if (node->leaf) {
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			return -1;
 		} else {
 			struct btree_node *child;
@@ -1220,7 +1235,7 @@ restart:
 			i = btree_node_find_key_index(node, key);
 			child = btree_node_child_balance(node, i);
 			if (node != first)
-				btree_node_deref(node);
+				BTREE_NODE_DEREF(node);
 			node = child;
 			goto restart;
 		}
@@ -1260,7 +1275,7 @@ static void btree_log_node(struct btree_node *first, u32 height, int llevel)
 				node->childs[i]);
 			BUG_ON(!child);
 			btree_log_node(child, height+1, llevel);
-			btree_node_deref(child);
+			BTREE_NODE_DEREF(child);
 		}
 	}
 }
@@ -1277,7 +1292,7 @@ static void btree_node_stats(struct btree_node *node,
 				node->childs[i]);
 			BUG_ON(!child);
 			btree_node_stats(child, info);
-			btree_node_deref(child);
+			BTREE_NODE_DEREF(child);
 		}
 	}
 	info->nr_nodes++;
@@ -1380,7 +1395,7 @@ static int btree_node_check(struct btree_node *first, int root)
 				node->childs[i]);
 			BUG_ON(!child);
 			errs+= btree_node_check(child, 0);
-			btree_node_deref(child);
+			BTREE_NODE_DEREF(child);
 		}
 	}
 

@@ -55,3 +55,14 @@
 
 #define __BTREE_TEST__	0
 #define __SHA_TEST__	0
+
+#define DS_BUG_ON(cond)			\
+	KLOG(KL_ERR, "BUG_ON()");	\
+	klog_sync();			\
+	BUG_ON((cond));			
+
+#define DS_BUG()			\
+	KLOG(KL_ERR, "BUG()");		\
+	klog_sync();			\
+	BUG();				\
+

@@ -12,6 +12,8 @@
 void klog(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...);
 void klog_v(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args);
 
+void klog_sync(void);
+
 int klog_init(void);
 
 void klog_release(void);
