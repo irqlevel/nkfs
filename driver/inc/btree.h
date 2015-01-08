@@ -98,3 +98,5 @@ int btree_check(struct btree *tree);
 
 int btree_test(int num_keys);
 
+int btree_init(void);
+void btree_finit(void);

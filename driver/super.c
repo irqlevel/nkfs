@@ -5,6 +5,8 @@
 static DEFINE_RWLOCK(sb_list_lock);
 static LIST_HEAD(sb_list);
 
+static struct kmem_cache *ds_sb_cachep;
+
 static void ds_sb_release(struct ds_sb *sb)
 {
 	KLOG(KL_DBG, "sb %p obj tree %p", sb, sb->obj_tree);
@@ -16,7 +18,7 @@ static void ds_sb_release(struct ds_sb *sb)
 static void ds_sb_delete(struct ds_sb *sb)
 {
 	ds_sb_release(sb);
-	kfree(sb);
+	kmem_cache_free(ds_sb_cachep, sb);
 }
 
 void ds_sb_stop(struct ds_sb *sb)
@@ -196,7 +198,7 @@ static int ds_sb_create(struct ds_dev *dev,
 	int err;
 	struct ds_sb *sb;
 
-	sb = kmalloc(GFP_NOFS, sizeof(*sb));
+	sb = kmem_cache_alloc(ds_sb_cachep, GFP_NOFS);
 	if (!sb) {
 		KLOG(KL_ERR, "cant alloc sb");
 		return -ENOMEM;
@@ -231,7 +233,7 @@ static int ds_sb_create(struct ds_dev *dev,
 	return 0;
 
 free_sb:
-	kfree(sb);
+	kmem_cache_free(ds_sb_cachep, sb);
 	return err;
 }
 
@@ -390,4 +392,26 @@ int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
 
 	return btree_delete_key(sb->obj_tree, (struct btree_key *)obj_id);
+}
+
+int ds_sb_init(void)
+{
+	int err;
+	
+	ds_sb_cachep = kmem_cache_create("ds_sb_cache", sizeof(struct ds_sb), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!ds_sb_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	return 0;
+out:
+	return err;
+}
+
+void ds_sb_finit(void)
+{
+	kmem_cache_destroy(ds_sb_cachep);
 }

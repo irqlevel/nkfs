@@ -261,7 +261,7 @@ static int ds_dev_obj_test(const char *dev_name)
 	if (err)
 		goto out;
 	
-	for (i = 0; i < 1; i++) {
+	for (i = 0; i < 100000; i++) {
 		err = ds_sb_obj_test(&sb_id);
 		if (err) {
 			printf("obj_test[%d] err %d\n", i, err);

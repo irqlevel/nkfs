@@ -114,9 +114,8 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		goto out_free_cmd;
 	}
 
-	KLOG(KL_DBG, "ctl %d err %d", code, err);	
-
-	return 0;
+	KLOG(KL_DBG, "ctl %d err %d", code, err);
+	err = 0;
 out_free_cmd:
 	kfree(cmd);
 out:
@@ -164,6 +163,21 @@ static int __init ds_init(void)
 		KLOG(KL_ERR, "misc_register err=%d", err);
 		goto out_amap_release; 
 	}
+	err = btree_init();
+	if (err) {
+		KLOG(KL_ERR, "btree_init err %d", err);
+		goto out_misc_release;
+	}
+	err = ds_sb_init();
+	if (err) {
+		KLOG(KL_ERR, "ds_sb_init err %d", err);
+		goto out_btree_release;
+	}
+	err = ds_dev_init();
+	if (err) {
+		KLOG(KL_ERR, "ds_dev_init err %d", err);
+		goto out_sb_release;
+	}
 
 	KLOG(KL_DBG, "inited");
 
@@ -178,6 +192,12 @@ static int __init ds_init(void)
 
 	return 0;
 
+out_sb_release:
+	ds_sb_finit();
+out_btree_release:
+	btree_finit();
+out_misc_release:
+	misc_deregister(&ds_misc);
 out_amap_release:
 	amap_sys_release();
 out_random_release:
@@ -195,7 +215,9 @@ static void __exit ds_exit(void)
 	ds_random_release();	
 	misc_deregister(&ds_misc);
 	ds_server_stop_all();
-	ds_dev_release_all();
+	ds_dev_finit();
+	ds_sb_finit();
+	btree_finit();
 	amap_sys_release();
 
 	KLOG(KL_DBG, "exited");

@@ -2,11 +2,15 @@
 
 #define __SUBCOMPONENT__ "btree"
 
+static struct kmem_cache *btree_node_cachep;
+static struct kmem_cache *btree_cachep;
+static struct kmem_cache *btree_key_cachep;
+
 static struct btree_node *btree_node_alloc(void) 
 {
 	struct btree_node *node;
 
-	node = kmalloc(sizeof(*node), GFP_NOFS);
+	node = kmem_cache_alloc(btree_node_cachep, GFP_NOFS);
 	if (!node) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -30,7 +34,7 @@ static void __btree_node_free(struct btree_node *node)
 {
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
-	kfree(node);
+	kmem_cache_free(btree_node_cachep, node);
 }
 
 static void __btree_node_release(struct btree_node *node)
@@ -298,15 +302,20 @@ static void btree_node_delete(struct btree_node *node)
 	btree_node_deref(node);
 }
 
+void btree_key_fee(struct btree_key *key)
+{
+	kmem_cache_free(btree_key_cachep, key);
+}
+
 struct btree_key *btree_gen_key(void)
 {
 	struct btree_key *key;
-	key = kmalloc(sizeof(*key), GFP_NOFS);
+	key = kmem_cache_alloc(btree_key_cachep, GFP_NOFS);
 	if (!key)
 		return NULL;
 
 	if (ds_random_buf_read(key, sizeof(*key), 1)) {
-		kfree(key);
+		kmem_cache_free(btree_key_cachep, key);
 		return NULL;
 	}
 	return key;
@@ -364,7 +373,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	struct btree *tree;
 	int err;
 
-	tree = kmalloc(sizeof(*tree), GFP_NOFS);
+	tree = kmem_cache_alloc(btree_cachep, GFP_NOFS);
 	if (!tree) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -413,7 +422,7 @@ static void btree_release(struct btree *tree)
 
 	BUG_ON(tree->nodes_active);
 
-	kfree(tree);
+	kmem_cache_free(btree_cachep, tree);
 	KLOG(KL_DBG, "tree %p deleted", tree);
 }
 
@@ -1388,4 +1397,52 @@ int btree_check(struct btree *tree)
 
 	up_read(&tree->rw_lock);
 	return rc;
+}
+
+int btree_init(void)
+{
+	int err;
+
+	btree_node_cachep = kmem_cache_create("btree_node_cache",
+			sizeof(struct btree_node), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btree_node_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	btree_key_cachep = kmem_cache_create("btree_key_cache",
+			sizeof(struct btree_key), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btree_key_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_node_cache;
+	}
+
+	btree_cachep = kmem_cache_create("btree_cache",
+			sizeof(struct btree), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btree_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_key_cache;
+	}
+
+	return 0;
+
+del_key_cache:
+	kmem_cache_destroy(btree_key_cachep);
+del_node_cache:
+	kmem_cache_destroy(btree_node_cachep);
+out:
+	return err;
+}
+
+void btree_finit(void)
+{
+	kmem_cache_destroy(btree_node_cachep);
+	kmem_cache_destroy(btree_key_cachep);
+	kmem_cache_destroy(btree_cachep);
 }

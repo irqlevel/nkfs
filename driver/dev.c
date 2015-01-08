@@ -5,13 +5,13 @@
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);
 
+static struct kmem_cache *ds_dev_cachep;
+
 static void ds_dev_free(struct ds_dev *dev)
 {
 	if (dev->sb)
 		ds_sb_deref(dev->sb);
-	if (dev->dev_name)
-		kfree(dev->dev_name);
-	kfree(dev);
+	kmem_cache_free(ds_dev_cachep, dev);
 }
 
 void ds_dev_ref(struct ds_dev *dev)
@@ -101,12 +101,12 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	int err;
 
 	len = strlen(dev_name);
-	if (len == 0) {
+	if (len == 0 || len >= DS_NAME_MAX_SZ) {
 		KLOG(KL_ERR, "len=%d", len);
 		return NULL;
 	}
 
-	dev = kmalloc(sizeof(struct ds_dev), GFP_KERNEL);
+	dev = kmem_cache_alloc(ds_dev_cachep, GFP_NOFS);
 	if (!dev) {
 		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
@@ -115,16 +115,10 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	memset(dev, 0, sizeof(*dev));
 	atomic_set(&dev->ref, 1);
 
-	dev->dev_name = kmalloc(len + 1, GFP_KERNEL);
-	if (!dev->dev_name) {
-		KLOG(KL_ERR, "dev_name alloc failed");
-		ds_dev_deref(dev);
-		return NULL;
-	}
+	snprintf(dev->dev_name, sizeof(dev->dev_name), "%s", dev_name);
+
 	spin_lock_init(&dev->io_lock);
 	INIT_LIST_HEAD(&dev->io_list);
-
-	memcpy(dev->dev_name, dev_name, len + 1);
 
 	dev->bdev = blkdev_get_by_path(dev->dev_name,
 		fmode, dev);
@@ -266,7 +260,7 @@ int ds_dev_remove(char *dev_name)
 	return err;
 }
 
-void ds_dev_release_all(void)
+static void ds_dev_release_all(void)
 {
 	struct ds_dev *dev;
 	struct ds_dev *tmp;
@@ -280,3 +274,25 @@ void ds_dev_release_all(void)
 	mutex_unlock(&dev_list_lock);
 }
 
+int ds_dev_init(void)
+{
+	int err;
+	
+	ds_dev_cachep = kmem_cache_create("ds_dev_cache", sizeof(struct ds_dev), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!ds_dev_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	return 0;
+out:
+	return err;
+}
+
+void ds_dev_finit(void)
+{
+	ds_dev_release_all();
+	kmem_cache_destroy(ds_dev_cachep);
+}

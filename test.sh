@@ -1,4 +1,5 @@
 #!/bin/bash
+rm -rf /var/log/ds.log
 rm -rf lfile
 dd if=/dev/zero of=lfile bs=1M count=10
 rmmod ds

@@ -37,3 +37,6 @@ int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 *pvalue);
 
 int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id);
+
+int ds_sb_init(void);
+void ds_sb_finit(void);

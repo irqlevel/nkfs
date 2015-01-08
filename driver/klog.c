@@ -1,6 +1,6 @@
 #include <inc/ds_priv.h>
 
-#define KLOG_MSG_BYTES	200
+#define KLOG_MSG_BYTES	256
 
 struct klog_msg {
 	struct list_head 	list;
@@ -58,14 +58,22 @@ static char * truncate_file_path(const char *filename)
     	return curr;
 }
 
+static atomic_t klog_nr_msg;
+
 struct klog_msg * klog_msg_alloc(void)
 {
-	return mempool_alloc(klog_msg_pool, GFP_ATOMIC);
+	struct klog_msg *msg;
+	msg = mempool_alloc(klog_msg_pool, GFP_ATOMIC);
+	if (msg) {
+		atomic_inc(&klog_nr_msg);
+	}
+	return msg;
 }
 
 static void klog_msg_free(struct klog_msg *msg)
 {
 	mempool_free(msg, klog_msg_pool);
+	atomic_dec(&klog_nr_msg);
 }
 
 static void klog_msg_queue(struct klog_msg *msg)
@@ -317,6 +325,8 @@ int klog_init(void)
 		error = -ENOMEM;
 		goto out_cache_del;
 	}
+
+	atomic_set(&klog_nr_msg, 0);
 	
 	klog_thread = kthread_create(klog_thread_routine, NULL, "klogger");
 	if (IS_ERR(klog_thread)) {
@@ -341,6 +351,7 @@ void klog_release(void)
 	klog_stopping = 1;	
 	kthread_stop(klog_thread);
 	klog_msg_list_drop();
+	BUG_ON(atomic_read(&klog_nr_msg));
 	mempool_destroy(klog_msg_pool);
 	kmem_cache_destroy(klog_msg_cache);
 }
