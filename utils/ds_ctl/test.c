@@ -62,12 +62,25 @@ cleanup:
 	return err;
 }
 
-static int ds_sb_obj_test(struct ds_obj_id *sb_id, int num_keys)
+int ds_sb_obj_test(const char *dev_name, int num_keys)
 {
 	int err;
 	struct ds_obj_id **keys = NULL;
 	u64 *values = NULL;
 	int i;
+	struct ds_obj_id sb_id;
+
+	CLOG(CL_INF, "dev_name %s num_keys %d",
+		dev_name, num_keys);
+
+	printf("dev %s num keys %d\n", dev_name, num_keys);
+
+	err = ds_dev_query(dev_name, &sb_id);
+	if (err) {
+		CLOG(CL_ERR, "cant query sb_id for dev %d",
+			dev_name);
+		goto out;
+	}
 
 	err = __test_gen_kvs(&keys, &values, num_keys);
 	if (err) {
@@ -76,16 +89,35 @@ static int ds_sb_obj_test(struct ds_obj_id *sb_id, int num_keys)
 	}
 
 	for (i = 0; i < num_keys; i++) {
-		err = ds_obj_insert(sb_id, keys[i], values[i], 0);
+		err = ds_obj_insert(&sb_id, keys[i], values[i], 0);
+		if (i % 1000 == 0)
+			printf("inserted key[%d] err %d\n", i, err);
 		if (err) {
 			CLOG(CL_ERR, "cant insert key %d err %d", i, err);
 			goto cleanup;
 		}
 	}
 	
+	err = ds_dev_rem(dev_name);
+	if (err) {
+		CLOG(CL_ERR, "cant rem dev %s err %d", dev_name, err);
+		goto cleanup;
+	}
+	printf("dev %s removed\n", dev_name);
+
+	err = ds_dev_add(dev_name, 0);
+	if (err) {
+		CLOG(CL_ERR, "cant add dev %s err %d", dev_name, err);
+		goto cleanup;
+	}
+	printf("dev %s added\n", dev_name);
+
 	for (i = 0; i < num_keys; i++) {
 		u64 val;
-		err = ds_obj_find(sb_id, keys[i], &val);
+		err = ds_obj_find(&sb_id, keys[i], &val);
+		if (i % 1000 == 0)
+			printf("found key[%d] err %d\n", i, err);
+	
 		if (err) {
 			CLOG(CL_ERR, "cant find key %d err %d", i, err);
 			goto cleanup;
@@ -100,7 +132,9 @@ static int ds_sb_obj_test(struct ds_obj_id *sb_id, int num_keys)
 	}
 
 	for (i = 0; i < num_keys; i++) {
-		err = ds_obj_delete(sb_id, keys[i]);
+		err = ds_obj_delete(&sb_id, keys[i]);
+		if (i % 1000 == 0)
+			printf("deleted key[%d] err %d\n", i, err);	
 		if (err) {
 			CLOG(CL_ERR, "cant delete key %d err %d", i, err);
 			goto cleanup;
@@ -111,22 +145,7 @@ static int ds_sb_obj_test(struct ds_obj_id *sb_id, int num_keys)
 cleanup:
 	__test_free_kvs(keys, values, num_keys);
 out:
-	return err;
-}
-
-int ds_dev_obj_test(const char *dev_name)
-{
-	struct ds_obj_id sb_id;
-	int err;
-	
-	err = ds_dev_query(dev_name, &sb_id);
-	if (err)
-		goto out;
-	
-	err = ds_sb_obj_test(&sb_id, 50000);
-	if (err) {
-		printf("obj_test ERR %d\n", err);
-	}
-out:
+	printf("completed err %d\n", err);
+	CLOG(CL_INF, "err %d", err);
 	return err;
 }
