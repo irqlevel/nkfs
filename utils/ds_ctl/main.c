@@ -17,10 +17,17 @@ static void usage(void)
 		"ds_ctl " DEV_REM_OPT " DEV_NAME\n");
 }
 
+static void prepare_logging()
+{
+	ucrt_log_set_path(NULL, "ds_client.log");
+	ucrt_log_set_level(CL_DBG);
+}
+
 int main(int argc, char *argv[])
 {
     	int err = -EINVAL;
-    
+ 
+	prepare_logging(); 
     	if (argc < 2) {
     		usage();
     	    	err = -EINVAL;
