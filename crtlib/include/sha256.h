@@ -1,5 +1,11 @@
 #pragma once
 
+#pragma pack(push, 1)
+struct sha256_sum {
+	unsigned char bytes[32];	
+};
+#pragma pack(pop)
+
 /**
  * \brief          SHA-256 context structure
  */
@@ -12,8 +18,7 @@ struct sha256_context
     unsigned char ipad[64];     /*!< HMAC: inner padding        */
     unsigned char opad[64];     /*!< HMAC: outer padding        */
     int is224;                  /*!< 0 => SHA-256, else SHA-224 */
-}
-;
+};
 
 /**
  * \brief          Output = SHA-256( input buffer )
@@ -24,8 +29,8 @@ struct sha256_context
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
 extern asmlinkage void sha256( const unsigned char *input, size_t ilen,
-           unsigned char output[32], int is224 );
-           
+           struct sha256_sum *output, int is224 );
+
 /**
  * \brief          Initialize SHA-256 context
  *
@@ -64,7 +69,8 @@ extern asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned
  * \param ctx      SHA-256 context
  * \param output   SHA-224/256 checksum result
  */
-extern asmlinkage void sha256_finish(struct sha256_context *ctx, unsigned char output[32]);
+extern asmlinkage void sha256_finish(struct sha256_context *ctx, struct sha256_sum *output);
 
 extern asmlinkage void __sha256_test(void);
 
+extern asmlinkage char *sha256_sum_hex(struct sha256_sum *sum);

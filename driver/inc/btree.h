@@ -2,7 +2,7 @@
 
 #include <linux/types.h>
 
-#define BTREE_T 64
+#define BTREE_T 63
 
 #pragma pack(push, 1)
 
@@ -14,7 +14,7 @@ struct btree_key {
 #define BTREE_SIG1 ((u32)0xCBACBADA)
 #define BTREE_SIG2 ((u32)0x3EFFEEFE)
 
-#define BTREE_NODE_PAD 8
+#define BTREE_NODE_PAD 40
 
 struct btree_node_disk {
 	__be32			sig1;
@@ -23,8 +23,9 @@ struct btree_node_disk {
 	__be64			childs[2*BTREE_T];
 	__be32			leaf;
 	__be32			nr_keys;
-	__be32			sig2;
 	u8			pad[BTREE_NODE_PAD];
+	struct sha256_sum	sum;
+	__be32			sig2;
 };
 
 struct btree;

@@ -242,7 +242,7 @@ asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *
 
 
 
-asmlinkage void sha256_finish( struct sha256_context *ctx, unsigned char output[32] )
+asmlinkage void sha256_finish( struct sha256_context *ctx, struct sha256_sum *output )
 {
     u32 last, padn;
     u32 high, low;
@@ -261,16 +261,16 @@ asmlinkage void sha256_finish( struct sha256_context *ctx, unsigned char output[
     sha256_update( ctx, sha256_padding, padn );
     sha256_update( ctx, msglen, 8 );
 
-    PUT_UINT32_BE( ctx->state[0], output,  0 );
-    PUT_UINT32_BE( ctx->state[1], output,  4 );
-    PUT_UINT32_BE( ctx->state[2], output,  8 );
-    PUT_UINT32_BE( ctx->state[3], output, 12 );
-    PUT_UINT32_BE( ctx->state[4], output, 16 );
-    PUT_UINT32_BE( ctx->state[5], output, 20 );
-    PUT_UINT32_BE( ctx->state[6], output, 24 );
+    PUT_UINT32_BE( ctx->state[0], output->bytes,  0 );
+    PUT_UINT32_BE( ctx->state[1], output->bytes,  4 );
+    PUT_UINT32_BE( ctx->state[2], output->bytes,  8 );
+    PUT_UINT32_BE( ctx->state[3], output->bytes, 12 );
+    PUT_UINT32_BE( ctx->state[4], output->bytes, 16 );
+    PUT_UINT32_BE( ctx->state[5], output->bytes, 20 );
+    PUT_UINT32_BE( ctx->state[6], output->bytes, 24 );
 
     if( ctx->is224 == 0 )
-        PUT_UINT32_BE( ctx->state[7], output, 28 );
+        PUT_UINT32_BE( ctx->state[7], output->bytes, 28 );
 }
 
 asmlinkage void sha256_free( struct sha256_context *ctx )
@@ -282,7 +282,7 @@ asmlinkage void sha256_free( struct sha256_context *ctx )
 }
 
 asmlinkage void sha256( const unsigned char *input, size_t ilen,
-             unsigned char output[32], int is224 )
+             struct sha256_sum *output, int is224 )
 {
     struct sha256_context ctx;
 
@@ -293,14 +293,26 @@ asmlinkage void sha256( const unsigned char *input, size_t ilen,
     sha256_free( &ctx );
 }
 
+asmlinkage char *sha256_sum_hex(struct sha256_sum *sum)
+{
+	char *hex_sum;
+
+	hex_sum = bytes_hex((char *)sum, sizeof(*sum));
+	if (!hex_sum) {
+		CLOG(CL_ERR, "char_buf_to_hex_str failed");
+		return NULL;
+	}
+	return hex_sum;
+}
+
 asmlinkage void __sha256_test(void)
 {
 	unsigned char *data = (unsigned char *)"blabla";
-	unsigned char sum[32];
+	struct sha256_sum sum;
 	char *hex_sum;
 
-	sha256(data, crt_strlen((char *)data), sum, 0);
-	hex_sum = bytes_hex((char *)sum, sizeof(sum));
+	sha256(data, crt_strlen((char *)data), &sum, 0);
+	hex_sum = sha256_sum_hex(&sum);
 	if (!hex_sum) {
 		CLOG(CL_ERR, "char_buf_to_hex_str failed");
 		return;

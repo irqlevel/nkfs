@@ -170,6 +170,13 @@ static void btree_node_by_ondisk(struct btree_node *node,
 	node->sig2 = be32_to_cpu(ondisk->sig2);
 }
 
+static void btree_node_on_disk_sum(struct btree_node_disk *on_disk,
+	struct sha256_sum *sum)
+{
+	sha256((const unsigned char *)on_disk,
+		offsetof(struct btree_node_disk, sum), sum, 0);
+}
+
 static void btree_node_to_ondisk(struct btree_node *node,
 		struct btree_node_disk *ondisk)
 {
@@ -205,6 +212,8 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 {
 	struct btree_node *node, *inserted;
 	struct buffer_head *bh;
+	struct sha256_sum sum;
+	struct btree_node_disk *on_disk;
 
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
 	BUG_ON(block == 0 || block >= tree->sb->nr_blocks);
@@ -231,14 +240,31 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 		BTREE_NODE_DEREF(node);
 		return NULL;
 	}
-	btree_node_by_ondisk(node,
-		(struct btree_node_disk *)bh->b_data);
 
-	if (btree_node_check_sigs(node)) {
-		BTREE_NODE_DEREF(node);
+	on_disk = (struct btree_node_disk *)bh->b_data;
+	if (be32_to_cpu(on_disk->sig1) != BTREE_SIG1
+		|| be32_to_cpu(on_disk->sig2) != BTREE_SIG2) {
+		KLOG(KL_ERR, "invalid sig of node %p block %llu",
+			node, node->block);
+		BTREE_NODE_DEREF(node);		
 		node = NULL;
+		goto cleanup;
 	}
 
+	btree_node_on_disk_sum(on_disk, &sum);
+	if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
+		KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
+			node, node->block);
+		BTREE_NODE_DEREF(node);		
+		node = NULL;
+		goto cleanup;
+	}
+
+	btree_node_by_ondisk(node,
+		on_disk);
+
+	BUG_ON(btree_node_check_sigs(node));
+cleanup:
 	brelse(bh);
 
 	return node;
@@ -248,6 +274,7 @@ static int btree_node_write(struct btree_node *node)
 {
 	struct buffer_head *bh;
 	int err;
+	struct btree_node_disk *on_disk;
 
 	BUG_ON(btree_node_check_sigs(node));
 	BUG_ON(!node->tree);
@@ -264,8 +291,9 @@ static int btree_node_write(struct btree_node *node)
 		return -EIO;
 	}
 
-	btree_node_to_ondisk(node,
-		(struct btree_node_disk *)bh->b_data);
+	on_disk = (struct btree_node_disk *)bh->b_data;
+	btree_node_to_ondisk(node, on_disk);
+	btree_node_on_disk_sum(on_disk, &on_disk->sum);
 
 	mark_buffer_dirty(bh);
 	err = sync_dirty_buffer(bh);
