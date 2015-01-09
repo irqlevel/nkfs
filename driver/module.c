@@ -103,6 +103,17 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 				}
 			}
 			break;
+		case IOCTL_DS_OBJ_TREE_CHECK:{
+				struct ds_sb *sb;
+				sb = ds_sb_lookup(&cmd->u.obj_tree_check.sb_id);
+				if (sb) {
+					err = ds_sb_check_obj_tree(sb);
+					ds_sb_deref(sb);
+				} else {
+					err = -EINVAL;
+				}
+			}
+			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);
 			err = DS_E_UNK_IOCTL;

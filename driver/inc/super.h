@@ -18,6 +18,9 @@ struct ds_sb {
 	u32			bsize;
 };
 
+_Static_assert(sizeof(struct ds_obj_id) == sizeof(struct btree_key),
+	"not equal sizes");
+
 void ds_sb_stop(struct ds_sb *sb);
 
 void ds_sb_ref(struct ds_sb *sb);
@@ -37,6 +40,7 @@ int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 *pvalue);
 
 int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id);
+int ds_sb_check_obj_tree(struct ds_sb *sb);
 
 int ds_sb_init(void);
 void ds_sb_finit(void);

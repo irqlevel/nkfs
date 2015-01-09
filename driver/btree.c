@@ -1434,11 +1434,11 @@ int btree_check(struct btree *tree)
 		return -EAGAIN;
 
 	down_read(&tree->rw_lock);
-	if (!tree->releasing)
+	if (!tree->releasing) {
 		rc = btree_node_check(tree->root, 1);
-	else
+		KLOG(KL_INF, "tree %p check rc %d", tree, rc);
+	} else
 		rc = -EAGAIN;
-
 	up_read(&tree->rw_lock);
 	return rc;
 }

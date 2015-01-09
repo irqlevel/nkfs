@@ -112,6 +112,13 @@ int ds_sb_obj_test(const char *dev_name, int num_keys)
 	}
 	printf("dev %s added\n", dev_name);
 
+	err = ds_obj_tree_check(&sb_id);
+	if (err) {
+		CLOG(CL_ERR, "obj tree check dev %s err %d", dev_name, err);
+		goto cleanup;
+	}
+	printf("dev %s obj tree correct\n", dev_name);
+
 	for (i = 0; i < num_keys; i++) {
 		u64 val;
 		err = ds_obj_find(&sb_id, keys[i], &val);
@@ -131,7 +138,7 @@ int ds_sb_obj_test(const char *dev_name, int num_keys)
 		}
 	}
 
-	for (i = 0; i < num_keys; i++) {
+	for (i = 0; i < num_keys/2; i++) {
 		err = ds_obj_delete(&sb_id, keys[i]);
 		if (i % 1000 == 0)
 			printf("deleted key[%d] err %d\n", i, err);	
@@ -140,6 +147,24 @@ int ds_sb_obj_test(const char *dev_name, int num_keys)
 			goto cleanup;
 		}
 	}
+
+	err = ds_obj_tree_check(&sb_id);
+	if (err) {
+		CLOG(CL_ERR, "obj tree check dev %s err %d", dev_name, err);
+		goto cleanup;
+	}
+	printf("dev %s obj tree correct\n", dev_name);
+
+	for (; i < num_keys; i++) {
+		err = ds_obj_delete(&sb_id, keys[i]);
+		if (i % 1000 == 0)
+			printf("deleted key[%d] err %d\n", i, err);	
+		if (err) {
+			CLOG(CL_ERR, "cant delete key %d err %d", i, err);
+			goto cleanup;
+		}
+	}
+
 
 	err = 0;
 cleanup:

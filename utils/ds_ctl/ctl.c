@@ -184,6 +184,32 @@ out:
 	return err;
 }
 
+int ds_obj_tree_check(struct ds_obj_id *sb_id)
+{
+	int err = -EINVAL;
+	struct ds_cmd cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.u.obj_tree_check.sb_id, sb_id, sizeof(*sb_id));
+	err = ioctl(fd, IOCTL_DS_OBJ_TREE_CHECK, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+out:
+	close(fd);
+	return err;
+}
+
+
 int ds_server_stop(int port)
 {
 	int err = -EINVAL;

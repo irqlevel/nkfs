@@ -29,5 +29,7 @@ int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 
 int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id);
 
+int ds_obj_tree_check(struct ds_obj_id *sb_id);
+
 int ds_server_stop(int port);
 int ds_server_start(int port);

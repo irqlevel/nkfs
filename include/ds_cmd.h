@@ -43,6 +43,9 @@ struct ds_cmd {
 			struct ds_obj_id	obj_id;
 			u64			value;
 		} obj_find;
+		struct {
+			struct ds_obj_id	sb_id;
+		} obj_tree_check;
 	} u;
 };
 
@@ -58,3 +61,4 @@ struct ds_cmd {
 #define IOCTL_DS_OBJ_INSERT	_IOWR(DS_IOC_MAGIC, 6, struct ds_cmd *)
 #define IOCTL_DS_OBJ_FIND	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
 #define IOCTL_DS_OBJ_DELETE	_IOWR(DS_IOC_MAGIC, 8, struct ds_cmd *)
+#define IOCTL_DS_OBJ_TREE_CHECK	_IOWR(DS_IOC_MAGIC, 9, struct ds_cmd *)

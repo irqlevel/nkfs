@@ -398,7 +398,6 @@ int ds_sb_insert_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 value, int replace)
 {
 	BUG_ON(!sb->obj_tree);
-	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
 	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
 
 	return btree_insert_key(sb->obj_tree, (struct btree_key *)obj_id,
@@ -409,7 +408,6 @@ int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 *pvalue)
 {
 	BUG_ON(!sb->obj_tree);
-	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
 	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
 
 	return btree_find_key(sb->obj_tree, (struct btree_key *)obj_id,
@@ -419,10 +417,16 @@ int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 {
 	BUG_ON(!sb->obj_tree);
-	BUG_ON(sizeof(struct ds_obj_id) != sizeof(struct btree_key));
 	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
 
 	return btree_delete_key(sb->obj_tree, (struct btree_key *)obj_id);
+}
+
+int ds_sb_check_obj_tree(struct ds_sb *sb)
+{
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	return btree_check(sb->obj_tree);
 }
 
 int ds_sb_init(void)
