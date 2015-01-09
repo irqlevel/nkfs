@@ -123,9 +123,30 @@ static int ds_sb_gen_header(struct ds_sb *sb,
 	return 0;
 }
 
-static void ds_sb_parse_header(struct ds_sb *sb,
+static void ds_image_header_sum(struct ds_image_header *header,
+	struct sha256_sum *sum)
+{
+	sha256((const unsigned char *)header,
+		offsetof(struct ds_image_header, sum), sum, 0); 
+}
+
+static int ds_sb_parse_header(struct ds_sb *sb,
 	struct ds_image_header *header)
 {
+	struct sha256_sum sum;
+
+	if (be32_to_cpu(header->sig) != DS_IMAGE_SIG) {
+		KLOG(KL_ERR, "invalid header sig");
+		return -EINVAL;
+	}
+
+	ds_image_header_sum(header, &sum);
+
+	if (0 != memcmp(&header->sum, &sum, sizeof(sum))) {
+		KLOG(KL_ERR, "invalid header sum");
+		return -EINVAL;
+	}
+
 	sb->magic = be32_to_cpu(header->magic);
 	sb->version = be32_to_cpu(header->version);
 	sb->size = be64_to_cpu(header->size);
@@ -135,6 +156,8 @@ static void ds_sb_parse_header(struct ds_sb *sb,
 	sb->obj_tree_block = be64_to_cpu(header->obj_tree_block);
 
 	memcpy(&sb->id, &header->id, sizeof(header->id));	
+
+	return 0;
 }
 
 static void ds_sb_fill_header(struct ds_sb *sb,
@@ -149,7 +172,9 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	header->bm_block = cpu_to_be64(sb->bm_block);
 	header->bm_blocks = cpu_to_be64(sb->bm_blocks);
 	header->obj_tree_block = cpu_to_be64(sb->obj_tree_block);
+	header->sig = cpu_to_be32(DS_IMAGE_SIG);
 	memcpy(&header->id, &sb->id, sizeof(sb->id));
+	ds_image_header_sum(header, &header->sum);
 }
 
 static int ds_sb_sync(struct ds_sb *sb)
@@ -247,7 +272,11 @@ static int ds_sb_create(struct ds_dev *dev,
 			goto free_sb;
 		}
 	} else {
-		ds_sb_parse_header(sb, header);
+		err = ds_sb_parse_header(sb, header);
+		if (err) {
+			KLOG(KL_ERR, "cant parse header");
+			goto free_sb;
+		}
 	}
 
 	err = ds_sb_check(sb);
