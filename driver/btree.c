@@ -440,6 +440,10 @@ static void btree_release(struct btree *tree)
 	if (tree->root)
 		BTREE_NODE_DEREF(tree->root);
 
+	KLOG(KL_DBG, "tree %p nodes_active %d root %p",
+		tree, tree->nodes_active,
+		rb_entry(tree->nodes.rb_node, struct btree_node, nodes_link));
+
 	DS_BUG_ON(tree->nodes_active);
 
 	kmem_cache_free(btree_cachep, tree);

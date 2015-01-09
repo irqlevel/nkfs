@@ -54,7 +54,7 @@ struct btree {
 	struct rb_root		nodes;
 	atomic_t		ref;
 	int			releasing;
-	int			nodes_active;
+	u32			nodes_active;
 	u32			sig1;	
 };
 
