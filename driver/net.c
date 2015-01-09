@@ -208,6 +208,7 @@ int ds_server_start(int port)
 	}
 	server = ds_server_create_start(port);
 	if (server) {
+		KLOG(KL_INF, "started server on port %d", port);
 		list_add_tail(&server->srv_list, &srv_list);
 		err = 0;
 	} else
@@ -232,6 +233,8 @@ static void ds_server_do_stop(struct ds_server *server)
 
 	kthread_stop(server->thread);
 	put_task_struct(server->thread);
+	KLOG(KL_INF, "stopped server on port %d",
+		server->port);
 }
 
 int ds_server_stop(int port)

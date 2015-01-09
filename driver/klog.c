@@ -301,7 +301,8 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 
     	msg->data[count-1] = '\0';
 	msg->len = strlen(msg->data);
-	printk("%s\n", msg->data);
+	if (level >= KLOG_PRINTK_LEVEL)
+		printk("%s\n", msg->data);
 	klog_msg_queue(msg);
 }
 

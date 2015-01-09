@@ -11,6 +11,10 @@ static void ds_dev_free(struct ds_dev *dev)
 {
 	if (dev->sb)
 		ds_sb_deref(dev->sb);
+
+	KLOG(KL_DBG, "dev %s %p sb %p",
+		dev->dev_name, dev, dev->sb);
+
 	kmem_cache_free(ds_dev_cachep, dev);
 }
 
@@ -51,6 +55,8 @@ static void ds_dev_release(struct ds_dev *dev)
 
 	if (dev->bdev)
 		blkdev_put(dev->bdev, dev->fmode);
+	KLOG(KL_INF, "released dev %s",
+		dev->dev_name);
 }
 
 static void ds_dev_unlink(struct ds_dev *dev)
@@ -237,6 +243,8 @@ int ds_dev_add(char *dev_name, int format)
 		return err;
 	}
 
+	KLOG(KL_INF, "inserted dev %s", dev->dev_name);
+
 	return err;
 }
 
@@ -250,6 +258,8 @@ int ds_dev_remove(char *dev_name)
 	if (dev) {
 		ds_dev_stop(dev);
 		ds_dev_release(dev);
+		KLOG(KL_DBG, "removed dev %s %p sb %p",
+			dev, dev->dev_name, dev->sb);
 		ds_dev_deref(dev);
 		err = 0;
 	} else {

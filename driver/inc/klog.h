@@ -19,10 +19,11 @@ int klog_init(void);
 void klog_release(void);
 
 #define KLOG_PATH "/var/log/ds.log"
-#define KLOG_ENABLED	1
-#define KLOG_SRC	1
-#define KLOG_LEVEL	KL_DBG
-#define KLOG_FILE	1
+#define KLOG_ENABLED		1
+#define KLOG_SRC		1
+#define KLOG_LEVEL		KL_DBG
+#define KLOG_PRINTK_LEVEL	KL_INF
+#define KLOG_FILE		1
 
 #if KLOG_ENABLED
 

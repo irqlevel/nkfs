@@ -13,8 +13,9 @@ static void ds_sb_release(struct ds_sb *sb)
 	KLOG(KL_DBG, "sb %p obj tree %p", sb, sb->obj_tree);
 	if (sb->obj_tree)
 		btree_deref(sb->obj_tree);
-	
-	KLOG(KL_DBG, "sb %p released");
+
+	KLOG(KL_DBG, "sb %p released, obj tree %p",
+		sb, sb->obj_tree);
 }
 
 static void ds_sb_delete(struct ds_sb *sb)

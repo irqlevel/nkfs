@@ -145,7 +145,7 @@ static int __init ds_init(void)
 		goto out;
 	}
 
-	KLOG(KL_DBG, "initing");
+	KLOG(KL_INF, "initing");
 
 	err = ds_random_init();
 	if (err) {
@@ -179,7 +179,7 @@ static int __init ds_init(void)
 		goto out_sb_release;
 	}
 
-	KLOG(KL_DBG, "inited");
+	KLOG(KL_INF, "inited");
 
 #if __SHA_TEST__
 	__sha256_test();
@@ -210,7 +210,7 @@ out:
 
 static void __exit ds_exit(void)
 {
-	KLOG(KL_DBG, "exiting");
+	KLOG(KL_INF, "exiting");
 
 	ds_random_release();	
 	misc_deregister(&ds_misc);
@@ -220,7 +220,7 @@ static void __exit ds_exit(void)
 	btree_finit();
 	amap_sys_release();
 
-	KLOG(KL_DBG, "exited");
+	KLOG(KL_INF, "exited");
 	klog_release();
 }
 
