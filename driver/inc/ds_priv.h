@@ -72,5 +72,5 @@
 			klog_sync();		\
 		}				\
 		BUG();				\
-	} whole (0);				\
+	} while (0);				\
 
