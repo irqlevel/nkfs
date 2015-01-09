@@ -38,19 +38,6 @@
 
 #include <crtlib/include/crtlib.h>
 
-#include <inc/helpers.h>
-#include <inc/klog.h>
-#include <inc/ksocket.h>
-#include <inc/btree.h>
-#include <inc/amap.h>
-#include <inc/dev.h>
-#include <inc/dev_io.h>
-#include <inc/net.h>
-#include <inc/random.h>
-#include <inc/vfile.h>
-#include <inc/super.h>
-#include <inc/balloc.h>
-
 #define SECTOR_SHIFT 9
 
 #define __BTREE_TEST__	0
@@ -74,3 +61,20 @@
 		BUG();				\
 	} while (0);				\
 
+#define DS_BLOCK_SIZE 4096
+
+_Static_assert(DS_BLOCK_SIZE == PAGE_SIZE,
+	"size is not correct");
+
+#include <inc/helpers.h>
+#include <inc/klog.h>
+#include <inc/ksocket.h>
+#include <inc/btree.h>
+#include <inc/amap.h>
+#include <inc/dev.h>
+#include <inc/dev_io.h>
+#include <inc/net.h>
+#include <inc/random.h>
+#include <inc/vfile.h>
+#include <inc/super.h>
+#include <inc/balloc.h>

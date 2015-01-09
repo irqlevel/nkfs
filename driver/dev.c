@@ -135,7 +135,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 	dev->fmode = fmode;
-	dev->bsize = PAGE_SIZE;
+	dev->bsize = DS_BLOCK_SIZE;
 
 	return dev;
 }

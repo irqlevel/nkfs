@@ -65,7 +65,7 @@ struct btree_info {
 
 #pragma pack(pop)
 
-_Static_assert(sizeof(struct btree_node_disk) <= 4096, "size is not correct");
+_Static_assert(sizeof(struct btree_node_disk) == DS_BLOCK_SIZE, "size is not correct");
 
 struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
