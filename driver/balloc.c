@@ -73,10 +73,13 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 		goto out;
 	}
 
-	if (use)
+	if (use) {
+		BUG_ON(test_bit_le(bit, bh->b_data + byte_off));
 		set_bit_le(bit, bh->b_data + byte_off);
-	else
+	} else {
+		BUG_ON(!test_bit_le(bit, bh->b_data + byte_off));
 		clear_bit_le(bit, bh->b_data + byte_off);
+	}
 
 	mark_buffer_dirty(bh);
 	err = sync_dirty_buffer(bh);
