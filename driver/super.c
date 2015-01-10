@@ -509,7 +509,7 @@ int ds_sb_read_obj(struct ds_sb *sb,
 		goto cleanup;
 	}
 
-	err = ds_inode_read_buf(inode, off, buf, len);
+	err = ds_inode_io_buf(inode, off, buf, len, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant read inode %llu at %llu len %u err %d",
 			iblock, off, len, err);
@@ -557,7 +557,7 @@ int ds_sb_write_obj(struct ds_sb *sb,
 		BUG_ON(inode->block != iblock);
 	}
 
-	err = ds_inode_write_buf(inode, off, buf, len);
+	err = ds_inode_io_buf(inode, off, buf, len, 1);
 	if (err) {
 		KLOG(KL_ERR, "%llu off %llu len %u err %d",
 			inode->block, off, len, err);

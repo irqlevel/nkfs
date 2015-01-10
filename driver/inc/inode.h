@@ -29,6 +29,16 @@ struct ds_inode {
 	struct ds_sb		*sb;
 };
 
+struct inode_block {
+	u64			vblock;
+	u64			block;
+	u64			vsum_block;
+	u64			sum_block;
+	struct buffer_head 	*bh;
+	struct buffer_head 	*sum_bh;
+	u32			sum_off;
+};
+
 #pragma pack(pop)
 
 _Static_assert(sizeof(struct ds_inode_disk) == DS_BLOCK_SIZE,
@@ -44,8 +54,8 @@ void ds_inode_deref(struct ds_inode *inode);
 #define INODE_DEREF(n)	\
 	ds_inode_deref(n);
 
-int ds_inode_read_buf(struct ds_inode *inode, u64 off, void *buf, u32 len);
-int ds_inode_write_buf(struct ds_inode *inode, u64 off, void *buf, u32 len);
+int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
+		int write);
 
 struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino);
 struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block);

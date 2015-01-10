@@ -87,10 +87,18 @@ int btree_delete_key(struct btree *tree,
 
 void btree_stop(struct btree *tree);
 
-void btree_erase(struct btree *tree);
+typedef void (*btree_key_erase_clb_t)(struct btree_key *key, u64 value,
+	void *ctx);
+
+void btree_erase(struct btree *tree,
+	btree_key_erase_clb_t key_erase_clb,
+	void *ctx);
 
 struct btree_key *btree_gen_key(void);
 u64 btree_gen_value(void);
+
+void btree_key_by_u64(u64 val, struct btree_key *key);
+u64 btree_key_to_u64(struct btree_key *key);
 
 char *btree_key_hex(struct btree_key *key);
 char *btree_value_hex(u64 value);
