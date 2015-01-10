@@ -345,7 +345,7 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto del_sb;
 	}
 
-	sb->obj_tree_block = btree_get_root_block(sb->obj_tree);
+	sb->obj_tree_block = btree_root_block(sb->obj_tree);
 	memset(bh->b_data, 0, dev->bsize);
 	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
 
@@ -478,4 +478,88 @@ out:
 void ds_sb_finit(void)
 {
 	kmem_cache_destroy(ds_sb_cachep);
+}
+
+int ds_sb_read_obj(struct ds_sb *sb, 
+	struct ds_obj_id *id, u64 off, void *buf, u32 len)
+{
+	struct ds_inode *inode;
+	u64 iblock;
+	int err;
+
+	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
+	if (err) {
+		KLOG(KL_ERR, "obj not found");
+		return err;
+	}
+	
+	inode = ds_inode_read(sb, iblock);
+	if (!inode) {
+		KLOG(KL_ERR, "cant read inode %llu", iblock);
+		return -EIO;
+	}
+	BUG_ON(inode->block != iblock);
+
+	if (ds_obj_id_cmp(&inode->ino, id) != 0) {
+		KLOG(KL_ERR, "inode %llu has another id", iblock);
+		err = -ENOENT;
+		goto cleanup;
+	}
+
+	err = ds_inode_read_buf(inode, off, buf, len);
+	if (err) {
+		KLOG(KL_ERR, "cant read inode %llu at %llu len %u err %d",
+			iblock, off, len, err);
+		goto cleanup;
+	}
+
+cleanup:
+	INODE_DEREF(inode);
+	return err;
+}
+
+int ds_sb_write_obj(struct ds_sb *sb, 
+	struct ds_obj_id *id, u64 off, void *buf, u32 len)
+{
+	struct ds_inode *inode = NULL;
+	u64 iblock;
+	int err;
+
+	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
+	if (err) {
+		inode = ds_inode_create(sb, id); 
+		if (!inode) {
+			KLOG(KL_ERR, "no memory");
+			return -ENOMEM;
+		}
+
+		err = btree_insert_key(sb->obj_tree, (struct btree_key *)&inode->ino,
+					inode->block, 0);
+		if (err) {
+			KLOG(KL_ERR, "cant insert ino in obj_tree err %d",
+				err);
+			ds_inode_delete(inode);
+			INODE_DEREF(inode);
+			return -EAGAIN;	
+		}
+	}
+
+	if (!inode) {
+		inode = ds_inode_read(sb, iblock);
+		if (!inode) {
+			KLOG(KL_ERR, "cant read inode at %llu",
+				iblock);
+			return -EIO;		
+		}
+		BUG_ON(inode->block != iblock);
+	}
+
+	err = ds_inode_write_buf(inode, off, buf, len);
+	if (err) {
+		KLOG(KL_ERR, "%llu off %llu len %u err %d",
+			inode->block, off, len, err);
+	}
+
+	INODE_DEREF(inode);
+	return err;
 }

@@ -401,7 +401,7 @@ void btree_deref(struct btree *tree)
 	}
 }
 
-u64 btree_get_root_block(struct btree *tree)
+u64 btree_root_block(struct btree *tree)
 {
 	u64 block;
 
@@ -1373,6 +1373,32 @@ void btree_log(struct btree *tree, int llevel)
 	if (!tree->releasing)
 		btree_log_node(tree->root, 1, llevel);
 	up_read(&tree->rw_lock);
+}
+
+static void btree_erase_node(struct btree_node *root)
+{
+	struct btree_node *child;
+	struct btree_node *node = root;
+	int i;
+
+	if (node->nr_keys) {
+		for (i = 0; i < node->nr_keys + 1; i++) {
+			child = btree_node_read(node->tree,
+				node->childs[i]);
+			BUG_ON(!child);
+			btree_erase_node(child);
+			BTREE_NODE_DEREF(child);
+		}
+	}
+	btree_node_delete(node);
+}
+
+void btree_erase(struct btree *tree)
+{
+	down_write(&tree->rw_lock);
+	tree->releasing = 1;
+	btree_erase_node(tree->root);
+	up_write(&tree->rw_lock);
 }
 
 static int btree_node_check(struct btree_node *first, int root)

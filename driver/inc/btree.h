@@ -70,7 +70,7 @@ _Static_assert(sizeof(struct btree_node_disk) == DS_BLOCK_SIZE, "size is not cor
 
 struct btree *btree_create(struct ds_sb *sb, u64 begin);
 
-u64 btree_get_root_block(struct btree *tree);
+u64 btree_root_block(struct btree *tree);
 
 void btree_ref(struct btree *tree);
 void btree_deref(struct btree *tree);
@@ -86,6 +86,8 @@ int btree_delete_key(struct btree *tree,
 	struct btree_key *key);
 
 void btree_stop(struct btree *tree);
+
+void btree_erase(struct btree *tree);
 
 struct btree_key *btree_gen_key(void);
 u64 btree_gen_value(void);

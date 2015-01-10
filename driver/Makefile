@@ -5,7 +5,7 @@ obj-m = ds.o
 ccflags-y := -I$(src) -g3 -D __KERNEL__ $(COMMON_CFLAGS)
 
 ds-y := module.o dev_io.o dev.o net.o random.o vfile.o \
-	super.o balloc.o crt.o btree.o amap.o \
+	super.o balloc.o inode.o crt.o btree.o amap.o \
 	klog.o 	ksocket.o \
 	crtlib.o_shipped
 

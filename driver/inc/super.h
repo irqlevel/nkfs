@@ -8,6 +8,9 @@ struct ds_sb {
 	struct ds_obj_id	id;	
 	struct rw_semaphore	rw_lock;
 	struct btree		*obj_tree;
+	struct rb_root		inodes;
+	rwlock_t		inodes_lock;
+	int			inodes_active;
 	u64			nr_blocks;
 	u32			magic;
 	u32			version;
@@ -38,6 +41,11 @@ int ds_sb_insert_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 
 int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 *pvalue);
+
+int ds_sb_read_obj(struct ds_sb *sb, 
+	struct ds_obj_id *id, u64 off, void *buf, u32 len);
+int ds_sb_write_obj(struct ds_sb *sb, 
+	struct ds_obj_id *id, u64 off, void *buf, u32 len);
 
 int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id);
 int ds_sb_check_obj_tree(struct ds_sb *sb);
