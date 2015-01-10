@@ -36,6 +36,7 @@ void ds_sb_stop(struct ds_sb *sb)
 	if (sb->obj_tree)
 		btree_stop(sb->obj_tree);
 
+	BUG_ON(sb->inodes_active);
 	ds_sb_sync(sb);	
 }
 
@@ -263,6 +264,8 @@ static int ds_sb_create(struct ds_dev *dev,
 	init_rwsem(&sb->rw_lock);
 	INIT_LIST_HEAD(&sb->list);
 	atomic_set(&sb->refs, 1);
+	sb->inodes = RB_ROOT;
+	rwlock_init(&sb->inodes_lock);
 
 	if (!header) {
 		err = ds_sb_gen_header(sb, i_size_read(dev->bdev->bd_inode),

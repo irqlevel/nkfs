@@ -42,8 +42,7 @@ static void __btree_node_release(struct btree_node *node)
 	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);	
 
-	if (node->block)
-		btree_nodes_remove(node->tree, node);
+	btree_nodes_remove(node->tree, node);
 	__btree_node_free(node);
 }
 
@@ -99,6 +98,8 @@ static struct btree_node * btree_nodes_lookup(struct btree *tree,
 	struct btree_node *node;
 	read_lock_irq(&tree->nodes_lock);
 	node = __btree_nodes_lookup(tree, block);
+	if (node)
+		BTREE_NODE_REF(node);
 	read_unlock_irq(&tree->nodes_lock);
 	return node;
 }
@@ -107,13 +108,16 @@ static void btree_nodes_remove(struct btree *tree,
 	struct btree_node *node)
 {
 	struct btree_node *found;
+	if (!node->block)
+		return;
 
-	BUG_ON(!node->block);
 	write_lock_irq(&tree->nodes_lock);
 	found = __btree_nodes_lookup(tree, node->block);
-	BUG_ON(found != node);
-	rb_erase(&found->nodes_link, &tree->nodes);
-	tree->nodes_active--;
+	if (found) {
+		BUG_ON(found != node);
+		rb_erase(&found->nodes_link, &tree->nodes);
+		tree->nodes_active--;
+	}
 	write_unlock_irq(&tree->nodes_lock);
 }
 
@@ -225,6 +229,38 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 			return NULL;
 		node->tree = tree;
 		node->block = block;
+	
+		bh = __bread(tree->sb->bdev, node->block, tree->sb->bsize);
+		if (!bh) {
+			KLOG(KL_ERR, "cant read block at %llu", block);
+			__btree_node_free(node);
+			return NULL;
+		}
+
+		on_disk = (struct btree_node_disk *)bh->b_data;
+		if (be32_to_cpu(on_disk->sig1) != BTREE_SIG1
+			|| be32_to_cpu(on_disk->sig2) != BTREE_SIG2) {
+			KLOG(KL_ERR, "invalid sig of node %p block %llu",
+			node, node->block);
+			__btree_node_free(node);		
+			brelse(bh);
+			return NULL;
+		}
+
+		btree_node_on_disk_sum(on_disk, &sum);
+		if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
+			KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
+				node, node->block);
+			__btree_node_free(node);		
+			brelse(bh);
+			return NULL;
+		}
+
+		btree_node_by_ondisk(node,
+			on_disk);
+		brelse(bh);
+		BUG_ON(btree_node_check_sigs(node));
+
 		inserted = btree_nodes_insert(tree, node);
 		if (node != inserted) {
 			__btree_node_free(node);
@@ -233,39 +269,6 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 			BTREE_NODE_DEREF(inserted);
 		}
 	}
-
-	bh = __bread(tree->sb->bdev, node->block, tree->sb->bsize);
-	if (!bh) {
-		KLOG(KL_ERR, "cant read block at %llu", block);
-		BTREE_NODE_DEREF(node);
-		return NULL;
-	}
-
-	on_disk = (struct btree_node_disk *)bh->b_data;
-	if (be32_to_cpu(on_disk->sig1) != BTREE_SIG1
-		|| be32_to_cpu(on_disk->sig2) != BTREE_SIG2) {
-		KLOG(KL_ERR, "invalid sig of node %p block %llu",
-			node, node->block);
-		BTREE_NODE_DEREF(node);		
-		node = NULL;
-		goto cleanup;
-	}
-
-	btree_node_on_disk_sum(on_disk, &sum);
-	if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
-		KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
-			node, node->block);
-		BTREE_NODE_DEREF(node);		
-		node = NULL;
-		goto cleanup;
-	}
-
-	btree_node_by_ondisk(node,
-		on_disk);
-
-	BUG_ON(btree_node_check_sigs(node));
-cleanup:
-	brelse(bh);
 
 	return node;
 }
@@ -306,44 +309,53 @@ static int btree_node_write(struct btree_node *node)
 	return err;
 }
 
+static void btree_node_delete(struct btree_node *node)
+{	
+	KLOG(KL_DBG, "node %p leaf %d nr_keys %d block %llu",
+		node, node->leaf, node->nr_keys, node->block);
+
+	btree_nodes_remove(node->tree, node);
+	ds_balloc_block_free(node->tree->sb, node->block);
+	node->block = 0;
+}
+
 static struct btree_node *btree_node_create(struct btree *tree)
 {
 	struct btree_node *node, *inserted;
-	u64 block;
 	int err;
 
 	node = btree_node_alloc();
 	if (!node)
 		return NULL;
 		
-	err = ds_balloc_block_alloc(tree->sb, &block);
+	err = ds_balloc_block_alloc(tree->sb, &node->block);
 	if (err) {
 		KLOG(KL_ERR, "cant alloc block, err=%d", err);
 		__btree_node_free(node);
 		return NULL;
 	}
-	node->block = block;
-	BUG_ON(node->block == 0);
-
 	node->tree = tree;
+	err = btree_node_write(node);
+	if (err) {
+		KLOG(KL_ERR, "cant write node at %llu, err=%d",
+			node->block, err);
+		btree_node_delete(node);
+		__btree_node_free(node);
+		return NULL;
+	}
+
 	inserted = btree_nodes_insert(tree, node);
-	BUG_ON(inserted != node);
-	BTREE_NODE_DEREF(inserted);
-	btree_node_write(node);
-	KLOG(KL_DBG, "node %p created block %llu", node, node->block);
+	if (inserted != node) {
+		btree_node_delete(node);
+		__btree_node_free(node);	
+		node = inserted;
+		KLOG(KL_DBG, "node %p found block %llu", node, node->block);	
+	} else {
+		BTREE_NODE_DEREF(inserted);
+		KLOG(KL_DBG, "node %p created block %llu", node, node->block);
+	}
 
 	return node;	
-}
-
-static void btree_node_delete(struct btree_node *node)
-{	
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d block %llu",
-		node, node->leaf, node->nr_keys, node->block);
-
-	BUG_ON(!node->block);
-	btree_nodes_remove(node->tree, node);
-	ds_balloc_block_free(node->tree->sb, node->block);
-	node->block = 0;
 }
 
 void btree_key_fee(struct btree_key *key)

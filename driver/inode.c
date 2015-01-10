@@ -4,6 +4,8 @@
 
 struct kmem_cache *ds_inode_cachep;
 
+static void ds_inodes_remove(struct ds_sb *sb, struct ds_inode *inode);
+
 static struct ds_inode *ds_inode_alloc(void)
 {
 	struct ds_inode *inode;
@@ -28,6 +30,12 @@ static void ds_inode_free(struct ds_inode *inode)
 	kmem_cache_free(ds_inode_cachep, inode);
 }
 
+static void ds_inode_release(struct ds_inode *inode)
+{
+	ds_inodes_remove(inode->sb, inode);
+	ds_inode_free(inode);
+}
+
 void ds_inode_ref(struct ds_inode *inode)
 {
 	BUG_ON(atomic_read(&inode->ref) <= 0);
@@ -38,7 +46,7 @@ void ds_inode_deref(struct ds_inode *inode)
 {
 	BUG_ON(atomic_read(&inode->ref) <= 0);	
 	if (atomic_dec_and_test(&inode->ref))
-		ds_inode_free(inode);	
+		ds_inode_release(inode);	
 }
 
 static struct ds_inode *__ds_inodes_lookup(struct ds_sb *sb, u64 block)
@@ -78,9 +86,11 @@ static void ds_inodes_remove(struct ds_sb *sb, struct ds_inode *inode)
 
 	write_lock_irq(&sb->inodes_lock);
 	found = __ds_inodes_lookup(sb, inode->block);
-	BUG_ON(found != inode);
-	rb_erase(&found->inodes_link, &sb->inodes);
-	sb->inodes_active--;
+	if (found) {
+		BUG_ON(found != inode);
+		rb_erase(&found->inodes_link, &sb->inodes);
+		sb->inodes_active--;
+	}
 	write_unlock_irq(&sb->inodes_lock);
 }
 
@@ -177,10 +187,9 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 			KLOG(KL_ERR, "no memory");
 			return NULL;
 		}
-
 		inode->block = block;
 		inode->sb = sb;
-		bh = __bread(sb->bdev, inode->block, sb->bsize);
+		bh = __bread(sb->bdev, block, sb->bsize);
 		if (!bh) {
 			KLOG(KL_ERR, "cant read block %llu",
 				inode->block);
@@ -217,11 +226,14 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 			return NULL;
 		}
 
+		inode->block = block;
 		inserted = ds_inodes_insert(sb, inode);
 		if (inserted != inode) {
 			ds_inode_free(inode);
 			brelse(bh);
 			return inserted;
+		} else {
+			INODE_DEREF(inserted);
 		}
 		brelse(bh);
 		return inode;
@@ -235,8 +247,8 @@ void ds_inode_delete(struct ds_inode *inode)
 	if (inode->blocks_sum_tree)
 		btree_erase(inode->blocks_sum_tree);
 
-	ds_balloc_block_free(inode->sb, inode->block);
 	ds_inodes_remove(inode->sb, inode);
+	ds_balloc_block_free(inode->sb, inode->block);
 	inode->block = 0;
 }
 
@@ -276,6 +288,7 @@ struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
 		KLOG(KL_ERR, "no memory");
 		return NULL;
 	}
+
 	inode->sb = sb;
 	err = ds_balloc_block_alloc(sb, &inode->block);
 	if (err) {
@@ -303,20 +316,26 @@ struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
 	inode->blocks_sum_tree_block =
 		btree_root_block(inode->blocks_sum_tree);
 
-	inserted = ds_inodes_insert(sb, inode);
-	BUG_ON(inserted != inode);
-	if (inserted != inode) {
-		KLOG(KL_ERR, "inode %p %llu exitst vs new %p %llu",
-			inserted, inserted->block, inode, inode->block)			
-		goto idelete;
-	}
-
 	err = ds_inode_write(inode);
 	if (err) {
 		KLOG(KL_ERR, "cant write inode %llu", inode->block);
 		goto idelete;
 	}
 
+	inserted = ds_inodes_insert(sb, inode);
+	BUG_ON(inserted != inode);
+	if (inserted != inode) {
+		KLOG(KL_DBG, "inode %p %llu exitst vs new %p %llu",
+			inserted, inserted->block, inode, inode->block);
+		ds_inode_delete(inode);
+		ds_inode_free(inode);
+		inode = inserted;
+		goto out;
+	} else {
+		INODE_DEREF(inserted);
+	}
+
+out:
 	return inode;
 
 idelete:
