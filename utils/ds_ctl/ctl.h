@@ -21,11 +21,12 @@ int ds_dev_rem(const char *dev_name);
 
 int ds_dev_query(const char *dev_name,
 			struct ds_obj_id *psb_id);
-int ds_obj_insert(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-			u64 value, int replace);
 
-int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-			u64 *pvalue);
+int ds_obj_read(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+		u64 off, void *buf, u32 len);
+
+int ds_obj_write(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+		u64 off, void *buf, u32 len);
 
 int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id);
 

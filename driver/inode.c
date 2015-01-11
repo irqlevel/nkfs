@@ -29,6 +29,7 @@ static struct ds_inode *ds_inode_alloc(void)
 	}
 	memset(inode, 0, sizeof(*inode));
 	atomic_set(&inode->ref, 1);
+	init_rwsem(&inode->rw_sem);
 	return inode;
 }
 
@@ -153,8 +154,8 @@ static void ds_inode_to_on_disk(struct ds_inode *inode,
 	on_disk->blocks_tree_block = cpu_to_be64(inode->blocks_tree_block);
 	on_disk->blocks_sum_tree_block = 
 		cpu_to_be64(inode->blocks_sum_tree_block);
-	on_disk->sig1 = DS_INODE_SIG1;
-	on_disk->sig2 = DS_INODE_SIG2;
+	on_disk->sig1 = cpu_to_be32(DS_INODE_SIG1);
+	on_disk->sig2 = cpu_to_be32(DS_INODE_SIG2);
 	ds_inode_on_disk_sum(on_disk, &on_disk->sum);
 }
 
@@ -180,6 +181,9 @@ static int ds_inode_parse_on_disk(struct ds_inode *inode,
 	inode->blocks_tree_block = be64_to_cpu(on_disk->blocks_tree_block);
 	inode->blocks_sum_tree_block =
 			be64_to_cpu(on_disk->blocks_sum_tree_block);
+	
+	inode->sig1 = be32_to_cpu(on_disk->sig1);
+	inode->sig2 = be32_to_cpu(on_disk->sig2);
 
 	return 0;
 }
@@ -375,6 +379,24 @@ static void ds_inode_block_to_sum_block(u64 block, u32 bsize,
 	*poff = ds_mod(nbytes, bsize);
 }
 
+static int ds_inode_block_open_bhs(struct ds_inode *inode,
+	struct inode_block *ib)
+{
+	BUG_ON(ib->bh || ib->sum_bh);
+
+	ib->bh = __bread(inode->sb->bdev, ib->block, inode->sb->bsize);
+	if (!ib->bh) {
+		return -EIO;
+	}
+
+	ib->sum_bh = __bread(inode->sb->bdev, ib->sum_block, inode->sb->bsize);
+	if (!ib->sum_bh) {
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void ds_inode_block_relse(struct inode_block *ib)
 {
 	if (ib->bh)
@@ -418,6 +440,8 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	int err;
 	struct inode_block ib;
 	struct btree_key key;
+	int sum_block_allocated = 0;
+	int sum_block_inserted = 0;
 
 	ds_inode_block_zero(&ib);
 	ib.vblock = vblock;
@@ -434,23 +458,44 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	err = btree_find_key(inode->blocks_sum_tree, &key, &ib.sum_block);
 	if (err) {
 		err = __ds_inode_block_alloc(inode, &ib.sum_block);
-		if (err) {
-			__ds_inode_block_free(inode, ib.block);
+		if (err)
 			goto fail;
-		}
 
+		sum_block_allocated = 1;
+
+		btree_key_by_u64(ib.vsum_block, &key);
 		err = btree_insert_key(inode->blocks_sum_tree, &key,
 			ib.sum_block, 0);
-		if (err) {
-			__ds_inode_block_free(inode, ib.sum_block);
-			__ds_inode_block_free(inode, ib.block);
+		if (err)
 			goto fail;
-		}
+
+		sum_block_inserted = 1;
 	}
+
+	err = ds_inode_block_open_bhs(inode, &ib);
+	if (err)
+		goto fail;
+
+
+	btree_key_by_u64(ib.vblock, &key);	
+	err = btree_insert_key(inode->blocks_tree, &key,
+		ib.block, 0);
+	if (err)
+		goto fail;
 
 	memcpy(pib, &ib, sizeof(ib));
 	return 0;
+
 fail:
+	if (sum_block_inserted) {
+		btree_key_by_u64(ib.vsum_block, &key);	
+		btree_delete_key(inode->blocks_sum_tree, &key);
+	}
+
+	if (sum_block_allocated)
+		__ds_inode_block_free(inode, ib.sum_block);
+
+	__ds_inode_block_free(inode, ib.block);
 	ds_inode_block_relse(&ib);
 	return err;
 }
@@ -495,26 +540,23 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	ib.vblock = vblock;
 	btree_key_by_u64(ib.vblock, &key);	
 	err = btree_find_key(inode->blocks_tree, &key, &ib.block);
-	if (err)
+	if (err) {
 		return err;
+	}
 
 	ds_inode_block_to_sum_block(ib.vblock, inode->sb->bsize,
 		&ib.vsum_block, &ib.sum_off);
 
 	btree_key_by_u64(ib.vsum_block, &key);
 	err = btree_find_key(inode->blocks_sum_tree, &key, &ib.sum_block);
-	if (err)
-		return err;
-
-	ib.bh = __bread(inode->sb->bdev, ib.block, inode->sb->bsize);
-	if (!ib.bh)
-		return err;
-
-	ib.sum_bh = __bread(inode->sb->bdev, ib.sum_block, inode->sb->bsize);
-	if (!ib.sum_bh) {
-		err = -EIO;
+	if (err) {
+		KLOG(KL_ERR, "cant find vb %llu", ib.vsum_block);
 		goto fail;
 	}
+
+	err = ds_inode_block_open_bhs(inode, &ib);
+	if (err)
+		goto fail;
 
 	memcpy(pib, &ib, sizeof(ib));
 	return 0;
@@ -564,12 +606,17 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
 
 	err = ds_inode_block_read(inode, vblock, &ib);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "cant read vb %llu err %d", vblock, err);
 		return err;
+	}
 
 	err = ds_inode_block_check_sum(inode, &ib);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "check sum b %llu vb %llu err %d",
+			ib.block, ib.vblock, err);
 		goto fail;
+	}
 
 	memcpy(buf, ib.bh->b_data + off, len);
 	return 0;
@@ -587,13 +634,19 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
 
 	err = ds_inode_block_read_create(inode, vblock, &ib);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "cant read vblock %llu", vblock);
 		return err;
+	}
 
 	memcpy(ib.bh->b_data + off, buf, len);
 	err = ds_inode_block_write(inode, &ib);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "cant write to b %llu vb %llu",
+			ib.block, ib.vblock);
 		goto fail;
+	}
+
 	return 0;
 fail:
 	ds_inode_block_relse(&ib);
@@ -623,6 +676,29 @@ int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
 		res-= llen;
 		loff = 0;
 		vblock++;
+	}
+
+	return 0;
+fail:
+	return err;
+}
+
+int ds_inode_io_pages(struct ds_inode *inode, u64 off,
+		struct page **pages, int nr_pages, int write)
+{
+	int err;
+	int i;
+	void *buf;
+
+	BUG_ON(off & (PAGE_SIZE - 1));
+	
+	for (i = 0; i < nr_pages; i++) {
+		buf = kmap(pages[i]);
+		err = ds_inode_io_buf(inode, off, buf, PAGE_SIZE, write);
+		kunmap(pages[i]);
+		if (err)
+			goto fail;
+		off+= PAGE_SIZE;
 	}
 
 	return 0;

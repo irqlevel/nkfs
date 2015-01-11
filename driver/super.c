@@ -426,41 +426,6 @@ out:
 	return err;
 }
 
-int ds_sb_insert_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
-	u64 value, int replace)
-{
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
-
-	return btree_insert_key(sb->obj_tree, (struct btree_key *)obj_id,
-		value, replace);
-}
-
-int ds_sb_find_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
-	u64 *pvalue)
-{
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
-
-	return btree_find_key(sb->obj_tree, (struct btree_key *)obj_id,
-		pvalue);
-}
-
-int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
-{
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
-
-	return btree_delete_key(sb->obj_tree, (struct btree_key *)obj_id);
-}
-
-int ds_sb_check_obj_tree(struct ds_sb *sb)
-{
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
-	return btree_check(sb->obj_tree);
-}
-
 int ds_sb_init(void)
 {
 	int err;
@@ -484,7 +449,8 @@ void ds_sb_finit(void)
 }
 
 int ds_sb_read_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, void *buf, u32 len)
+	struct ds_obj_id *id, u64 off, struct page **pages,
+	int nr_pages)
 {
 	struct ds_inode *inode;
 	u64 iblock;
@@ -509,10 +475,10 @@ int ds_sb_read_obj(struct ds_sb *sb,
 		goto cleanup;
 	}
 
-	err = ds_inode_io_buf(inode, off, buf, len, 0);
+	err = ds_inode_io_pages(inode, off, pages, nr_pages, 0);
 	if (err) {
-		KLOG(KL_ERR, "cant read inode %llu at %llu len %u err %d",
-			iblock, off, len, err);
+		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u err %d",
+			iblock, off, nr_pages, err);
 		goto cleanup;
 	}
 
@@ -522,7 +488,7 @@ cleanup:
 }
 
 int ds_sb_write_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, void *buf, u32 len)
+	struct ds_obj_id *id, u64 off, struct page **pages, int nr_pages)
 {
 	struct ds_inode *inode = NULL;
 	u64 iblock;
@@ -530,6 +496,9 @@ int ds_sb_write_obj(struct ds_sb *sb,
 
 	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
 	if (err) {
+		if (off != 0)
+			return err;
+
 		inode = ds_inode_create(sb, id); 
 		if (!inode) {
 			KLOG(KL_ERR, "no memory");
@@ -557,12 +526,44 @@ int ds_sb_write_obj(struct ds_sb *sb,
 		BUG_ON(inode->block != iblock);
 	}
 
-	err = ds_inode_io_buf(inode, off, buf, len, 1);
+	err = ds_inode_io_pages(inode, off, pages, nr_pages, 1);
 	if (err) {
-		KLOG(KL_ERR, "%llu off %llu len %u err %d",
-			inode->block, off, len, err);
+		KLOG(KL_ERR, "%llu off %llu pages %u err %d",
+			inode->block, off, nr_pages, err);
 	}
 
 	INODE_DEREF(inode);
 	return err;
+}
+
+int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
+{
+	int err;
+	u64 iblock;
+	struct ds_inode *inode;
+
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+
+	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	if (err)
+		return err;
+
+	inode = ds_inode_read(sb, iblock);
+	if (!inode) {
+		KLOG(KL_ERR, "cant read inode %llu", iblock);
+		return -EIO;
+	}
+
+	btree_delete_key(sb->obj_tree, (struct btree_key *)&inode->ino);
+	ds_inode_delete(inode);
+	INODE_DEREF(inode);
+	return err;
+}
+
+int ds_sb_check_obj_tree(struct ds_sb *sb)
+{
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	return btree_check(sb->obj_tree);
 }

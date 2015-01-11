@@ -525,16 +525,6 @@ static void btree_copy_value(
 	memcpy(dst, src, sizeof(*dst));
 }
 
-static struct btree_key btree_zero_key = {{0,0,0,0,
-					0,0,0,0,
-					0,0,0,0,
-					0,0,0,0}};
-
-static int btree_key_is_zero(struct btree_key *key)
-{
-	return (0 == btree_cmp_key(key, &btree_zero_key)) ? 1 : 0;
-}
-
 static int btree_node_is_full(struct btree_node *node)
 {
 	return (ARRAY_SIZE(node->keys) == node->nr_keys) ? 1 : 0;
@@ -789,11 +779,6 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 {
 	int rc;
 
-	if (btree_key_is_zero(key)) {
-		KLOG(KL_ERR, "key is zero");
-		return -EINVAL;
-	}
-
 	if (tree->releasing)
 		return -EAGAIN;
 
@@ -893,11 +878,6 @@ int btree_find_key(struct btree *tree,
 {
 	struct btree_node *found;
 	int index;
-
-	if (btree_key_is_zero(key)) {
-		KLOG(KL_ERR, "key is zero");
-		return -EINVAL;
-	}
 
 	if (tree->releasing)
 		return -EAGAIN;
@@ -1324,8 +1304,7 @@ restart:
 int btree_delete_key(struct btree *tree, struct btree_key *key)
 {
 	int rc;
-	if (btree_key_is_zero(key))
-		return -EINVAL;
+
 	if (tree->releasing)
 		return -EAGAIN;
 
@@ -1473,19 +1452,13 @@ static int btree_node_check(struct btree_node *first, int root)
 
 	prev_key = NULL;
 	for (i = 0 ; i < node->nr_keys; i++) {
-		if (btree_key_is_zero(&node->keys[i])) {
-			KLOG(KL_ERR, "node %p zero key %d found",
+		if (prev_key && (btree_cmp_key(prev_key,
+			&node->keys[i]) >= 0)) {
+			KLOG(KL_ERR, "node %p key %d not sorted",
 				node, i);
 			errs++;
-		} else {
-			if (prev_key && (btree_cmp_key(prev_key,
-				&node->keys[i]) >= 0)) {
-				KLOG(KL_ERR, "node %p key %d not sorted",
-					node, i);
-				errs++;
-			}
-			prev_key = &node->keys[i];
 		}
+		prev_key = &node->keys[i];
 		if (!node->leaf) {
 			if (!node->childs[i]) {
 				KLOG(KL_ERR, "node %p zero child %d found",

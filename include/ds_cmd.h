@@ -46,6 +46,20 @@ struct ds_cmd {
 		struct {
 			struct ds_obj_id	sb_id;
 		} obj_tree_check;
+		struct {
+			struct ds_obj_id	sb_id;
+			struct ds_obj_id	obj_id;	
+			void			*buf;
+			u64			off;
+			u32			len;
+		} obj_read;
+		struct {
+			struct ds_obj_id	sb_id;
+			struct ds_obj_id	obj_id;
+			void			*buf;
+			u64			off;
+			u32			len;
+		} obj_write;
 	} u;
 };
 
@@ -58,7 +72,8 @@ struct ds_cmd {
 #define IOCTL_DS_SRV_START	_IOWR(DS_IOC_MAGIC, 4, struct ds_cmd *)
 #define IOCTL_DS_SRV_STOP	_IOWR(DS_IOC_MAGIC, 5, struct ds_cmd *)
 
-#define IOCTL_DS_OBJ_INSERT	_IOWR(DS_IOC_MAGIC, 6, struct ds_cmd *)
-#define IOCTL_DS_OBJ_FIND	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
-#define IOCTL_DS_OBJ_DELETE	_IOWR(DS_IOC_MAGIC, 8, struct ds_cmd *)
-#define IOCTL_DS_OBJ_TREE_CHECK	_IOWR(DS_IOC_MAGIC, 9, struct ds_cmd *)
+#define IOCTL_DS_OBJ_TREE_CHECK	_IOWR(DS_IOC_MAGIC, 6, struct ds_cmd *)
+
+#define IOCTL_DS_OBJ_READ 	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
+#define IOCTL_DS_OBJ_WRITE	_IOWR(DS_IOC_MAGIC, 8, struct ds_cmd *)
+#define IOCTL_DS_OBJ_DELETE	_IOWR(DS_IOC_MAGIC, 9, struct ds_cmd *)

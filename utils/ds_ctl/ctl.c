@@ -1,4 +1,5 @@
 #include "ctl.h"
+#include <stdlib.h>
 
 static int ds_ctl_open(int *fd)
 {
@@ -99,8 +100,8 @@ out:
 	return err;
 }
 
-int ds_obj_insert(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-			u64 value, int replace)
+int ds_obj_write(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+		u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_cmd cmd;
@@ -111,25 +112,27 @@ int ds_obj_insert(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_insert.sb_id, sb_id, sizeof(*sb_id));
-	memcpy(&cmd.u.obj_insert.obj_id, obj_id, sizeof(*obj_id));
-	cmd.u.obj_insert.value = value;
-	cmd.u.obj_insert.replace = replace;
+	memcpy(&cmd.u.obj_write.sb_id, sb_id, sizeof(*sb_id));
+	memcpy(&cmd.u.obj_write.obj_id, obj_id, sizeof(*obj_id));
+	cmd.u.obj_write.buf = buf;
+	cmd.u.obj_write.len = len;
+	cmd.u.obj_write.off = off;
 
-	err = ioctl(fd, IOCTL_DS_OBJ_INSERT, &cmd);
+	err = ioctl(fd, IOCTL_DS_OBJ_WRITE, &cmd);
 	if (err)
 		goto out;
 
 	err = cmd.err;
 	if (err)
 		goto out;
+
 out:
 	close(fd);
 	return err;
 }
 
-int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-			u64 *pvalue)
+int ds_obj_read(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
+		u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_cmd cmd;
@@ -140,10 +143,13 @@ int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_find.sb_id, sb_id, sizeof(*sb_id));
-	memcpy(&cmd.u.obj_find.obj_id, obj_id, sizeof(*obj_id));
+	memcpy(&cmd.u.obj_read.sb_id, sb_id, sizeof(*sb_id));
+	memcpy(&cmd.u.obj_read.obj_id, obj_id, sizeof(*obj_id));
+	cmd.u.obj_read.buf = buf;
+	cmd.u.obj_read.len = len;
+	cmd.u.obj_read.off = off;
 
-	err = ioctl(fd, IOCTL_DS_OBJ_FIND, &cmd);
+	err = ioctl(fd, IOCTL_DS_OBJ_READ, &cmd);
 	if (err)
 		goto out;
 
@@ -151,7 +157,6 @@ int ds_obj_find(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 	if (err)
 		goto out;
 
-	*pvalue = cmd.u.obj_find.value;
 out:
 	close(fd);
 	return err;

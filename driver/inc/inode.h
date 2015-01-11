@@ -17,9 +17,12 @@ struct ds_inode_disk {
 };
 
 struct ds_inode {
+	u32			sig1;
+	u32			pad;
 	atomic_t		ref;
 	struct ds_obj_id	ino;
 	struct rb_node		inodes_link;
+	struct rw_semaphore	rw_sem;	
 	u64			block;
 	u64			size;
 	u64			blocks_tree_block;
@@ -27,6 +30,7 @@ struct ds_inode {
 	struct btree		*blocks_tree;
 	struct btree		*blocks_sum_tree;
 	struct ds_sb		*sb;
+	u32			sig2;
 };
 
 struct inode_block {
@@ -56,6 +60,9 @@ void ds_inode_deref(struct ds_inode *inode);
 
 int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
 		int write);
+
+int ds_inode_io_pages(struct ds_inode *inode, u64 off,
+		struct page **pages, int nr_pages, int write);
 
 struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino);
 struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block);

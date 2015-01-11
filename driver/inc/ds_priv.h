@@ -79,4 +79,5 @@ _Static_assert(DS_BLOCK_SIZE == PAGE_SIZE,
 #include <inc/super.h>
 #include <inc/balloc.h>
 #include <inc/inode.h>
+#include <inc/upages.h>
 
