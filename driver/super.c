@@ -255,7 +255,7 @@ static int ds_sb_create(struct ds_dev *dev,
 	int err;
 	struct ds_sb *sb;
 
-	sb = kmem_cache_alloc(ds_sb_cachep, GFP_NOFS);
+	sb = kmem_cache_alloc(ds_sb_cachep, GFP_NOIO);
 	if (!sb) {
 		KLOG(KL_ERR, "cant alloc sb");
 		return -ENOMEM;

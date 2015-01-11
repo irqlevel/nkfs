@@ -14,7 +14,7 @@ asmlinkage void net_cmd_init(struct ds_net_cmd *cmd)
 {
 	crt_memset(cmd, 0, sizeof(*cmd));
 	cmd->sign = DS_NET_CMD_SIGN;
-	cmd->unique = get_random_u64();
+	cmd->unique = rand_u64();
 }
 
 

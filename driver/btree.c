@@ -10,7 +10,7 @@ static struct btree_node *btree_node_alloc(void)
 {
 	struct btree_node *node;
 
-	node = kmem_cache_alloc(btree_node_cachep, GFP_NOFS);
+	node = kmem_cache_alloc(btree_node_cachep, GFP_NOIO);
 	if (!node) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -380,7 +380,7 @@ void btree_key_fee(struct btree_key *key)
 struct btree_key *btree_gen_key(void)
 {
 	struct btree_key *key;
-	key = kmem_cache_alloc(btree_key_cachep, GFP_NOFS);
+	key = kmem_cache_alloc(btree_key_cachep, GFP_NOIO);
 	if (!key)
 		return NULL;
 
@@ -443,7 +443,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 	struct btree *tree;
 	int err;
 
-	tree = kmem_cache_alloc(btree_cachep, GFP_NOFS);
+	tree = kmem_cache_alloc(btree_cachep, GFP_NOIO);
 	if (!tree) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -675,6 +675,7 @@ static void btree_node_split_child(struct btree_node *node,
 static int btree_node_has_key(struct btree_node *node, struct btree_key *key)
 {
 	int i;
+
 	for (i = 0; i < node->nr_keys; i++) {
 		if (0 == btree_cmp_key(&node->keys[i], key))
 			return i;

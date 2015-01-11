@@ -22,7 +22,7 @@ static struct ds_inode *ds_inode_alloc(void)
 {
 	struct ds_inode *inode;
 
-	inode = kmem_cache_alloc(ds_inode_cachep, GFP_NOFS);
+	inode = kmem_cache_alloc(ds_inode_cachep, GFP_NOIO);
 	if (!inode) {
 		KLOG(KL_ERR, "cant alloc inode");
 		return NULL;

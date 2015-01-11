@@ -33,7 +33,7 @@ static int ds_ioctl_obj_read(struct ds_cmd *cmd)
 	}
 
 	err = ds_get_user_pages((unsigned long)cmd->u.obj_read.buf,
-				cmd->u.obj_read.len, 0, &up);
+				cmd->u.obj_read.len, 1, &up);
 	if (err) {
 		KLOG(KL_ERR, "cant get user pages at %p %d",
 			cmd->u.obj_read.buf, cmd->u.obj_read.len);
@@ -65,7 +65,7 @@ static int ds_ioctl_obj_write(struct ds_cmd *cmd)
 	}
 
 	err = ds_get_user_pages((unsigned long)cmd->u.obj_write.buf,
-				cmd->u.obj_write.len, 1, &up);
+				cmd->u.obj_write.len, 0, &up);
 	if (err) {
 		KLOG(KL_ERR, "cant get user pages at %p %d",
 			cmd->u.obj_write.buf, cmd->u.obj_write.len);
@@ -89,7 +89,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	int err = -EINVAL;
 	struct ds_cmd *cmd = NULL;	
 
-	cmd = kmalloc(sizeof(struct ds_cmd), GFP_NOFS);
+	cmd = kmalloc(sizeof(struct ds_cmd), GFP_NOIO);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto out;

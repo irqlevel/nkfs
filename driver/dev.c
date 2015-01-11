@@ -112,7 +112,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 
-	dev = kmem_cache_alloc(ds_dev_cachep, GFP_NOFS);
+	dev = kmem_cache_alloc(ds_dev_cachep, GFP_NOIO);
 	if (!dev) {
 		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
@@ -259,7 +259,7 @@ int ds_dev_remove(char *dev_name)
 		ds_dev_stop(dev);
 		ds_dev_release(dev);
 		KLOG(KL_DBG, "removed dev %s %p sb %p",
-			dev, dev->dev_name, dev->sb);
+			dev->dev_name, dev, dev->sb);
 		ds_dev_deref(dev);
 		err = 0;
 	} else {

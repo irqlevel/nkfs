@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 		}
 		dev_name = argv[2];
 		printf("obj test dev=%s\n", dev_name);
-		err = ds_sb_obj_test(dev_name, 1);
+		err = ds_sb_obj_test(dev_name, 30, 1, 1000);
 		if (!err) {
 			printf("obj test dev=%s PASSED\n", dev_name);	
 		} else {

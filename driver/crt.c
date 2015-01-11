@@ -2,7 +2,7 @@
 
 asmlinkage void *crt_malloc(size_t size)
 {
-	return kmalloc(size, GFP_NOFS);
+	return kmalloc(size, GFP_NOIO);
 }
 
 asmlinkage void * crt_memset(void *ptr, int value, size_t len)

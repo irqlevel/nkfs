@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -rf /var/log/ds.log
 rm -rf lfile
-dd if=/dev/zero of=lfile bs=1M count=20
+dd if=/dev/zero of=lfile bs=1M count=1000
 rmmod ds
 insmod bin/ds.ko
 losetup -d /dev/loop0
