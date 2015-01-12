@@ -1,10 +1,11 @@
 include $(PROJ_ROOT)/Makefile.inc
 
-CFLAGS= $(COMMON_CFLAGS) -D __CRT_LIB__
+CFLAGS= $(COMMON_CFLAGS) -D__CRT_LIB__
 
-CFLAGS_KERNEL=$(CFLAGS) -D __KERNEL__
+CFLAGS_KERNEL=$(CFLAGS) -D__KERNEL__
+
 ifeq ($(ARCH_BITS), 64)
-CFLAGS_KERNEL+= -mcmodel=kernel
+CFLAGS_KERNEL += -mcmodel=kernel
 endif
 
 LIB_OUT = crtlib.a

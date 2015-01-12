@@ -1,5 +1,5 @@
 export PROJ_ROOT=$(CURDIR)
-export ARCH_BITS==$(shell getconf LONG_BIT)
+export ARCH_BITS=$(shell getconf LONG_BIT)
 all:
 	@echo $(PROJ_ROOT)
 	rm -r -f bin/ objs/ libs/

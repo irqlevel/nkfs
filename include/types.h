@@ -4,8 +4,8 @@
 #define NULL 0
 #endif
 
-#if ARCH_BITS == 64
-#elif ARCH_BITS == 32
+#if __ARCH_BITS__ == 64
+#elif __ARCH_BITS__ == 32
 #else
 #error "unsupported arch bits"
 #endif
