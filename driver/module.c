@@ -181,23 +181,12 @@ static int __init ds_init(void)
 {	
 	int err = -EINVAL;
 	
-	err = klog_init();
-	if (err) {
-		printk(KERN_ERR "KLOG_init failed with err=%d", err);
-		goto out;
-	}
-
 	KLOG(KL_INF, "initing");
-
-	err = ds_random_init();
-	if (err) {
-		KLOG(KL_ERR, "ds_random_init err %d", err);
-		goto out_klog_release;
-	}
+	
 	err = amap_sys_init();
 	if (err) {
 		KLOG(KL_ERR, "amap_sys_init err %d", err);
-		goto out_random_release;
+		goto out;
 	}
 
 	err = misc_register(&ds_misc);
@@ -240,10 +229,6 @@ out_misc_release:
 	misc_deregister(&ds_misc);
 out_amap_release:
 	amap_sys_release();
-out_random_release:
-	ds_random_release();
-out_klog_release:
-	klog_release();
 out:
 	return err;
 }
@@ -252,7 +237,6 @@ static void __exit ds_exit(void)
 {
 	KLOG(KL_INF, "exiting");
 
-	ds_random_release();	
 	misc_deregister(&ds_misc);
 	ds_server_stop_all();
 	ds_dev_finit();
@@ -262,7 +246,6 @@ static void __exit ds_exit(void)
 	amap_sys_release();
 
 	KLOG(KL_INF, "exited");
-	klog_release();
 }
 
 module_init(ds_init);

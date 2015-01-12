@@ -15,7 +15,6 @@ void klog_v(int level, const char *subcomp, const char *file, int line, const ch
 void klog_sync(void);
 
 int klog_init(void);
-
 void klog_release(void);
 
 #define KLOG_PATH "/var/log/ds.log"

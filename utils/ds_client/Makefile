@@ -9,7 +9,7 @@ all: ds_client
 	cp lib/$(LIB_OUT) $(PROJ_ROOT)/libs/$(LIB_OUT)
 
 ds_client: ds_client.o main.o
-	$(CC) main.o lib/ds_client.a $(PROJ_ROOT)/libs/ucrt.a $(PROJ_ROOT)/libs/crtlib.a -o $(BIN_OUT)
+	$(CC) main.o lib/ds_client.a $(PROJ_ROOT)/libs/crtlib.a -o $(BIN_OUT)
 
 main.o: main.c
 	$(CC) $(CFLAGS) main.c

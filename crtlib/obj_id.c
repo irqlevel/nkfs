@@ -1,26 +1,30 @@
 #include <crtlib/include/crtlib.h>
 
-asmlinkage char *ds_obj_id_to_str(struct ds_obj_id *id)
+char *ds_obj_id_str(struct ds_obj_id *id)
 {
 	return bytes_hex((char *)id, sizeof(*id));
 }
+EXPORT_SYMBOL(ds_obj_id_str);
 
-asmlinkage int ds_obj_id_gen(struct ds_obj_id *id)
+int ds_obj_id_gen(struct ds_obj_id *id)
 {
 	return crt_random_buf(id, sizeof(*id));
 }
+EXPORT_SYMBOL(ds_obj_id_gen);
 
-asmlinkage int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
+int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
 {
 	return crt_memcmp(id1, id2, sizeof(*id2));
 }
+EXPORT_SYMBOL(ds_obj_id_cmp);
 
-asmlinkage void ds_obj_id_copy(struct ds_obj_id *dst, struct ds_obj_id *src)
+void ds_obj_id_copy(struct ds_obj_id *dst, struct ds_obj_id *src)
 {
 	crt_memcpy(dst, src, sizeof(*src));
 }
+EXPORT_SYMBOL(ds_obj_id_copy);
 
-asmlinkage struct ds_obj_id *ds_obj_id_create(void)
+struct ds_obj_id *ds_obj_id_create(void)
 {
 	struct ds_obj_id *id;
 	int err;
@@ -38,3 +42,4 @@ asmlinkage struct ds_obj_id *ds_obj_id_create(void)
 
 	return id;
 }
+EXPORT_SYMBOL(ds_obj_id_create);

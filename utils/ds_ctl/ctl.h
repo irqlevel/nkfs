@@ -13,8 +13,6 @@
 
 #include <include/ds_cmd.h>
 #include <crtlib/include/crtlib.h>
-#include <utils/ucrt/include/ucrt.h>
-
 
 int ds_dev_add(const char *dev_name, int format);
 int ds_dev_rem(const char *dev_name);

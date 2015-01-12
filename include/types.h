@@ -19,6 +19,7 @@ typedef __SIZE_TYPE__ size_t;
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
 #else
 
 #include <stdint.h>

@@ -33,7 +33,7 @@ static void polarssl_zeroize( void *v, size_t n ) {
     volatile unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 
-asmlinkage void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
+static void sha256_process( struct sha256_context *ctx, const unsigned char data[64] )
 {
     u32 temp1, temp2, W[64];
     u32 A, B, C, D, E, F, G, H;
@@ -164,12 +164,13 @@ asmlinkage void sha256_process( struct sha256_context *ctx, const unsigned char 
     ctx->state[7] += H;
 }
 
-asmlinkage void sha256_init( struct sha256_context *ctx )
+void sha256_init( struct sha256_context *ctx )
 {
     crt_memset( ctx, 0, sizeof( struct sha256_context ) );
 }
+EXPORT_SYMBOL(sha256_init);
 
-asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 )
+void sha256_starts( struct sha256_context *ctx, int is224 )
 {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
@@ -201,8 +202,9 @@ asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 )
 
     ctx->is224 = is224;
 }
+EXPORT_SYMBOL(sha256_starts);
 
-asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+void sha256_update( struct sha256_context *ctx, const unsigned char *input,
                     size_t ilen )
 {
     size_t fill;
@@ -239,10 +241,9 @@ asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *
     if( ilen > 0 )
         crt_memcpy( (void *) (ctx->buffer + left), input, ilen );
 }
+EXPORT_SYMBOL(sha256_update);
 
-
-
-asmlinkage void sha256_finish( struct sha256_context *ctx, struct sha256_sum *output )
+void sha256_finish( struct sha256_context *ctx, struct sha256_sum *output )
 {
     u32 last, padn;
     u32 high, low;
@@ -272,16 +273,18 @@ asmlinkage void sha256_finish( struct sha256_context *ctx, struct sha256_sum *ou
     if( ctx->is224 == 0 )
         PUT_UINT32_BE( ctx->state[7], output->bytes, 28 );
 }
+EXPORT_SYMBOL(sha256_finish);
 
-asmlinkage void sha256_free( struct sha256_context *ctx )
+void sha256_free( struct sha256_context *ctx )
 {
     if( ctx == NULL )
         return;
 
     polarssl_zeroize( ctx, sizeof( struct sha256_context ) );
 }
+EXPORT_SYMBOL(sha256_free);
 
-asmlinkage void sha256( const unsigned char *input, size_t ilen,
+void sha256( const unsigned char *input, size_t ilen,
              struct sha256_sum *output, int is224 )
 {
     struct sha256_context ctx;
@@ -292,8 +295,9 @@ asmlinkage void sha256( const unsigned char *input, size_t ilen,
     sha256_finish( &ctx, output );
     sha256_free( &ctx );
 }
+EXPORT_SYMBOL(sha256);
 
-asmlinkage char *sha256_sum_hex(struct sha256_sum *sum)
+char *sha256_sum_hex(struct sha256_sum *sum)
 {
 	char *hex_sum;
 
@@ -304,8 +308,9 @@ asmlinkage char *sha256_sum_hex(struct sha256_sum *sum)
 	}
 	return hex_sum;
 }
+EXPORT_SYMBOL(sha256_sum_hex);
 
-asmlinkage void __sha256_test(void)
+void __sha256_test(void)
 {
 	unsigned char *data = (unsigned char *)"blabla";
 	struct sha256_sum sum;
@@ -320,3 +325,5 @@ asmlinkage void __sha256_test(void)
 	CLOG(CL_TST, "sha256 for %s is %s", data, hex_sum);
 	crt_free(hex_sum);
 }
+EXPORT_SYMBOL(__sha256_test);
+

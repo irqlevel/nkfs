@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include "crt.h"
 
 #define KLOG_MSG_BYTES	256
 
@@ -305,6 +305,7 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 		printk("%s\n", msg->data);
 	klog_msg_queue(msg);
 }
+EXPORT_SYMBOL(klog_v);
 
 void klog(int level, const char *subcomp, const char *file,
 		int line, const char *func, const char *fmt, ...)
@@ -314,6 +315,7 @@ void klog(int level, const char *subcomp, const char *file,
     	klog_v(level, subcomp, file, line, func, fmt, args);
     	va_end(args);
 }
+EXPORT_SYMBOL(klog);
 
 void klog_sync(void)
 {
@@ -341,6 +343,7 @@ void klog_sync(void)
 		klog_msg_free(msg);
 	}
 }
+EXPORT_SYMBOL(klog_sync);
 
 static int klog_thread_routine(void *data)
 {

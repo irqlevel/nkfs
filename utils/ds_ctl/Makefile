@@ -7,7 +7,7 @@ all: ds_ctl
 	rm -rf *.o ds_ctl
 
 ds_ctl: ctl.o main.o test.o
-	$(CC) ctl.o main.o test.o $(PROJ_ROOT)/libs/ucrt.a $(PROJ_ROOT)/libs/crtlib.a -o ds_ctl
+	$(CC) ctl.o main.o test.o $(PROJ_ROOT)/libs/crtlib.a -o ds_ctl
 
 ctl.o: ctl.c
 	$(CC) $(CFLAGS) ctl.c

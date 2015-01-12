@@ -1,6 +1,6 @@
 #include <crtlib/include/crtlib.h>
 
-asmlinkage u32 log2_u32(u32 val)
+u32 log2_u32(u32 val)
 {
 	int res = 0;
 	while (val > 0) {
@@ -9,8 +9,9 @@ asmlinkage u32 log2_u32(u32 val)
 	}
 	return res;
 }
+EXPORT_SYMBOL(log2_u32);
 
-asmlinkage u32 rand_u32_up(u32 up)
+u32 rand_u32_up(u32 up)
 {
 	u32 v, log;
 	
@@ -24,8 +25,9 @@ asmlinkage u32 rand_u32_up(u32 up)
 	while ((v = ((u32)rand_u64() & (( 1 << log) - 1))) >= up);
 	return v;
 }
+EXPORT_SYMBOL(rand_u32_up);
 
-asmlinkage u32 rand_u32_min_max(u32 min, u32 max)
+u32 rand_u32_min_max(u32 min, u32 max)
 {
 	if (min > max)
 		return (u32)-1;
@@ -34,20 +36,22 @@ asmlinkage u32 rand_u32_min_max(u32 min, u32 max)
 	else
 		return min + rand_u32_up(max - min + 1);
 }
+EXPORT_SYMBOL(rand_u32_min_max);
 
-asmlinkage u32 rand_u32(void)
+u32 rand_u32(void)
 {
 	u32 cand;
 	if (crt_random_buf(&cand, sizeof(cand)))
 		return -1;
 	return cand;
 }
+EXPORT_SYMBOL(rand_u32);
 
-asmlinkage u64 rand_u64(void)
+u64 rand_u64(void)
 {
 	u64 cand;
 	if (crt_random_buf(&cand, sizeof(cand)))
 		return -1;
 	return cand;
 }
-
+EXPORT_SYMBOL(rand_u64);

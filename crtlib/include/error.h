@@ -11,6 +11,5 @@
 #define DS_E_OBJ_GET		DS_E_BASE + 8
 #define DS_E_INVAL		DS_E_BASE + 9
 
-extern asmlinkage char *ds_error(int err);
-
+char *ds_error(int err);
 

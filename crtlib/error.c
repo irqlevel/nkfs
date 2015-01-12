@@ -1,6 +1,6 @@
 #include <crtlib/include/crtlib.h>
 
-asmlinkage char *ds_error(int err)
+char *ds_error(int err)
 {
 	switch (err) {
 	case DS_E_NO_MEM:
@@ -25,3 +25,4 @@ asmlinkage char *ds_error(int err)
 		return "unknown err code";
 	}
 }
+EXPORT_SYMBOL(ds_error);

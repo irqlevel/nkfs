@@ -28,7 +28,7 @@ struct sha256_context
  * \param output   SHA-224/256 checksum result
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
-extern asmlinkage void sha256( const unsigned char *input, size_t ilen,
+extern void sha256( const unsigned char *input, size_t ilen,
            struct sha256_sum *output, int is224 );
 
 /**
@@ -36,14 +36,14 @@ extern asmlinkage void sha256( const unsigned char *input, size_t ilen,
  *
  * \param ctx      SHA-256 context to be initialized
  */
-extern asmlinkage void sha256_init( struct sha256_context *ctx );
+extern void sha256_init( struct sha256_context *ctx );
 
 /**
  * \brief          Clear SHA-256 context
  *
  * \param ctx      SHA-256 context to be cleared
  */
-extern asmlinkage void sha256_free( struct sha256_context *ctx );
+extern void sha256_free( struct sha256_context *ctx );
 
 /**
  * \brief          SHA-256 context setup
@@ -51,7 +51,7 @@ extern asmlinkage void sha256_free( struct sha256_context *ctx );
  * \param ctx      context to be initialized
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
-extern asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 );
+extern void sha256_starts( struct sha256_context *ctx, int is224 );
 
 /**
  * \brief          SHA-256 process buffer
@@ -60,7 +60,7 @@ extern asmlinkage void sha256_starts( struct sha256_context *ctx, int is224 );
  * \param input    buffer holding the  data
  * \param ilen     length of the input data
  */
-extern asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+extern void sha256_update( struct sha256_context *ctx, const unsigned char *input,
                     size_t ilen );
 
 /**
@@ -69,8 +69,8 @@ extern asmlinkage void sha256_update( struct sha256_context *ctx, const unsigned
  * \param ctx      SHA-256 context
  * \param output   SHA-224/256 checksum result
  */
-extern asmlinkage void sha256_finish(struct sha256_context *ctx, struct sha256_sum *output);
+extern void sha256_finish(struct sha256_context *ctx, struct sha256_sum *output);
 
-extern asmlinkage void __sha256_test(void);
+extern void __sha256_test(void);
 
-extern asmlinkage char *sha256_sum_hex(struct sha256_sum *sum);
+extern char *sha256_sum_hex(struct sha256_sum *sum);

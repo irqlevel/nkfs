@@ -11,7 +11,6 @@
 #include <string.h>
 #include <crtlib/include/crtlib.h>
 #include <errno.h>
-#include <utils/ucrt/include/ucrt.h>
 #include <include/ds_obj_id.h>
 #include <include/types.h>
 

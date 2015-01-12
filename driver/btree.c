@@ -384,7 +384,7 @@ struct btree_key *btree_gen_key(void)
 	if (!key)
 		return NULL;
 
-	if (ds_random_buf_read(key, sizeof(*key), 1)) {
+	if (crt_random_buf(key, sizeof(*key))) {
 		kmem_cache_free(btree_key_cachep, key);
 		return NULL;
 	}
@@ -395,7 +395,7 @@ u64 btree_gen_value(void)
 {
 	u64 value;
 
-	if (ds_random_buf_read(&value, sizeof(value), 1)) {
+	if (crt_random_buf(&value, sizeof(value))) {
 		return -1;
 	}
 

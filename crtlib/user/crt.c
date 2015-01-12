@@ -1,5 +1,4 @@
 #include <crtlib/include/crtlib.h>
-#include <utils/ucrt/include/ucrt.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,24 +18,24 @@
 #define PAGE_SIZE 4096
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-static char *ulog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "MAX"};
+static char *ulog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "TEST", "MAX"};
 
 static char *ulog_name = NULL;
 static char *ulog_path = NULL;
 static int ulevel = CL_INV;
 
-void ucrt_log_set_path(char *log_path, char *log_name)
+void crt_log_set_path(char *log_path, char *log_name)
 {
 	ulog_name = log_name;
 	ulog_path = log_path;
 }
 
-void ucrt_log_set_level(int level)
+void crt_log_set_level(int level)
 {
 	ulevel = level;
 }
 
-static void ulog_write_fmt_args(char **buff, int *left, const char *fmt, va_list args)
+static void crt_write_fmt_args(char **buff, int *left, const char *fmt, va_list args)
 {
 	int res;
 
@@ -51,12 +50,12 @@ static void ulog_write_fmt_args(char **buff, int *left, const char *fmt, va_list
 	return;
 }
 
-static void ulog_write_fmt(char **buff, int *left, const char *fmt, ...)
+static void crt_write_fmt(char **buff, int *left, const char *fmt, ...)
 {
 	va_list args;
 
 	va_start(args,fmt);
-	ulog_write_fmt_args(buff, left,fmt,args);
+	crt_write_fmt_args(buff, left,fmt,args);
 	va_end(args);
 }
 
@@ -70,7 +69,7 @@ static const char * truncate_file_path(const char *filename)
 		return filename;
 }
 
-void ulog_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args)
+void crt_log_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args)
 {
 	char buf[PAGE_SIZE];
 	char *pos, *begin;
@@ -101,12 +100,12 @@ void ulog_v(int level, const char *log_name, const char *subcomp, const char *fi
 	secs = tv.tv_sec;
 	gmtime_r(&secs, &tm);
 
-	ulog_write_fmt(&pos,&left,"%04d-%02d-%02d %02d:%02d:%02d.%.6ld - %s - %s - %u - %s %u %s() - ", 1900+tm.tm_year, tm.tm_mon+1,
+	crt_write_fmt(&pos,&left,"%04d-%02d-%02d %02d:%02d:%02d.%.6ld - %s - %s - %u - %s %u %s() - ", 1900+tm.tm_year, tm.tm_mon+1,
 			tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
 			tv.tv_usec, level_s, subcomp, getpid(),
 			truncate_file_path(file), line, func);
 
-	ulog_write_fmt_args(&pos,&left,fmt,args);
+	crt_write_fmt_args(&pos,&left,fmt,args);
 
 	begin[count-1] = '\0';
 	len = strlen(begin);
@@ -160,32 +159,32 @@ out:
 }
 
 
-asmlinkage void *crt_malloc(size_t size)
+void *crt_malloc(size_t size)
 {
 	return malloc(size);
 }
 
-asmlinkage void *crt_memcpy(void *dst, const void *src, size_t len)
+void *crt_memcpy(void *dst, const void *src, size_t len)
 {
 	return memcpy(dst, src, len);
 }
 
-asmlinkage void *crt_memset(void *ptr, int value, size_t len)
+void *crt_memset(void *ptr, int value, size_t len)
 {
 	return memset(ptr, value, len);
 }
 
-asmlinkage int crt_memcmp(const void *ptr1, const void *ptr2, size_t len)
+int crt_memcmp(const void *ptr1, const void *ptr2, size_t len)
 {
 	return memcmp(ptr1, ptr2, len);
 }
 
-asmlinkage void crt_free(void *ptr)
+void crt_free(void *ptr)
 {
 	free(ptr);
 }
 
-asmlinkage int crt_random_buf(void *buf, size_t len)
+int crt_random_buf(void *buf, size_t len)
 {
 	int fd = open("/dev/urandom", O_RDONLY);
 	int err;
@@ -198,16 +197,16 @@ asmlinkage int crt_random_buf(void *buf, size_t len)
 	return err;
 }
 
-asmlinkage void crt_log(int level, const char *file, int line,
+void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	ulog_v(level,  __LOGNAME__, "crt", file, line, func, fmt, args);  
+	crt_log_v(level,  __LOGNAME__, "crt", file, line, func, fmt, args);  
 	va_end(args);
 }
 
-asmlinkage size_t crt_strlen(const char *s)
+size_t crt_strlen(const char *s)
 {
 	return strlen(s);
 }

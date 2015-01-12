@@ -10,7 +10,6 @@
 #include <errno.h>
 #include <malloc.h>
 #include <crtlib/include/crtlib.h>
-#include <utils/ucrt/include/ucrt.h>
 #include <include/ds_client.h> /* client lib */
 
 static void prepare_logging()
@@ -19,9 +18,9 @@ static void prepare_logging()
 	 * set CLOG log path : NULL and log name ds_client.log
 	 * NULL means use current working dir as path
 	*/
-	ucrt_log_set_path(NULL, "ds_client.log");
+	crt_log_set_path(NULL, "ds_client.log");
 	/* set CLOG log level */
-	ucrt_log_set_level(CL_DBG);
+	crt_log_set_level(CL_DBG);
 }
 
 

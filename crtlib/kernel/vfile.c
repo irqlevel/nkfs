@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include "crt.h"
 
 #define __SUBCOMPONENT__ "vfile"
 

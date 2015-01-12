@@ -19,8 +19,8 @@ static void usage(void)
 
 static void prepare_logging()
 {
-	ucrt_log_set_path(NULL, "ds_client.log");
-	ucrt_log_set_level(CL_DBG);
+	crt_log_set_path(NULL, "ds_client.log");
+	crt_log_set_level(CL_DBG);
 }
 
 int main(int argc, char *argv[])
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 		err = ds_dev_query(dev_name, &sb_id);
 		if (!err) {
 			char *ssb_id = NULL;
-			ssb_id = ds_obj_id_to_str(&sb_id);
+			ssb_id = ds_obj_id_str(&sb_id);
 			if (!ssb_id) {
 				err = -ENOMEM;
 				goto out;		
