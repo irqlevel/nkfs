@@ -96,6 +96,7 @@ static int __init crt_init(void)
 	if (err) {
 		goto rel_klog;
 	}
+	printk("ds_crt: inited\n");
 	return 0;
 rel_klog:
 	klog_release();
@@ -107,6 +108,7 @@ static void __exit crt_exit(void)
 {
 	crt_random_release();
 	klog_release();
+	printk("ds_crt: exited\n");
 }
 
 module_init(crt_init);
