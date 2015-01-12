@@ -7,6 +7,7 @@ CFLAGS = $(COMMON_CFLAGS)
 all: $(BIN_OUT)
 	cp $(BIN_OUT) $(BIN)/$(BIN_OUT)
 	cp lib/$(LIB_OUT) $(LIB)/$(LIB_OUT)
+	rm -rf *.o $(BIN_OUT) lib/*.a lib/*.o
 
 ds_client: client.o main.o
 	$(CC) main.o lib/$(LIB_OUT) $(LIB)/crtlib.a -o $(BIN_OUT)

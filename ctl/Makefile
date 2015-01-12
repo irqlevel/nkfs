@@ -6,6 +6,7 @@ BIN_OUT = ds_ctl
 
 all: ds_ctl
 	cp $(BIN_OUT) $(BIN)/$(BIN_OUT)
+	rm -rf *.o $(BIN_OUT)
 
 ds_ctl: ctl.o main.o test.o
 	$(CC) ctl.o main.o test.o $(LIB)/crtlib.a -o ds_ctl
