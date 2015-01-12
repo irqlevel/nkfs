@@ -5,8 +5,10 @@ BIN_OUT=ds_client
 CFLAGS = $(COMMON_CFLAGS)
 
 all: ds_client 
-	cp ds_client $(PROJ_ROOT)/bin/ds_client
+	cp $(BIN_OUT) $(PROJ_ROOT)/bin/$(BIN_OUT)
+	rm -rf $(BIN_OUT)
 	cp lib/$(LIB_OUT) $(PROJ_ROOT)/libs/$(LIB_OUT)
+	rm -rf lib/$(LIB_OUT)
 
 ds_client: ds_client.o main.o
 	$(CC) main.o lib/ds_client.a $(PROJ_ROOT)/libs/crtlib.a -o $(BIN_OUT)

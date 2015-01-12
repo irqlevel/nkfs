@@ -13,6 +13,6 @@ all:
 	$(CC) $(CFLAGS) $(LIB_SRC)
 	$(AR) -cvq $(LIB_OUT) *.o
 	cp $(LIB_OUT) $(PROJ_ROOT)/libs/$(LIB_OUT)
-
+	rm -rf $(LIB_OUT)
 clean:
 	rm -rf *.o *.a
