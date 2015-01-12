@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <crtlib/include/crtlib.h>
+#include <crt/include/crt.h>
 #include <errno.h>
 #include <include/ds_obj_id.h>
 #include <include/types.h>

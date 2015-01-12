@@ -4,14 +4,12 @@ LIB_OUT=ds_client.a
 BIN_OUT=ds_client
 CFLAGS = $(COMMON_CFLAGS)
 
-all: ds_client 
-	cp $(BIN_OUT) $(PROJ_ROOT)/bin/$(BIN_OUT)
-	rm -rf $(BIN_OUT)
-	cp lib/$(LIB_OUT) $(PROJ_ROOT)/libs/$(LIB_OUT)
-	rm -rf lib/$(LIB_OUT)
+all: $(BIN_OUT)
+	cp $(BIN_OUT) $(BIN)/$(BIN_OUT)
+	cp lib/$(LIB_OUT) $(LIB)/$(LIB_OUT)
 
 ds_client: ds_client.o main.o
-	$(CC) main.o lib/ds_client.a $(PROJ_ROOT)/libs/crtlib.a -o $(BIN_OUT)
+	$(CC) main.o lib/$(LIB_OUT) $(LIB)/crtlib.a -o $(BIN_OUT)
 
 main.o: main.c
 	$(CC) $(CFLAGS) main.c
@@ -21,5 +19,5 @@ ds_client.o:
 	$(AR) -cvq lib/$(LIB_OUT) ds_client.o
 
 clean:
-	rm -rf *.o ds_client lib/*.a lib/*.o
+	rm -rf *.o $(BIN_OUT) lib/*.a lib/*.o
 

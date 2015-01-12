@@ -2,6 +2,8 @@
 
 #define __SUBCOMPONENT__ "devio"
 
+#define SECTOR_SHIFT 9
+
 static void ds_dev_io_free(struct ds_dev_io *io)
 {
 	kfree(io->bio->bi_io_vec);

@@ -12,7 +12,7 @@ all:
 	rm -rf *.o *.a
 	$(CC) $(CFLAGS) $(LIB_SRC)
 	$(AR) -cvq $(LIB_OUT) *.o
-	cp $(LIB_OUT) $(PROJ_ROOT)/libs/$(LIB_OUT)
+	cp $(LIB_OUT) $(LIB)/$(LIB_OUT)
 	rm -rf $(LIB_OUT)
 clean:
 	rm -rf *.o *.a

@@ -14,17 +14,17 @@ size_t crt_strlen(const char * str);
 void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...);
 
-#include <crtlib/include/obj_id.h>
-#include <crtlib/include/char2hex.h>
-#include <crtlib/include/error.h>
-#include <crtlib/include/sha256.h>
-#include <crtlib/include/clog.h>
-#include <crtlib/include/net_cmd.h>
-#include <crtlib/include/random.h>
+#include <crt/include/obj_id.h>
+#include <crt/include/char2hex.h>
+#include <crt/include/error.h>
+#include <crt/include/sha256.h>
+#include <crt/include/clog.h>
+#include <crt/include/net_cmd.h>
+#include <crt/include/random.h>
 
 #ifdef __KERNEL__
-#include <crtlib/kernel/crt.h>
+#include <crt/kernel/crt.h>
 #else
-#include <crtlib/user/crt.h>
+#include <crt/user/crt.h>
 #define EXPORT_SYMBOL(s)
 #endif

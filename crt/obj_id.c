@@ -1,4 +1,4 @@
-#include <crtlib/include/crtlib.h>
+#include <crt/include/crt.h>
 
 char *ds_obj_id_str(struct ds_obj_id *id)
 {

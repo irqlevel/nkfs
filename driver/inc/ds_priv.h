@@ -36,12 +36,7 @@
 #include <include/ds_image.h>
 #include <include/ds_net_cmd.h>
 
-#include <crtlib/include/crtlib.h>
-
-#define SECTOR_SHIFT 9
-
-#define __BTREE_TEST__	0
-#define __SHA_TEST__	0
+#include <crt/include/crt.h>
 
 #define DS_BUG_ON(cond)					\
 	do {						\

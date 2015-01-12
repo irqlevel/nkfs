@@ -9,7 +9,7 @@
 #include <memory.h>
 #include <errno.h>
 #include <malloc.h>
-#include <crtlib/include/crtlib.h>
+#include <crt/include/crt.h>
 #include <include/ds_client.h> /* client lib */
 
 static void prepare_logging()

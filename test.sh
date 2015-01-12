@@ -12,3 +12,5 @@ bin/ds_ctl --dev_obj_test /dev/loop0
 bin/ds_ctl --dev_rem /dev/loop0
 rmmod ds
 rmmod ds_crt
+losetup -d /dev/loop0
+rm -rf lfile

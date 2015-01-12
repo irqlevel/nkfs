@@ -1,6 +1,6 @@
 #pragma once
 
-#include <crtlib/include/sha256.h>
+#include <crt/include/sha256.h>
 
 #define DS_IMAGE_MAGIC	0x3EFFBDAE
 #define DS_IMAGE_SIG	0xBEDABEDA
