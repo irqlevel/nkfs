@@ -123,10 +123,12 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			}
 			break;
 		case IOCTL_DS_SRV_START:
-			err = ds_server_start(cmd->u.server_start.port);	
+			err = ds_server_start(cmd->u.server_start.ip,
+				cmd->u.server_start.port);	
 			break;
 		case IOCTL_DS_SRV_STOP:
-			err = ds_server_stop(cmd->u.server_stop.port);
+			err = ds_server_stop(cmd->u.server_stop.ip,
+				cmd->u.server_stop.port);
 			break;
 		case IOCTL_DS_OBJ_TREE_CHECK:{
 				struct ds_sb *sb;

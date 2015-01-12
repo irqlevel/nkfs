@@ -136,7 +136,8 @@ void ksock_release(struct socket *sock)
 	KLOG(KL_DBG, "released sock=%p", sock);
 }
 
-int ksock_write_timeout(struct socket *sock, void *buffer, int nob, int timeout, int *pwrote)
+int ksock_write_timeout(struct socket *sock, void *buffer, int nob,
+	int timeout, int *pwrote)
 {
 	int error;
 	long ticks = timeout*HZ;
@@ -220,7 +221,8 @@ out:
 	return error;
 }
 
-int ksock_read_timeout(struct socket *sock, void *buffer, int nob, int timeout, int *pread)
+int ksock_read_timeout(struct socket *sock, void *buffer, int nob,
+	int timeout, int *pread)
 {
 	int error;
 	long ticks = timeout*HZ;
@@ -304,7 +306,8 @@ out:
 	return error;
 }
 
-int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port, int bacKLOG)
+int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,
+	int backlog)
 {
 	int error;
 	struct socket *sock = NULL;
@@ -317,7 +320,7 @@ int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port, int bacK
 
 	KLOG(KL_DBG, "sock=%p, sock->ops=%p", sock, sock->ops);
 	
-	error = sock->ops->listen(sock, bacKLOG);
+	error = sock->ops->listen(sock, backlog);
 	if (error) {
 		KLOG(KL_ERR, "listen failed err=%d", error);
 		goto out;

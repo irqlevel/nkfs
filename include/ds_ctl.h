@@ -23,9 +23,11 @@ struct ds_ctl {
 			struct ds_obj_id sb_id;
 		} dev_query;
 		struct  {
+			u32 ip;
 			int port;
 		} server_start;
 		struct {
+			u32 ip;
 			int port;
 		} server_stop;
 		struct {

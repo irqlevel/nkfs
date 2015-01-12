@@ -14,14 +14,15 @@ int ksock_connect(struct socket **sockp, __u32 local_ip, int local_port,
 
 void ksock_release(struct socket *sock);
 
-int ksock_write_timeout(struct socket *sock, void *buffer, int nob, int timeout, int *pwrote);
+int ksock_write_timeout(struct socket *sock, void *buffer, int nob,
+	int timeout, int *pwrote);
 
-int ksock_read_timeout(struct socket *sock, void *buffer, int nob, int timeout, int *pread);
+int ksock_read_timeout(struct socket *sock, void *buffer, int nob,
+	int timeout, int *pread);
 
-int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port, int backlog);
+int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,
+	int backlog);
 
 int ksock_accept(struct socket **newsockp, struct socket *sock);
 
 void ksock_abort_accept(struct socket *sock);
-
-

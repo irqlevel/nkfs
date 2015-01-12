@@ -7,6 +7,7 @@ struct ds_server {
 	struct list_head	srv_list;
 	struct list_head	con_list;
 	struct mutex		con_list_lock;
+	u32			ip;
 	int			port;
 	int			stopping;
 };
@@ -18,8 +19,8 @@ struct ds_con {
 	struct ds_server	*server;
 };
 
-int ds_server_start(int port);
-int ds_server_stop(int port);
+int ds_server_start(u32 ip, int port);
+int ds_server_stop(u32 ip, int port);
 void ds_server_stop_all(void);
 
 

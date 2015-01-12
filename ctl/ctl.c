@@ -215,7 +215,7 @@ out:
 }
 
 
-int ds_server_stop(int port)
+int ds_server_stop(u32 ip, int port)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -226,8 +226,8 @@ int ds_server_stop(int port)
 		return err;
 	
 	memset(&cmd, 0, sizeof(cmd));
-
-	cmd.u.server_start.port = port;
+	cmd.u.server_stop.ip = ip;
+	cmd.u.server_stop.port = port;
 	err = ioctl(fd, IOCTL_DS_SRV_STOP, &cmd);
 	if (err)
 		goto out;
@@ -241,7 +241,7 @@ out:
 	return err;
 }
 
-int ds_server_start(int port)
+int ds_server_start(u32 ip, int port)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -253,6 +253,7 @@ int ds_server_start(int port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
+	cmd.u.server_start.ip = ip;
 	cmd.u.server_start.port = port;
 	err = ioctl(fd, IOCTL_DS_SRV_START, &cmd);
 	if (err)

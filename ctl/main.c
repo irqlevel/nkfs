@@ -1,5 +1,8 @@
 #include "ctl.h"
 #include "test.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define SERVER_START_OPT "--server_start"
 #define SERVER_STOP_OPT "--server_stop"
@@ -12,9 +15,12 @@
 
 static void usage(void)
 {
-	printf("Usage:\nds_ctl " SERVER_START_OPT " PORT\nds_ctl " SERVER_STOP_OPT " PORT\n"\
-		"ds_ctl " DEV_ADD_OPT " DEV_NAME\n"\
-		"ds_ctl " DEV_REM_OPT " DEV_NAME\n");
+	printf("Usage:\n"\
+		"ds_ctl " SERVER_START_OPT " IP PORT\n"\
+		"ds_ctl " SERVER_STOP_OPT " IP PORT\n"\
+		"ds_ctl " DEV_ADD_OPT " DEV_NAME [--format]\n"\
+		"ds_ctl " DEV_REM_OPT " DEV_NAME\n"\
+		"ds_ctl " DEV_QUERY_OPT " DEV_NAME\n");
 }
 
 static void prepare_logging()
@@ -36,27 +42,54 @@ int main(int argc, char *argv[])
     
     	if (strncmp(argv[1], SERVER_START_OPT, strlen(SERVER_START_OPT) + 1) == 0) {
 		int port = -1;
-		if (argc != 3) {
+		struct in_addr addr;	
+	
+		if (argc != 4) {
 			usage();
 			err = -EINVAL;
 			goto out;
 		}
-		port = strtol(argv[2], NULL, 10);
+		if (!inet_aton(argv[2], &addr)) {
+			printf("ip %s is not valid\n", argv[2]);
+			err = -EINVAL;
+			goto out;
+		}
+
+		port = strtol(argv[3], NULL, 10);
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
+			err = -EINVAL;
+			goto out;
+		}
+
 		printf("starting server port=%d\n", port);
-		err = ds_server_start(port);
+		err = ds_server_start(addr.s_addr, port);
 		if (!err)
 			printf("started server with port=%d\n", port);
 		goto out;
     	} else if (strncmp(argv[1], SERVER_STOP_OPT, strlen(SERVER_STOP_OPT) + 1) == 0) {
 		int port = -1;
-		if (argc != 3) {
+		struct in_addr addr;	
+		if (argc != 4) {
 			usage();
 			err = -EINVAL;
 			goto out;
 		}
-		port = strtol(argv[2], NULL, 10);
+		if (!inet_aton(argv[2], &addr)) {
+			printf("ip %s is not valid\n", argv[2]);
+			err = -EINVAL;
+			goto out;
+		}
+
+		port = strtol(argv[3], NULL, 10);
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
+			err = -EINVAL;
+			goto out;
+		}
+
 		printf("stopping server port=%d\n", port);
-		err = ds_server_stop(port);
+		err = ds_server_stop(addr.s_addr, port);
 		if (!err)
 			printf("stopped server port=%d\n", port);
 		goto out;	
