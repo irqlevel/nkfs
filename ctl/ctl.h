@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <include/ds_cmd.h>
+#include <include/ds_ctl.h>
 #include <crt/include/crt.h>
 
 int ds_dev_add(const char *dev_name, int format);

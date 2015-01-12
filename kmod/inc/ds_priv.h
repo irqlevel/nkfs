@@ -31,10 +31,10 @@
 #include <linux/rbtree.h>
 #include <net/sock.h>
 
-#include <include/ds_cmd.h>
+#include <include/ds_ctl.h>
 #include <include/ds_obj_id.h>
 #include <include/ds_image.h>
-#include <include/ds_net_cmd.h>
+#include <include/ds_net.h>
 
 #include <crt/include/crt.h>
 

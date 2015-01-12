@@ -8,7 +8,7 @@
 
 #pragma pack(push, 1)
 
-struct ds_cmd {
+struct ds_ctl {
 	int err;
 	union {
 		struct {

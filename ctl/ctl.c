@@ -19,7 +19,7 @@ static int ds_ctl_open(int *fd)
 int ds_dev_add(const char *dev_name, int format)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -47,7 +47,7 @@ out:
 int ds_dev_rem(const char *dev_name)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -74,7 +74,7 @@ int ds_dev_query(const char *dev_name,
 			struct ds_obj_id *psb_id)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -104,7 +104,7 @@ int ds_obj_write(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -135,7 +135,7 @@ int ds_obj_read(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -165,7 +165,7 @@ out:
 int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -192,7 +192,7 @@ out:
 int ds_obj_tree_check(struct ds_obj_id *sb_id)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -218,7 +218,7 @@ out:
 int ds_server_stop(int port)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);
@@ -244,7 +244,7 @@ out:
 int ds_server_start(int port)
 {
 	int err = -EINVAL;
-	struct ds_cmd cmd;
+	struct ds_ctl cmd;
 	int fd;
 
 	err = ds_ctl_open(&fd);

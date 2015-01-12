@@ -20,7 +20,7 @@ static int ds_mod_put(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ds_ioctl_obj_read(struct ds_cmd *cmd)
+static int ds_ioctl_obj_read(struct ds_ctl *cmd)
 {
 	struct ds_sb *sb;
 	struct ds_user_pages up;
@@ -52,7 +52,7 @@ out:
 	return err;
 }
 
-static int ds_ioctl_obj_write(struct ds_cmd *cmd)
+static int ds_ioctl_obj_write(struct ds_ctl *cmd)
 {
 	struct ds_sb *sb;
 	struct ds_user_pages up;
@@ -87,15 +87,15 @@ out:
 static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
-	struct ds_cmd *cmd = NULL;	
+	struct ds_ctl *cmd = NULL;	
 
-	cmd = kmalloc(sizeof(struct ds_cmd), GFP_NOIO);
+	cmd = kmalloc(sizeof(struct ds_ctl), GFP_NOIO);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	if (copy_from_user(cmd, (const void *)arg, sizeof(struct ds_cmd))) {
+	if (copy_from_user(cmd, (const void *)arg, sizeof(struct ds_ctl))) {
 		err = -EFAULT;
 		goto out_free_cmd;
 	}
@@ -151,7 +151,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			break;
 	}
 	cmd->err = err;
-	if (copy_to_user((void *)arg, cmd, sizeof(struct ds_cmd))) {
+	if (copy_to_user((void *)arg, cmd, sizeof(struct ds_ctl))) {
 		err = -EFAULT;
 		goto out_free_cmd;
 	}

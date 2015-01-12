@@ -1,5 +1,5 @@
 #include <include/ds_client.h>
-#include <include/ds_net_cmd.h>
+#include <include/ds_net.h>
 
 static void con_fail(struct ds_con *con, int err)
 {
