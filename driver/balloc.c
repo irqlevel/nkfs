@@ -9,6 +9,7 @@ int ds_balloc_bm_clear(struct ds_sb *sb)
 	int err;
 
 	down_write(&sb->rw_lock);
+	sb->used_blocks = 0;
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
 		bh = __bread(sb->bdev, i, sb->bsize);
 		if (!bh) {
@@ -76,9 +77,11 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	if (use) {
 		BUG_ON(test_bit_le(bit, bh->b_data + byte_off));
 		set_bit_le(bit, bh->b_data + byte_off);
+		sb->used_blocks++;
 	} else {
 		BUG_ON(!test_bit_le(bit, bh->b_data + byte_off));
 		clear_bit_le(bit, bh->b_data + byte_off);
+		sb->used_blocks--;
 	}
 
 	mark_buffer_dirty(bh);
@@ -113,6 +116,7 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 		for (bit = 0; bit < 8; bit++) {
 			if (!test_bit_le(bit, bh->b_data + pos)) {
 				set_bit_le(bit, bh->b_data + pos);
+				sb->used_blocks++;
 				mark_buffer_dirty(bh);
 				err = sync_dirty_buffer(bh);
 				if (err) {

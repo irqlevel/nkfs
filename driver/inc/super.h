@@ -18,6 +18,7 @@ struct ds_sb {
 	u64			bm_block;
 	u64			bm_blocks;
 	u64			obj_tree_block;
+	u64			used_blocks;
 	u32			bsize;
 };
 

@@ -17,6 +17,7 @@ struct ds_image_header {
 	__be64			bm_block;
 	__be64			bm_blocks;
 	__be64			obj_tree_block;
+	__be64			used_blocks;
 	__be32			bsize;
 	struct sha256_sum	sum;
 	__be32			sig;
