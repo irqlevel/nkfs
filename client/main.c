@@ -47,20 +47,14 @@ int main(int argc, const char *argv[])
 		CLOG(CL_ERR, "ds_connect failed err %d", err);
 		goto out;
 	}
-	
-	err = ds_create_object(&con, &obj_id, sizeof(obj_body));
-	if (err) {
-		CLOG(CL_ERR, "ds_create_object err %d", err);
-		goto discon;
-	}
 
-	err = ds_put_object(&con, &obj_id, 0, obj_body, sizeof(obj_body));
+	err = ds_send_object(&con, &obj_id, 0, obj_body, sizeof(obj_body));
 	if (err) {
 		CLOG(CL_ERR, "ds_put_object err %d", err);
 		goto discon;
 	}
 
-	err = ds_get_object(&con, &obj_id, 0, obj_body_ret, sizeof(obj_body_ret), &obj_size);
+	err = ds_recv_object(&con, &obj_id, 0, obj_body_ret, sizeof(obj_body_ret), &obj_size);
 	if (err) {
 		CLOG(CL_ERR, "ds_get_object err %d", err);
 		goto discon;

@@ -118,7 +118,7 @@ out:
 	return err;
 }
 
-int ds_put_object(struct ds_con *con, struct ds_obj_id *id,
+int ds_send_object(struct ds_con *con, struct ds_obj_id *id,
 		u64 off, void *data, u32 data_size)
 {
 	struct ds_net_cmd cmd, reply;
@@ -127,7 +127,7 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *id,
 	net_cmd_init(&cmd);
 	cmd.data_size = data_size;
 	cmd.off = off;
-	cmd.cmd = DS_NET_CMD_OBJ_PUT;
+	cmd.cmd = DS_NET_CMD_OBJ_SEND;
 	memcpy(&cmd.obj_id, id, sizeof(*id));
 
 	err = con_send(con, &cmd, sizeof(cmd));
@@ -167,7 +167,7 @@ out:
 	return err;
 }
 
-int ds_get_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
+int ds_recv_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
 		void *data, u32 data_size, u32 *recv_size)
 {
 	struct ds_net_cmd cmd, reply;
@@ -176,7 +176,7 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
 	net_cmd_init(&cmd);
 	cmd.data_size = data_size;
 	cmd.off = off;
-	cmd.cmd = DS_NET_CMD_OBJ_GET;
+	cmd.cmd = DS_NET_CMD_OBJ_RECV;
 	memcpy(&cmd.obj_id, id, sizeof(*id));
 
 	err = con_send(con, &cmd, sizeof(cmd));
@@ -221,48 +221,6 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
 	}
 	
 	*recv_size = cmd.data_size;
-out:
-	return err;
-}
-
-int ds_create_object(struct ds_con *con, struct ds_obj_id *id, u64 obj_size)
-{
-	struct ds_net_cmd cmd, reply;
-	int err;
-
-	net_cmd_init(&cmd);
-	cmd.obj_size = obj_size;
-	cmd.cmd = DS_NET_CMD_OBJ_CREATE;	
-	memcpy(&cmd.obj_id, id, sizeof(*id));
-
-	err = con_send(con, &cmd, sizeof(cmd));
-	if (err) {
-		CLOG(CL_ERR, "con_send err %d", err);
-		goto out;
-	}
-
-	err = con_recv(con, &reply, sizeof(reply));
-	if (err) {
-		CLOG(CL_ERR, "con_recv err %d", err);
-		goto out;
-	}
-
-        if ((err = net_cmd_check_sign(&reply))) {
-                CLOG(CL_ERR, "reply invalid sign err %d", err);
-                goto out;
-        }
-
-        if ((err = net_cmd_check_unique(&reply, cmd.unique))) {
-                CLOG(CL_ERR, "reply invalid unique %lld vs %lld err %d",
-			err, reply.unique, cmd.unique);
-                goto out;
-        }
-
-
-	err = cmd.err;
-	if (err) {
-		CLOG(CL_ERR, "obj create err %d", err);
-	}
 out:
 	return err;
 }
