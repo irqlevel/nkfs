@@ -7,10 +7,12 @@ all:
 	mkdir obj
 	mkdir lib
 	cd crt; make
-	cd clients; make
-	cd driver; make
+	cd client; make
+	cd ctl;	make
+	cd kmod; make
 clean:
 	cd crt; make clean
-	cd clients; make clean
-	cd driver; make clean
+	cd client; make clean
+	cd ctl; make clean
+	cd kmod; make clean
 	rm -rf bin/ obj/ lib/ *.log
