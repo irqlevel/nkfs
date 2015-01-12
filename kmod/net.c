@@ -87,27 +87,31 @@ static int ds_server_thread_routine(void *data)
 	struct socket *con_sock = NULL;
 	struct ds_con *con = NULL;
 	int err = 0;
-	u32 listen_attempts = 10;
+	u32 listen_attempts = 3;
 
 	if (server->thread != current)
 		BUG_ON(1);
 
 	while (!kthread_should_stop()) {
 		if (!server->sock) {
+			KLOG(KL_INF, "start listen on ip %x port %d",
+				server->ip, server->port);
 			err = ksock_listen(&lsock, (server->ip) ? server->ip :
 				INADDR_ANY, server->port, 5);
-			if (err == EADDRINUSE && listen_attempts) {
-				KLOG(KL_ERR, "csock_listen err=%d", err);
+			if (err == -EADDRINUSE && listen_attempts) {
+				KLOG(KL_WRN, "csock_listen err=%d", err);
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
 				if (listen_attempts > 0)
 					listen_attempts--;
 				continue;
 			} else if (!err) {
-				KLOG(KL_INF, "listen done at port=%d",
-						server->port);
+				KLOG(KL_INF, "listen done ip %x port %d",
+						server->ip, server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
 				mutex_unlock(&server->lock);
+			} else {
+				KLOG(KL_ERR, "csock_listen err=%d", err);	
 			}
 			server->err = err;
 			complete(&server->comp);
@@ -183,7 +187,7 @@ static void ds_server_do_stop(struct ds_server *server)
 
 	kthread_stop(server->thread);
 	put_task_struct(server->thread);
-	KLOG(KL_INF, "stopped server on ip %u port %d",
+	KLOG(KL_INF, "stopped server on ip %x port %d",
 		server->ip, server->port);
 }
 
@@ -230,7 +234,7 @@ int ds_server_start(u32 ip, int port)
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port && server->ip == ip) {
-			KLOG(KL_INF, "server for ip %u port %d already exists",
+			KLOG(KL_INF, "server for ip %x port %d already exists",
 				ip, port);
 			err = -EEXIST;
 			mutex_unlock(&srv_list_lock);
@@ -239,7 +243,7 @@ int ds_server_start(u32 ip, int port)
 	}
 	server = ds_server_create_start(ip, port);
 	if (server && !server->err) {
-		KLOG(KL_INF, "started server on ip %u port %d",
+		KLOG(KL_INF, "started server on ip %x port %d",
 			ip, port);
 		list_add_tail(&server->srv_list, &srv_list);
 		err = 0;

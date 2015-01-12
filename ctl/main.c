@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     	if (strncmp(argv[1], SERVER_START_OPT, strlen(SERVER_START_OPT) + 1) == 0) {
 		int port = -1;
 		struct in_addr addr;	
+		u32 ip;
 	
 		if (argc != 4) {
 			usage();
@@ -54,22 +55,24 @@ int main(int argc, char *argv[])
 			err = -EINVAL;
 			goto out;
 		}
-
+		ip = ntohl(addr.s_addr);
 		port = strtol(argv[3], NULL, 10);
 		if (port <= 0 || port > 64000) {
 			printf("port %d invalid\n", port);
 			err = -EINVAL;
 			goto out;
 		}
-
-		printf("starting server port=%d\n", port);
-		err = ds_server_start(addr.s_addr, port);
+		
+		printf("starting server ip %x port %d\n", ip, port);
+		err = ds_server_start(ip, port);
 		if (!err)
 			printf("started server with port=%d\n", port);
 		goto out;
     	} else if (strncmp(argv[1], SERVER_STOP_OPT, strlen(SERVER_STOP_OPT) + 1) == 0) {
 		int port = -1;
 		struct in_addr addr;	
+		u32 ip;
+
 		if (argc != 4) {
 			usage();
 			err = -EINVAL;
@@ -80,7 +83,8 @@ int main(int argc, char *argv[])
 			err = -EINVAL;
 			goto out;
 		}
-
+		ip = ntohl(addr.s_addr);
+	
 		port = strtol(argv[3], NULL, 10);
 		if (port <= 0 || port > 64000) {
 			printf("port %d invalid\n", port);
@@ -88,8 +92,8 @@ int main(int argc, char *argv[])
 			goto out;
 		}
 
-		printf("stopping server port=%d\n", port);
-		err = ds_server_stop(addr.s_addr, port);
+		printf("stopping server ip %x port %d\n", ip, port);
+		err = ds_server_stop(ip, port);
 		if (!err)
 			printf("stopped server port=%d\n", port);
 		goto out;	
