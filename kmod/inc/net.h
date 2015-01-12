@@ -10,6 +10,8 @@ struct ds_server {
 	u32			ip;
 	int			port;
 	int			stopping;
+	int			err;
+	struct completion	comp;
 };
 
 struct ds_con {

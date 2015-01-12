@@ -87,6 +87,7 @@ static int ds_server_thread_routine(void *data)
 	struct socket *con_sock = NULL;
 	struct ds_con *con = NULL;
 	int err = 0;
+	u32 listen_attempts = 10;
 
 	if (server->thread != current)
 		BUG_ON(1);
@@ -95,17 +96,23 @@ static int ds_server_thread_routine(void *data)
 		if (!server->sock) {
 			err = ksock_listen(&lsock, (server->ip) ? server->ip :
 				INADDR_ANY, server->port, 5);
-			if (err) {
+			if (err == EADDRINUSE && listen_attempts) {
 				KLOG(KL_ERR, "csock_listen err=%d", err);
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
+				if (listen_attempts > 0)
+					listen_attempts--;
 				continue;
-			} else {
-				KLOG(KL_ERR, "listen done at port=%d",
+			} else if (!err) {
+				KLOG(KL_INF, "listen done at port=%d",
 						server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
 				mutex_unlock(&server->lock);
 			}
+			server->err = err;
+			complete(&server->comp);
+			if (err)
+				break;
 		}
 
 		if (server->sock && !server->stopping) {
@@ -161,6 +168,25 @@ static int ds_server_thread_routine(void *data)
 	return 0;
 }
 
+static void ds_server_do_stop(struct ds_server *server)
+{
+	if (server->stopping) {
+		KLOG(KL_ERR, "server %p %u-%d already stopping",
+			server, server->ip, server->port);
+		return;
+	}
+
+	server->stopping = 1;
+	if (server->sock) {
+		ksock_abort_accept(server->sock);
+	}
+
+	kthread_stop(server->thread);
+	put_task_struct(server->thread);
+	KLOG(KL_INF, "stopped server on ip %u port %d",
+		server->ip, server->port);
+}
+
 struct ds_server *ds_server_create_start(u32 ip, int port)
 {
 	char thread_name[10];
@@ -178,6 +204,7 @@ struct ds_server *ds_server_create_start(u32 ip, int port)
 	mutex_init(&server->con_list_lock);
 	server->port = port;
 	server->ip = ip;
+	init_completion(&server->comp);
 
 	snprintf(thread_name, sizeof(thread_name), "%s-%d", "ds_srv", port);
 	server->thread = kthread_create(ds_server_thread_routine, server, thread_name);
@@ -190,6 +217,7 @@ struct ds_server *ds_server_create_start(u32 ip, int port)
 	}
 	get_task_struct(server->thread);
 	wake_up_process(server->thread);
+	wait_for_completion(&server->comp);
 	
 	return server;
 }
@@ -210,35 +238,21 @@ int ds_server_start(u32 ip, int port)
 		}
 	}
 	server = ds_server_create_start(ip, port);
-	if (server) {
+	if (server && !server->err) {
 		KLOG(KL_INF, "started server on ip %u port %d",
 			ip, port);
 		list_add_tail(&server->srv_list, &srv_list);
 		err = 0;
-	} else
-		err = -ENOMEM;
+	} else {
+		err = (!server) ? -ENOMEM : server->err;
+		if (server) {
+			ds_server_do_stop(server);
+			kfree(server);
+		}
+	}
 	mutex_unlock(&srv_list_lock);
 
 	return err;
-}
-
-static void ds_server_do_stop(struct ds_server *server)
-{
-	if (server->stopping) {
-		KLOG(KL_ERR, "server %p %u-%d already stopping",
-			server, server->ip, server->port);
-		return;
-	}
-
-	server->stopping = 1;
-	if (server->sock) {
-		ksock_abort_accept(server->sock);
-	}
-
-	kthread_stop(server->thread);
-	put_task_struct(server->thread);
-	KLOG(KL_INF, "stopped server on ip %u port %d",
-		server->ip, server->port);
 }
 
 int ds_server_stop(u32 ip, int port)
