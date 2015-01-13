@@ -31,37 +31,23 @@ struct ds_ctl {
 			int port;
 		} server_stop;
 		struct {
-			struct ds_obj_id	sb_id;
-			struct ds_obj_id	obj_id;
-			u64			value;
-			int			replace;			
-		} obj_insert;
-		struct {
-			struct ds_obj_id	sb_id;
-			struct ds_obj_id	obj_id;
-		} obj_delete;
-		struct {
-			struct ds_obj_id	sb_id;
-			struct ds_obj_id	obj_id;
-			u64			value;
-		} obj_find;
-		struct {
-			struct ds_obj_id	sb_id;
-		} obj_tree_check;
-		struct {
-			struct ds_obj_id	sb_id;
 			struct ds_obj_id	obj_id;	
 			void			*buf;
 			u64			off;
 			u32			len;
-		} obj_read;
+		} put_obj;
 		struct {
-			struct ds_obj_id	sb_id;
 			struct ds_obj_id	obj_id;
 			void			*buf;
 			u64			off;
 			u32			len;
-		} obj_write;
+		} get_obj;
+		struct {
+			struct ds_obj_id	obj_id;
+		} create_obj;
+		struct {
+			struct ds_obj_id	obj_id;
+		} delete_obj;
 	} u;
 };
 
@@ -76,6 +62,8 @@ struct ds_ctl {
 
 #define IOCTL_DS_OBJ_TREE_CHECK	_IOWR(DS_IOC_MAGIC, 6, struct ds_cmd *)
 
-#define IOCTL_DS_OBJ_READ 	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
-#define IOCTL_DS_OBJ_WRITE	_IOWR(DS_IOC_MAGIC, 8, struct ds_cmd *)
-#define IOCTL_DS_OBJ_DELETE	_IOWR(DS_IOC_MAGIC, 9, struct ds_cmd *)
+#define IOCTL_DS_PUT_OBJ 	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
+#define IOCTL_DS_GET_OBJ	_IOWR(DS_IOC_MAGIC, 8, struct ds_cmd *)
+#define IOCTL_DS_DELETE_OBJ	_IOWR(DS_IOC_MAGIC, 9, struct ds_cmd *)
+#define IOCTL_DS_CREATE_OBJ	_IOWR(DS_IOC_MAGIC, 10, struct ds_cmd *)
+

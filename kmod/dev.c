@@ -33,7 +33,7 @@ void ds_dev_deref(struct ds_dev *dev)
 static int ds_dev_insert(struct ds_dev *cand)
 {
 	struct ds_dev *dev;
-	int err;
+	int err = 0;
 
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry(dev, &dev_list, dev_list) {
@@ -43,8 +43,8 @@ static int ds_dev_insert(struct ds_dev *cand)
 			break;
 		}
 	}
-	list_add_tail(&cand->dev_list, &dev_list);
-	err = 0;
+	if (!err)
+		list_add_tail(&cand->dev_list, &dev_list);
 	mutex_unlock(&dev_list_lock);
 	return err;
 }

@@ -11,7 +11,7 @@
 #define DEV_QUERY_OPT "--dev_query"
 #define DEV_FORMAT_OPT "--format"
 
-#define DEV_OBJ_TEST_OPT "--dev_obj_test"
+#define OBJ_TEST_OPT "--obj_test"
 
 static void usage(void)
 {
@@ -150,21 +150,14 @@ int main(int argc, char *argv[])
 	
 		}
 		goto out;
-	} else if (strncmp(argv[1], DEV_OBJ_TEST_OPT, strlen(DEV_OBJ_TEST_OPT) + 1) == 0) {
-		const char *dev_name = NULL;
-		if (argc != 3) {
+	} else if (strncmp(argv[1], OBJ_TEST_OPT, strlen(OBJ_TEST_OPT) + 1) == 0) {
+		if (argc != 2) {
 			usage();
 			err = -EINVAL;
 			goto out;
 		}
-		dev_name = argv[2];
-		printf("obj test dev=%s\n", dev_name);
-		err = ds_sb_obj_test(dev_name, 30, 1, 1000);
-		if (!err) {
-			printf("obj test dev=%s PASSED\n", dev_name);	
-		} else {
-			printf("obj test dev=%s FAILED err %d\n", dev_name, err);		
-		}
+		err = ds_obj_test(10, 1, 1000);
+		printf("obj test err %d\n", err);
 		goto out;
 	} else {
 		usage();

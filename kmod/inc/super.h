@@ -20,6 +20,12 @@ struct ds_sb {
 	u64			obj_tree_block;
 	u64			used_blocks;
 	u32			bsize;
+	int			stopping;
+};
+
+struct ds_sb_link {
+	struct list_head 	list;
+	struct ds_sb		*sb;
 };
 
 _Static_assert(sizeof(struct ds_obj_id) == sizeof(struct btree_key),
@@ -36,15 +42,14 @@ int ds_sb_insert(struct ds_sb *sb);
 int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb);
 int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb);
 
+int ds_sb_list_create_obj(struct ds_obj_id *pobj_id);
+int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
+	struct page **pages, int nr_pages);
 
-int ds_sb_read_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, struct page **pages, int nr_pages);
+int ds_sb_list_put_obj(struct ds_obj_id *obj_id, u64 off,
+	struct page **pages, int nr_pages);
 
-int ds_sb_write_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, struct page **pages, int nr_pages);
-
-int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id);
-int ds_sb_check_obj_tree(struct ds_sb *sb);
+int ds_sb_list_delete_obj(struct ds_obj_id *obj_id);
 
 int ds_sb_init(void);
 void ds_sb_finit(void);

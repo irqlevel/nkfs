@@ -20,68 +20,60 @@ static int ds_mod_put(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ds_ioctl_obj_read(struct ds_ctl *cmd)
+static int ds_ioctl_put_obj(struct ds_ctl *cmd)
 {
-	struct ds_sb *sb;
 	struct ds_user_pages up;
 	int err;
 
-	sb = ds_sb_lookup(&cmd->u.obj_read.sb_id);
-	if (!sb) {
-		err = -EINVAL;
+	err = ds_get_user_pages((unsigned long)cmd->u.put_obj.buf,
+				cmd->u.put_obj.len, 0, &up);
+	if (err) {
+		KLOG(KL_ERR, "cant get user pages at %p %d",
+			cmd->u.put_obj.buf, cmd->u.put_obj.len);
 		goto out;
 	}
 
-	err = ds_get_user_pages((unsigned long)cmd->u.obj_read.buf,
-				cmd->u.obj_read.len, 1, &up);
-	if (err) {
-		KLOG(KL_ERR, "cant get user pages at %p %d",
-			cmd->u.obj_read.buf, cmd->u.obj_read.len);
-		goto sb_deref;
-	}
-
-	err = ds_sb_read_obj(sb, &cmd->u.obj_read.obj_id,
-		cmd->u.obj_read.off,
+	err = ds_sb_list_put_obj(&cmd->u.put_obj.obj_id,
+		cmd->u.put_obj.off,
 		up.pages,
 		up.nr_pages);
 
 	ds_release_user_pages(&up);
-sb_deref:
-	ds_sb_deref(sb);
 out:
 	return err;
 }
 
-static int ds_ioctl_obj_write(struct ds_ctl *cmd)
+static int ds_ioctl_get_obj(struct ds_ctl *cmd)
 {
-	struct ds_sb *sb;
 	struct ds_user_pages up;
 	int err;
 
-	sb = ds_sb_lookup(&cmd->u.obj_write.sb_id);
-	if (!sb) {
-		err = -EINVAL;
+	err = ds_get_user_pages((unsigned long)cmd->u.get_obj.buf,
+				cmd->u.get_obj.len, 1, &up);
+	if (err) {
+		KLOG(KL_ERR, "cant get user pages at %p %d",
+			cmd->u.get_obj.buf, cmd->u.get_obj.len);
 		goto out;
 	}
 
-	err = ds_get_user_pages((unsigned long)cmd->u.obj_write.buf,
-				cmd->u.obj_write.len, 0, &up);
-	if (err) {
-		KLOG(KL_ERR, "cant get user pages at %p %d",
-			cmd->u.obj_write.buf, cmd->u.obj_write.len);
-		goto sb_deref;
-	}
-
-	err = ds_sb_write_obj(sb, &cmd->u.obj_write.obj_id,
-		cmd->u.obj_write.off,
+	err = ds_sb_list_get_obj(&cmd->u.get_obj.obj_id,
+		cmd->u.get_obj.off,
 		up.pages,
 		up.nr_pages);
 
 	ds_release_user_pages(&up);
-sb_deref:
-	ds_sb_deref(sb);
 out:
 	return err;
+}
+
+static int ds_ioctl_delete_obj(struct ds_ctl *cmd)
+{
+	return ds_sb_list_delete_obj(&cmd->u.delete_obj.obj_id);
+}
+
+static int ds_ioctl_create_obj(struct ds_ctl *cmd)
+{
+	return ds_sb_list_create_obj(&cmd->u.create_obj.obj_id);
 }
 
 static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
@@ -130,22 +122,17 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			err = ds_server_stop(cmd->u.server_stop.ip,
 				cmd->u.server_stop.port);
 			break;
-		case IOCTL_DS_OBJ_TREE_CHECK:{
-				struct ds_sb *sb;
-				sb = ds_sb_lookup(&cmd->u.obj_tree_check.sb_id);
-				if (sb) {
-					err = ds_sb_check_obj_tree(sb);
-					ds_sb_deref(sb);
-				} else {
-					err = -EINVAL;
-				}
-			}
+		case IOCTL_DS_PUT_OBJ:
+			err = ds_ioctl_put_obj(cmd);	
 			break;
-		case IOCTL_DS_OBJ_READ:
-			err = ds_ioctl_obj_read(cmd);	
+		case IOCTL_DS_GET_OBJ:
+			err = ds_ioctl_get_obj(cmd);
 			break;
-		case IOCTL_DS_OBJ_WRITE:
-			err = ds_ioctl_obj_write(cmd);
+		case IOCTL_DS_DELETE_OBJ:
+			err = ds_ioctl_delete_obj(cmd);
+			break;
+		case IOCTL_DS_CREATE_OBJ:
+			err = ds_ioctl_create_obj(cmd);
 			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);

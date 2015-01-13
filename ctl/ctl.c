@@ -100,8 +100,7 @@ out:
 	return err;
 }
 
-int ds_obj_write(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-		u64 off, void *buf, u32 len)
+int ds_get_obj(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -112,13 +111,12 @@ int ds_obj_write(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_write.sb_id, sb_id, sizeof(*sb_id));
-	memcpy(&cmd.u.obj_write.obj_id, obj_id, sizeof(*obj_id));
-	cmd.u.obj_write.buf = buf;
-	cmd.u.obj_write.len = len;
-	cmd.u.obj_write.off = off;
+	ds_obj_id_copy(&cmd.u.get_obj.obj_id, obj_id);
+	cmd.u.get_obj.buf = buf;
+	cmd.u.get_obj.len = len;
+	cmd.u.get_obj.off = off;
 
-	err = ioctl(fd, IOCTL_DS_OBJ_WRITE, &cmd);
+	err = ioctl(fd, IOCTL_DS_GET_OBJ, &cmd);
 	if (err)
 		goto out;
 
@@ -131,8 +129,7 @@ out:
 	return err;
 }
 
-int ds_obj_read(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
-		u64 off, void *buf, u32 len)
+int ds_put_obj(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -143,13 +140,12 @@ int ds_obj_read(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id,
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_read.sb_id, sb_id, sizeof(*sb_id));
-	memcpy(&cmd.u.obj_read.obj_id, obj_id, sizeof(*obj_id));
-	cmd.u.obj_read.buf = buf;
-	cmd.u.obj_read.len = len;
-	cmd.u.obj_read.off = off;
+	ds_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
+	cmd.u.put_obj.buf = buf;
+	cmd.u.put_obj.len = len;
+	cmd.u.put_obj.off = off;
 
-	err = ioctl(fd, IOCTL_DS_OBJ_READ, &cmd);
+	err = ioctl(fd, IOCTL_DS_PUT_OBJ, &cmd);
 	if (err)
 		goto out;
 
@@ -162,7 +158,7 @@ out:
 	return err;
 }
 
-int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id)
+int ds_delete_obj(struct ds_obj_id *obj_id)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -173,10 +169,9 @@ int ds_obj_delete(struct ds_obj_id *sb_id, struct ds_obj_id *obj_id)
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_delete.sb_id, sb_id, sizeof(*sb_id));
-	memcpy(&cmd.u.obj_delete.obj_id, obj_id, sizeof(*obj_id));
+	ds_obj_id_copy(&cmd.u.delete_obj.obj_id, obj_id);
 
-	err = ioctl(fd, IOCTL_DS_OBJ_DELETE, &cmd);
+	err = ioctl(fd, IOCTL_DS_DELETE_OBJ, &cmd);
 	if (err)
 		goto out;
 
@@ -189,7 +184,7 @@ out:
 	return err;
 }
 
-int ds_obj_tree_check(struct ds_obj_id *sb_id)
+int ds_create_obj(struct ds_obj_id *pobj_id)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -200,8 +195,7 @@ int ds_obj_tree_check(struct ds_obj_id *sb_id)
 		return err;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.u.obj_tree_check.sb_id, sb_id, sizeof(*sb_id));
-	err = ioctl(fd, IOCTL_DS_OBJ_TREE_CHECK, &cmd);
+	err = ioctl(fd, IOCTL_DS_CREATE_OBJ, &cmd);
 	if (err)
 		goto out;
 
@@ -209,11 +203,12 @@ int ds_obj_tree_check(struct ds_obj_id *sb_id)
 	if (err)
 		goto out;
 
+	ds_obj_id_copy(pobj_id, &cmd.u.create_obj.obj_id);
+
 out:
 	close(fd);
 	return err;
 }
-
 
 int ds_server_stop(u32 ip, int port)
 {

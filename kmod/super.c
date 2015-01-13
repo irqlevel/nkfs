@@ -2,7 +2,7 @@
 
 #define __SUBCOMPONENT__ "super"
 
-static DEFINE_RWLOCK(sb_list_lock);
+static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);
 
 static struct kmem_cache *ds_sb_cachep;
@@ -29,9 +29,10 @@ void ds_sb_stop(struct ds_sb *sb)
 	KLOG(KL_DBG, "sb %p dev %s stopping",
 			sb, sb->dev->dev_name);
 
-	write_lock(&sb_list_lock);
+	sb->stopping = 1;
+	down_write(&sb_list_lock);
 	list_del_init(&sb->list);
-	write_unlock(&sb_list_lock);
+	up_write(&sb_list_lock);
 
 	if (sb->obj_tree)
 		btree_stop(sb->obj_tree);
@@ -58,7 +59,7 @@ struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
 {
 	struct ds_sb *sb, *found = NULL;
 
-	read_lock(&sb_list_lock);
+	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		if (0 == ds_obj_id_cmp(&sb->id, id)) {
 			ds_sb_ref(sb);
@@ -66,25 +67,128 @@ struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
 			break;
 		}	
 	}
-	read_unlock(&sb_list_lock);
+	up_read(&sb_list_lock);
 	return found;
+}
+
+static u64 ds_sb_free_blocks(struct ds_sb *sb)
+{
+	BUG_ON(sb->nr_blocks < sb->used_blocks);
+	return sb->nr_blocks - sb->used_blocks;	
+}
+
+static struct ds_sb *ds_sb_select_most_free(void)
+{
+	struct ds_sb *sb, *found = NULL;
+	u64 max_free_blocks = 0;
+
+	down_read(&sb_list_lock);
+	list_for_each_entry(sb, &sb_list, list) {
+		u32 free_blocks = ds_sb_free_blocks(sb);
+		if (free_blocks >= max_free_blocks) {
+			found = sb;
+			max_free_blocks = free_blocks;
+		}
+	}
+
+	if (found)
+		ds_sb_ref(found);
+
+	up_read(&sb_list_lock);
+	return found;
+}
+
+static void ds_sb_list_release(struct list_head *phead)
+{
+	struct ds_sb_link *curr, *tmp;
+
+	list_for_each_entry_safe(curr, tmp, phead, list) {
+		list_del_init(&curr->list);
+		ds_sb_deref(curr->sb);
+		kfree(curr);
+	}
+}
+
+static u64 ds_sb_list_count(struct list_head *phead)
+{
+	struct ds_sb_link *curr;
+	u64 count;
+
+	count = 0;
+	list_for_each_entry(curr, phead, list) {
+		count++;		
+	}
+	return count;
+}
+
+static struct ds_sb *ds_sb_list_first(struct list_head *phead)
+{
+	return (list_empty(phead)) ? NULL : list_first_entry(phead,
+		struct ds_sb_link, list)->sb;	
+}
+
+static struct ds_sb_link *ds_sb_link_create(struct ds_sb *sb)
+{
+	struct ds_sb_link *link;
+	link = kmalloc(sizeof(*link), GFP_NOIO);
+	if (!link)
+		return NULL;
+	ds_sb_ref(sb);
+	link->sb = sb;
+	return link;
+}
+
+static int ds_sb_list_by_obj(struct ds_obj_id *obj_id,
+	struct list_head *phead)
+{
+	u64 block;
+	int err;
+	struct ds_sb *sb;
+	struct ds_sb_link *link;
+
+	INIT_LIST_HEAD(phead);
+
+	down_read(&sb_list_lock);
+	list_for_each_entry(sb, &sb_list, list) {
+		err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id,
+				&block);
+		if (err)
+			continue;
+		link = ds_sb_link_create(sb);
+		if (!link) {
+			KLOG(KL_ERR, "no memory");
+			err = -ENOMEM;
+			goto unlock;
+		}
+		list_add_tail(&link->list, phead);
+	}
+	err = 0;
+
+unlock:
+	up_read(&sb_list_lock);
+	if (err) {
+		ds_sb_list_release(phead);
+		INIT_LIST_HEAD(phead);
+	}
+
+	return err;
 }
 
 int ds_sb_insert(struct ds_sb *cand)
 {
 	struct ds_sb *sb;
-	int err;
+	int err = 0;
 
-	write_lock(&sb_list_lock);
+	down_write(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		if (0 == ds_obj_id_cmp(&sb->id, &cand->id)) {
 			err = -EEXIST;
 			break;
 		}
 	}
-	list_add_tail(&cand->list, &sb_list);
-	err = 0;
-	write_unlock(&sb_list_lock);
+	if (!err)
+		list_add_tail(&cand->list, &sb_list);
+	up_write(&sb_list_lock);
 	return err;
 }
 
@@ -451,13 +555,16 @@ void ds_sb_finit(void)
 	kmem_cache_destroy(ds_sb_cachep);
 }
 
-int ds_sb_read_obj(struct ds_sb *sb, 
+static int ds_sb_get_obj(struct ds_sb *sb, 
 	struct ds_obj_id *id, u64 off, struct page **pages,
 	int nr_pages)
 {
 	struct ds_inode *inode;
 	u64 iblock;
 	int err;
+
+	if (sb->stopping)
+		return -EAGAIN;
 
 	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
 	if (err) {
@@ -490,44 +597,60 @@ cleanup:
 	return err;
 }
 
-int ds_sb_write_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, struct page **pages, int nr_pages)
+static int ds_sb_create_obj(struct ds_sb *sb,
+	struct ds_obj_id *pobj_id)
 {
-	struct ds_inode *inode = NULL;
+	struct ds_obj_id obj_id;
+	struct ds_inode *inode;
+	int err;
+
+	if (sb->stopping)
+		return -EAGAIN;
+
+	ds_obj_id_gen(&obj_id);
+	inode = ds_inode_create(sb, &obj_id); 
+	if (!inode) {
+		KLOG(KL_ERR, "no memory");
+		return -ENOMEM;
+	}
+
+	err = btree_insert_key(sb->obj_tree, (struct btree_key *)&inode->ino,
+			inode->block, 0);
+	if (err) {
+		KLOG(KL_ERR, "cant insert ino in obj_tree err %d",
+				err);
+		ds_inode_delete(inode);
+		goto out;
+	}
+
+	ds_obj_id_copy(pobj_id, &obj_id);
+	err = 0;
+out:
+	INODE_DEREF(inode);
+	return err;	
+}
+
+static int ds_sb_put_obj(struct ds_sb *sb, 
+	struct ds_obj_id *obj_id, u64 off, struct page **pages, int nr_pages)
+{
+	struct ds_inode *inode;
 	u64 iblock;
 	int err;
 
-	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
-	if (err) {
-		if (off != 0)
-			return err;
+	if (sb->stopping)
+		return -EAGAIN;
 
-		inode = ds_inode_create(sb, id); 
-		if (!inode) {
-			KLOG(KL_ERR, "no memory");
-			return -ENOMEM;
-		}
+	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	if (err)
+		return err;
 
-		err = btree_insert_key(sb->obj_tree, (struct btree_key *)&inode->ino,
-					inode->block, 0);
-		if (err) {
-			KLOG(KL_ERR, "cant insert ino in obj_tree err %d",
-				err);
-			ds_inode_delete(inode);
-			INODE_DEREF(inode);
-			return -EAGAIN;	
-		}
-	}
-
+	inode = ds_inode_read(sb, iblock);
 	if (!inode) {
-		inode = ds_inode_read(sb, iblock);
-		if (!inode) {
-			KLOG(KL_ERR, "cant read inode at %llu",
-				iblock);
-			return -EIO;		
-		}
-		BUG_ON(inode->block != iblock);
+		KLOG(KL_ERR, "cant read inode at %llu",
+			iblock);
+		return -EIO;		
 	}
+	BUG_ON(inode->block != iblock);
 
 	err = ds_inode_io_pages(inode, off, pages, nr_pages, 1);
 	if (err) {
@@ -539,7 +662,7 @@ int ds_sb_write_obj(struct ds_sb *sb,
 	return err;
 }
 
-int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
+static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 {
 	int err;
 	u64 iblock;
@@ -547,6 +670,9 @@ int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 
 	BUG_ON(!sb->obj_tree);
 	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	
+	if (sb->stopping)
+		return -EAGAIN;
 
 	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
 	if (err)
@@ -564,9 +690,92 @@ int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 	return err;
 }
 
-int ds_sb_check_obj_tree(struct ds_sb *sb)
+int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
+	struct page **pages, int nr_pages)
 {
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
-	return btree_check(sb->obj_tree);
+	struct list_head list;
+	int err;
+	struct ds_sb *sb;
+
+	err = ds_sb_list_by_obj(obj_id, &list);
+	if (err)
+		return err;
+
+	BUG_ON(ds_sb_list_count(&list) > 1);
+	sb = ds_sb_list_first(&list);
+	if (!sb) {
+		err = -ENOENT;
+		goto cleanup;
+	}
+
+	err = ds_sb_get_obj(sb, obj_id, off, pages, nr_pages);
+
+cleanup:
+	ds_sb_list_release(&list);
+	return err;
+}
+
+int ds_sb_list_put_obj(struct ds_obj_id *obj_id, u64 off,
+	struct page **pages, int nr_pages)
+{
+	struct list_head list;
+	int err;
+	struct ds_sb *sb;
+
+	err = ds_sb_list_by_obj(obj_id, &list);
+	if (err)
+		return err;
+
+	BUG_ON(ds_sb_list_count(&list) > 1);
+	sb = ds_sb_list_first(&list);
+	if (!sb) {
+		err = -ENOENT;
+		goto cleanup;
+	}
+
+	err = ds_sb_put_obj(sb, obj_id, off, pages, nr_pages);
+
+cleanup:
+	ds_sb_list_release(&list);
+	return err;
+}
+
+int ds_sb_list_delete_obj(struct ds_obj_id *obj_id)
+{
+	struct list_head list;
+	int err;
+	struct ds_sb *sb;
+
+	err = ds_sb_list_by_obj(obj_id, &list);
+	if (err)
+		return err;
+
+	BUG_ON(ds_sb_list_count(&list) > 1);
+	sb = ds_sb_list_first(&list);
+	if (!sb) {
+		err = -ENOENT;
+		goto cleanup;
+	}
+
+	err = ds_sb_delete_obj(sb, obj_id);
+
+cleanup:
+	ds_sb_list_release(&list);
+	return err;
+
+}
+
+int ds_sb_list_create_obj(struct ds_obj_id *pobj_id)
+{
+	struct ds_sb *sb;
+	int err;
+
+	sb = ds_sb_select_most_free();
+	if (!sb) {
+		return -ENOENT;
+	}
+
+	err = ds_sb_create_obj(sb, pobj_id);
+	ds_sb_deref(sb);
+	return err;
 }
