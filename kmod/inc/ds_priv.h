@@ -31,6 +31,7 @@
 #include <linux/rbtree.h>
 #include <linux/completion.h>
 #include <net/sock.h>
+#include <asm/ioctls.h>
 
 #include <include/ds_ctl.h>
 #include <include/ds_obj_id.h>

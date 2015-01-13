@@ -111,28 +111,33 @@ static int ds_con_thread_routine(void *data)
 		err = ksock_read(con->sock, pkt, sizeof(*pkt), &read);
 		if (err) {
 			KLOG(KL_ERR, "socket read err %d", err);
-			break;
+			crt_free(pkt);
+			goto stop;
 		}
 		
 		if (read != sizeof(*pkt)) {
 			err = -EIO;
 			KLOG(KL_ERR, "read err %d read %u", err, read);
-			goto drop_pkt;
+			crt_free(pkt);
+			goto stop;
 		}
 
 		if ((err = net_pkt_check(pkt))) {
 			KLOG(KL_ERR, "pkt check err %d", err);
-			goto drop_pkt;
+			crt_free(pkt);
+			goto stop;
 		}
 
 		err = ds_con_process_pkt(con, pkt);
 		if (err) {
-			KLOG(KL_ERR, "process pkt err %d", err);
+			KLOG(KL_ERR, "reply pkt err %d", err);
+			crt_free(pkt);
+			goto stop;
 		}
-drop_pkt:
+
 		crt_free(pkt);
 	}
-
+stop:
 	KLOG_SOCK(con->sock, "con stopping");
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);

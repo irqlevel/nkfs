@@ -112,7 +112,7 @@ int ds_connect(struct ds_con *con, char *ip, int port)
 		goto out;
 	}
 
-	err = 0;
+	return 0;
 out:
 	close(con->sock);
 	return err;

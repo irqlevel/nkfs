@@ -34,3 +34,5 @@ int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 int ksock_accept(struct socket **newsockp, struct socket *sock);
 
 void ksock_abort_accept(struct socket *sock);
+
+int ksock_ioctl(struct socket *sock, int cmd, unsigned long arg);
