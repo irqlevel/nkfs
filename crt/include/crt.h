@@ -20,7 +20,7 @@ void crt_log(int level, const char *file, int line,
 #include <crt/include/error.h>
 #include <crt/include/sha256.h>
 #include <crt/include/clog.h>
-#include <crt/include/net_cmd.h>
+#include <crt/include/net_pkt.h>
 #include <crt/include/random.h>
 
 #ifdef __KERNEL__

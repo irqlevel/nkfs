@@ -118,17 +118,23 @@ out:
 	return err;
 }
 
-int ds_send_object(struct ds_con *con, struct ds_obj_id *id,
+int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
 		u64 off, void *data, u32 data_size)
 {
-	struct ds_net_cmd cmd, reply;
+	struct ds_net_pkt cmd, reply;
+	struct sha256_sum sum;
 	int err;
 
-	net_cmd_init(&cmd);
-	cmd.data_size = data_size;
-	cmd.off = off;
-	cmd.cmd = DS_NET_CMD_OBJ_SEND;
-	memcpy(&cmd.obj_id, id, sizeof(*id));
+	net_pkt_zero(&cmd);
+	cmd.dsize = data_size;
+	cmd.u.obj_put.off = off;
+	cmd.type = DS_NET_PKT_OBJ_PUT;
+	ds_obj_id_copy(&cmd.u.obj_put.obj_id, obj_id);
+	
+	sha256(data, data_size, &sum, 0);
+	memcpy(&cmd.dsum, &sum, sizeof(sum));
+
+	net_pkt_sign(&cmd);
 
 	err = con_send(con, &cmd, sizeof(cmd));
 	if (err) {
@@ -148,14 +154,8 @@ int ds_send_object(struct ds_con *con, struct ds_obj_id *id,
 		goto out;
 	}
 
-        if ((err = net_cmd_check_sign(&reply))) {
+        if ((err = net_pkt_check(&reply))) {
                 CLOG(CL_ERR, "reply invalid sign err %d", err);
-                goto out;
-        }
-
-        if ((err = net_cmd_check_unique(&reply, cmd.unique))) {
-                CLOG(CL_ERR, "reply invalid unique %lld vs %lld err %d",
-			err, reply.unique, cmd.unique);
                 goto out;
         }
 
@@ -167,38 +167,35 @@ out:
 	return err;
 }
 
-int ds_recv_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
-		void *data, u32 data_size, u32 *recv_size)
+int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
+		u64 off, void *data, u32 data_size)
 {
-	struct ds_net_cmd cmd, reply;
+	struct ds_net_pkt cmd, reply;
+	struct sha256_sum dsum;
 	int err;
 
-	net_cmd_init(&cmd);
-	cmd.data_size = data_size;
-	cmd.off = off;
-	cmd.cmd = DS_NET_CMD_OBJ_RECV;
-	memcpy(&cmd.obj_id, id, sizeof(*id));
+	net_pkt_zero(&cmd);
+	cmd.dsize = data_size;
+	cmd.u.obj_get.off = off;
+	cmd.type = DS_NET_PKT_OBJ_GET;
+	ds_obj_id_copy(&cmd.u.obj_get.obj_id, obj_id);
+
+	net_pkt_sign(&cmd);
 
 	err = con_send(con, &cmd, sizeof(cmd));
 	if (err) {
-		CLOG(CL_ERR, "con_send err %d", err);
+		CLOG(CL_ERR, "send err %d", err);
 		goto out;
 	}
 
 	err = con_recv(con, &reply, sizeof(reply));
 	if (err) {
-		CLOG(CL_ERR, "con_recv err %d", err);
+		CLOG(CL_ERR, "recv err %d", err);
 		goto out;
 	}
 
-        if ((err = net_cmd_check_sign(&reply))) {
+        if ((err = net_pkt_check(&reply))) {
                 CLOG(CL_ERR, "reply invalid sign err %d", err);
-                goto out;
-        }
-
-        if ((err = net_cmd_check_unique(&reply, cmd.unique))) {
-                CLOG(CL_ERR, "reply invalid unique %lld vs %lld err %d",
-			err, reply.unique, cmd.unique);
                 goto out;
         }
 
@@ -208,31 +205,37 @@ int ds_recv_object(struct ds_con *con, struct ds_obj_id *id, u64 off,
 		goto out;
 	}
 
-	if (cmd.data_size > data_size) {
-		CLOG(CL_ERR, "recv data_size %d vs data_size %d",
-				cmd.data_size, data_size);
+	if (reply.dsize != cmd.dsize) {
+		CLOG(CL_ERR, "invalid size");
+		err = -EINVAL;
 		goto out;
 	}
-	
-	err = con_recv(con, data, cmd.data_size);
+
+	err = con_recv(con, data, cmd.dsize);
 	if (err) {
 		CLOG(CL_ERR, "obj get err %d", err);
 		goto out;
 	}
-	
-	*recv_size = cmd.data_size;
+
+	sha256(data, cmd.dsize, &dsum, 0);
+	if ((err = net_pkt_check_dsum(&reply, &dsum))) {
+		CLOG(CL_ERR, "obj inv dsum %d", err);
+		goto out;
+	}
 out:
 	return err;
 }
 
 int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 {
-	struct ds_net_cmd cmd, reply;
+	struct ds_net_pkt cmd, reply;
 	int err;
 
-	net_cmd_init(&cmd);
-	cmd.cmd = DS_NET_CMD_OBJ_DELETE;	
-	memcpy(&cmd.obj_id, id, sizeof(*id));
+	net_pkt_zero(&cmd);
+	cmd.type = DS_NET_PKT_OBJ_DELETE;
+	ds_obj_id_copy(&cmd.u.obj_delete.obj_id, id);
+
+	net_pkt_sign(&cmd);
 
 	err = con_send(con, &cmd, sizeof(cmd));
 	if (err) {
@@ -246,17 +249,10 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 		goto out;
 	}
 
-        if ((err = net_cmd_check_sign(&reply))) {
+        if ((err = net_pkt_check(&reply))) {
                 CLOG(CL_ERR, "reply invalid sign err %d", err);
                 goto out;
         }
-
-        if ((err = net_cmd_check_unique(&reply, cmd.unique))) {
-                CLOG(CL_ERR, "reply invalid unique %lld vs %lld err %d",
-			err, reply.unique, cmd.unique);
-                goto out;
-        }
-
 
 	err = cmd.err;
 	if (err) {
@@ -270,4 +266,3 @@ void ds_close(struct ds_con *con)
 {
 	close(con->sock);
 }
-

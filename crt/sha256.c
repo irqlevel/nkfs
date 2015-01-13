@@ -20,7 +20,7 @@
 }
 #endif
 
-static const unsigned char sha256_padding[64] =
+static unsigned char sha256_padding[64] =
 {
  0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -204,10 +204,11 @@ void sha256_starts( struct sha256_context *ctx, int is224 )
 }
 EXPORT_SYMBOL(sha256_starts);
 
-void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+void sha256_update( struct sha256_context *ctx, void *ibuf,
                     size_t ilen )
 {
     size_t fill;
+    const unsigned char *input = (const unsigned char *)ibuf;
     u32 left;
 
     if( ilen == 0 )
@@ -284,7 +285,7 @@ void sha256_free( struct sha256_context *ctx )
 }
 EXPORT_SYMBOL(sha256_free);
 
-void sha256( const unsigned char *input, size_t ilen,
+void sha256( void *input, size_t ilen,
              struct sha256_sum *output, int is224 )
 {
     struct sha256_context ctx;

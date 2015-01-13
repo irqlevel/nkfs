@@ -28,7 +28,7 @@ struct sha256_context
  * \param output   SHA-224/256 checksum result
  * \param is224    0 = use SHA256, 1 = use SHA224
  */
-extern void sha256( const unsigned char *input, size_t ilen,
+extern void sha256( void *input, size_t ilen,
            struct sha256_sum *output, int is224 );
 
 /**
@@ -60,7 +60,7 @@ extern void sha256_starts( struct sha256_context *ctx, int is224 );
  * \param input    buffer holding the  data
  * \param ilen     length of the input data
  */
-extern void sha256_update( struct sha256_context *ctx, const unsigned char *input,
+extern void sha256_update( struct sha256_context *ctx, void *ibuf,
                     size_t ilen );
 
 /**

@@ -177,7 +177,7 @@ static void btree_node_by_ondisk(struct btree_node *node,
 static void btree_node_on_disk_sum(struct btree_node_disk *on_disk,
 	struct sha256_sum *sum)
 {
-	sha256((const unsigned char *)on_disk,
+	sha256(on_disk,
 		offsetof(struct btree_node_disk, sum), sum, 0);
 }
 

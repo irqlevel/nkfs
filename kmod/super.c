@@ -128,7 +128,7 @@ static int ds_sb_gen_header(struct ds_sb *sb,
 static void ds_image_header_sum(struct ds_image_header *header,
 	struct sha256_sum *sum)
 {
-	sha256((const unsigned char *)header,
+	sha256(header,
 		offsetof(struct ds_image_header, sum), sum, 0); 
 }
 

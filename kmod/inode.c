@@ -142,7 +142,7 @@ static struct ds_inode *ds_inodes_insert(struct ds_sb *sb,
 static void ds_inode_on_disk_sum(struct ds_inode_disk *on_disk,
 		struct sha256_sum *sum)
 {
-	sha256((const unsigned char *)on_disk,
+	sha256(on_disk,
 		offsetof(struct ds_inode_disk, sum), sum, 0); 
 }
 
@@ -412,7 +412,7 @@ static void ds_inode_block_zero(struct inode_block *ib)
 
 static void ds_inode_buf_sum(void *buf, u32 len, struct sha256_sum *sum)
 {
-	sha256((const unsigned char *)buf, len, sum, 0);
+	sha256(buf, len, sum, 0);
 }
 
 static int ds_inode_block_write(struct ds_inode *inode,

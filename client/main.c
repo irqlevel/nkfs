@@ -32,7 +32,6 @@ int main(int argc, const char *argv[])
 	struct ds_con con;
 	char obj_body[] = OBJ_BODY;
 	char obj_body_ret[sizeof(OBJ_BODY)];
-	uint32_t obj_size;
 
 	prepare_logging();
 
@@ -48,23 +47,17 @@ int main(int argc, const char *argv[])
 		goto out;
 	}
 
-	err = ds_send_object(&con, &obj_id, 0, obj_body, sizeof(obj_body));
+	err = ds_put_object(&con, &obj_id, 0, obj_body, sizeof(obj_body));
 	if (err) {
 		CLOG(CL_ERR, "ds_put_object err %d", err);
 		goto discon;
 	}
 
-	err = ds_recv_object(&con, &obj_id, 0, obj_body_ret, sizeof(obj_body_ret), &obj_size);
+	err = ds_get_object(&con, &obj_id, 0, obj_body_ret, sizeof(obj_body_ret));
 	if (err) {
 		CLOG(CL_ERR, "ds_get_object err %d", err);
 		goto discon;
 	}
-
-	if (obj_size != sizeof(obj_body)) {
-		CLOG(CL_ERR, "recv obj_size %d", obj_size);
-		err = -EINVAL;
-		goto discon;
-	}	
 
 	if (0 != memcmp(obj_body_ret, obj_body, sizeof(obj_body))) {
 		CLOG(CL_ERR, "memcmp objects err");

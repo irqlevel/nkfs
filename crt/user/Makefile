@@ -4,7 +4,7 @@ CFLAGS= $(COMMON_CFLAGS) -D__CRT_LIB__
 
 LIB_OUT = crtlib.a
 
-LIB_SRC = crt.c ../random.c ../sha256.c ../char2hex.c ../error.c ../obj_id.c ../net_cmd.c
+LIB_SRC = crt.c ../random.c ../sha256.c ../char2hex.c ../error.c ../obj_id.c ../net_pkt.c
 
 OBJS = $(LIBS_OBJ) $(LIBS_KOBJ)
 

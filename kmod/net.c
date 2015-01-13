@@ -42,6 +42,10 @@ static int ds_con_thread_routine(void *data)
 
 	KLOG_SOCK(con->sock, "con starting");
 
+	while (!kthread_should_stop()) {
+
+	}
+
 	KLOG_SOCK(con->sock, "con stopping");
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
