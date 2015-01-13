@@ -9,6 +9,9 @@
 		msg, s, ksock_self_addr(s), ksock_self_port(s),		\
 			ksock_peer_addr(s), ksock_peer_port(s));
 
+static struct kmem_cache *server_cachep;
+static struct kmem_cache *con_cachep;
+
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
@@ -19,10 +22,15 @@ static void ds_con_wait(struct ds_con *con)
 
 static void ds_con_free(struct ds_con *con)
 {
+	kmem_cache_free(con_cachep, con);
+}
+
+static void ds_con_release(struct ds_con *con)
+{
 	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
 	put_task_struct(con->thread);
-	kfree(con);
+	ds_con_free(con);
 }
 
 static int ds_con_thread_routine(void *data)
@@ -44,7 +52,7 @@ static int ds_con_thread_routine(void *data)
 		mutex_unlock(&server->con_list_lock);
 
 		if (con)
-			ds_con_free(con);
+			ds_con_release(con);
 	}
 
 	return 0;
@@ -53,12 +61,15 @@ static int ds_con_thread_routine(void *data)
 static struct ds_con *ds_con_start(struct ds_server *server,
 	struct socket *sock)
 {
-	struct ds_con *con = kmalloc(sizeof(struct ds_con), GFP_KERNEL);
+	struct ds_con *con;
 	int err = -EINVAL;
+
+	con = kmem_cache_alloc(con_cachep, GFP_NOIO);
 	if (!con) {
 		KLOG(KL_ERR, "cant alloc ds_con");
 		return NULL;
 	}
+	memset(con, 0, sizeof(*con));
 
 	con->server = server;
 	con->thread = NULL;
@@ -80,8 +91,13 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 
 	return con;	
 out:
-	kfree(con);
+	ds_con_free(con);
 	return NULL;
+}
+
+static void ds_server_free(struct ds_server *server)
+{
+	kmem_cache_free(server_cachep, server);
 }
 
 static int ds_server_thread_routine(void *data)
@@ -195,15 +211,17 @@ static void ds_server_do_stop(struct ds_server *server)
 		server->ip, server->port);
 }
 
-struct ds_server *ds_server_create_start(u32 ip, int port)
+static struct ds_server *ds_server_create_start(u32 ip, int port)
 {
 	char thread_name[10];
 	int err;
 	struct ds_server *server;
 
-	server = kmalloc(sizeof(struct ds_server), GFP_KERNEL);
-	if (!server)
+	server = kmem_cache_alloc(server_cachep, GFP_NOIO);
+	if (!server) {
+		KLOG(KL_ERR, "no memory");
 		return NULL;
+	}
 
 	memset(server, 0, sizeof(*server));
 	INIT_LIST_HEAD(&server->con_list);
@@ -220,7 +238,7 @@ struct ds_server *ds_server_create_start(u32 ip, int port)
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
 		KLOG(KL_ERR, "kthread_create err=%d", err);
-		kfree(server);
+		ds_server_free(server);
 		return NULL;
 	}
 	get_task_struct(server->thread);
@@ -255,7 +273,7 @@ int ds_server_start(u32 ip, int port)
 		err = (!server) ? -ENOMEM : server->err;
 		if (server) {
 			ds_server_do_stop(server);
-			kfree(server);
+			ds_server_free(server);
 		}
 	}
 	mutex_unlock(&srv_list_lock);
@@ -273,7 +291,7 @@ int ds_server_stop(u32 ip, int port)
 		if (server->port == port && server->ip == ip) {
 			ds_server_do_stop(server);
 			list_del(&server->srv_list);
-			kfree(server);
+			ds_server_free(server);
 			err = 0;
 			break;
 		}
@@ -282,7 +300,7 @@ int ds_server_stop(u32 ip, int port)
 	return err;
 }
 
-void ds_server_stop_all(void)
+static void ds_server_stop_all(void)
 {
 	struct ds_server *server;
 	struct ds_server *tmp;
@@ -290,8 +308,44 @@ void ds_server_stop_all(void)
 	list_for_each_entry_safe(server, tmp, &srv_list, srv_list) {
 		ds_server_do_stop(server);
 		list_del(&server->srv_list);
-		kfree(server);
+		ds_server_free(server);
 	}
 	mutex_unlock(&srv_list_lock);
 }
 
+int ds_server_init(void)
+{
+	int err;
+
+	server_cachep = kmem_cache_create("server_cache",
+			sizeof(struct ds_server), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!server_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	con_cachep = kmem_cache_create("con_cache",
+			sizeof(struct ds_con), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!con_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_server_cache;
+	}
+
+	return 0;
+
+del_server_cache:
+	kmem_cache_destroy(server_cachep);
+out:
+	return err;
+}
+
+void ds_server_finit(void)
+{
+	ds_server_stop_all();
+	kmem_cache_destroy(server_cachep);
+	kmem_cache_destroy(con_cachep);
+}

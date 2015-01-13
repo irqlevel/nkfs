@@ -23,6 +23,5 @@ struct ds_con {
 
 int ds_server_start(u32 ip, int port);
 int ds_server_stop(u32 ip, int port);
-void ds_server_stop_all(void);
-
-
+void ds_server_finit(void);
+int ds_server_init(void);
