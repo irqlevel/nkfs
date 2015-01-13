@@ -4,6 +4,11 @@
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
+#define KLOG_SOCK(s, msg)						\
+	KLOG(KL_INF, "%s socket %p self %08x:%u peer %08x:%u",		\
+		msg, s, ksock_self_addr(s), ksock_self_port(s),		\
+			ksock_peer_addr(s), ksock_peer_port(s));
+
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
@@ -27,10 +32,9 @@ static int ds_con_thread_routine(void *data)
 
 	BUG_ON(con->thread != current);
 
-	KLOG(KL_DBG, "inside con thread %p, sock %p", con->thread, con->sock);
+	KLOG_SOCK(con->sock, "con starting");
 
-
-	KLOG(KL_DBG, "closing sock %p", con->sock);
+	KLOG_SOCK(con->sock, "con stopping");
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&con->con_list))
@@ -105,10 +109,11 @@ static int ds_server_thread_routine(void *data)
 					listen_attempts--;
 				continue;
 			} else if (!err) {
-				KLOG(KL_INF, "listen done ip %x port %d",
+				KLOG(KL_DBG, "listen done ip %x port %d",
 						server->ip, server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
+				KLOG_SOCK(server->sock, "listened");
 				mutex_unlock(&server->lock);
 			} else {
 				KLOG(KL_ERR, "csock_listen err=%d", err);	
@@ -130,8 +135,7 @@ static int ds_server_thread_routine(void *data)
 				}
 				continue;
 			}
-			KLOG(KL_DBG, "accepted con_sock=%p", con_sock);
-
+			KLOG_SOCK(con_sock, "accepted");
 			if (!ds_con_start(server, con_sock)) {
 				KLOG(KL_ERR, "ds_con_start failed");
 				ksock_release(con_sock);

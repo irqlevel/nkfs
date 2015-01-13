@@ -2,6 +2,26 @@
 
 #define __SUBCOMPONENT__	"ksock"
 
+u16 ksock_peer_port(struct socket *sock)
+{
+	return be16_to_cpu(sock->sk->sk_dport);
+}
+
+u16 ksock_self_port(struct socket *sock)
+{
+	return sock->sk->sk_num;
+}
+
+u32 ksock_peer_addr(struct socket *sock)
+{
+	return be32_to_cpu(sock->sk->sk_daddr);
+}
+
+u32 ksock_self_addr(struct socket *sock)
+{
+	return be32_to_cpu(sock->sk->sk_rcv_saddr);
+}
+
 int ksock_create(struct socket **sockp,
 	__u32 local_ip, int local_port)
 {
