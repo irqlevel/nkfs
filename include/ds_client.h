@@ -29,4 +29,6 @@ int  ds_put_object(struct ds_con *con, struct ds_obj_id *id, u64 off, void *data
 
 int  ds_get_object(struct ds_con *con,struct ds_obj_id *id, u64 off, void *data, u32 data_size);
 
+int ds_echo(struct ds_con *con);
+
 int  ds_delete_object(struct ds_con *con,struct ds_obj_id *id);

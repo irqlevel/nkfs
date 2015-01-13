@@ -4,7 +4,8 @@
 #include <crt/include/sha256.h>
 
 enum {
-	DS_NET_PKT_OBJ_GET = 1,
+	DS_NET_PKT_ECHO = 1,
+	DS_NET_PKT_OBJ_GET,
 	DS_NET_PKT_OBJ_PUT,
 	DS_NET_PKT_OBJ_DELETE
 };

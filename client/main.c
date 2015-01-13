@@ -21,10 +21,10 @@ static void prepare_logging()
 	crt_log_set_path(NULL, "ds_client.log");
 	/* set CLOG log level */
 	crt_log_set_level(CL_DBG);
+	crt_log_enable_printf(1);
 }
 
-
-int main(int argc, const char *argv[])
+int obj_test()
 {
 #define OBJ_BODY "This is object body bytes"
 	struct ds_obj_id obj_id;
@@ -32,8 +32,6 @@ int main(int argc, const char *argv[])
 	struct ds_con con;
 	char obj_body[] = OBJ_BODY;
 	char obj_body_ret[sizeof(OBJ_BODY)];
-
-	prepare_logging();
 
 	err = ds_obj_id_gen(&obj_id);
 	if (err) {
@@ -69,4 +67,31 @@ discon:
 	ds_close(&con);
 out:
 	return err;
+}
+
+int echo_test()
+{
+	int err;
+	struct ds_con con;
+
+	err = ds_connect(&con, "127.0.0.1", 8000);
+	if (err) {
+		CLOG(CL_ERR, "ds_connect failed err %d", err);
+		goto out;
+	}
+
+	err = ds_echo(&con);
+	if (err) {
+		CLOG(CL_ERR, "echo failed err %d", err);
+	}
+
+	ds_close(&con);
+out:
+	return err;
+}
+
+int main(int argc, const char *argv[])
+{
+	prepare_logging();
+	return echo_test();
 }

@@ -156,14 +156,14 @@ void ksock_release(struct socket *sock)
 	KLOG(KL_DBG, "released sock=%p", sock);
 }
 
-int ksock_write_timeout(struct socket *sock, void *buffer, int nob,
-	int timeout, int *pwrote)
+int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
+	u32 timeout, u32 *pwrote)
 {
 	int error;
 	long ticks = timeout*HZ;
 	unsigned long then;
 	struct timeval tv;
-	int wrote = 0;
+	u32 wrote = 0;
 	mm_segment_t oldmm = get_fs();
 
 	BUG_ON(nob <= 0);
@@ -222,6 +222,8 @@ int ksock_write_timeout(struct socket *sock, void *buffer, int nob,
 
 		
 		buffer = (void *)((unsigned long)buffer + error);
+		BUG_ON(error <= 0);
+		BUG_ON(nob < error);	
 		nob-= error;
 		if (nob == 0) {
 			error = 0;
@@ -241,14 +243,14 @@ out:
 	return error;
 }
 
-int ksock_read_timeout(struct socket *sock, void *buffer, int nob,
-	int timeout, int *pread)
+int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
+	u32 timeout, u32 *pread)
 {
 	int error;
 	long ticks = timeout*HZ;
 	unsigned long then;
 	struct timeval tv;
-	int read = 0;
+	u32 read = 0;
 	mm_segment_t oldmm = get_fs();
 
 	BUG_ON(nob <= 0);
@@ -308,6 +310,8 @@ int ksock_read_timeout(struct socket *sock, void *buffer, int nob,
 			read+= error;
 
 		buffer = (void *)((unsigned long)buffer + error);
+		BUG_ON(error <= 0);
+		BUG_ON(nob < error);
 		nob-= error;
 		if (nob == 0) {
 			error = 0;
@@ -324,6 +328,39 @@ out:
 	if (pread)
 		*pread = read;
 	return error;
+}
+
+int ksock_read(struct socket *sock, void *buffer, u32 nob, u32 *pread)
+{
+	u32 read = 0, off = 0;
+	int err = 0;
+
+	while (off < nob) {
+		err = ksock_read_timeout(sock, (char *)buffer + off,
+				nob - off, (u32)0xFFFFFFFF, &read);
+		off+= read;
+		if (err)
+			break;
+	}
+	*pread = off;
+	return err;
+}
+
+
+int ksock_write(struct socket *sock, void *buffer, u32 nob, u32 *pwrote)
+{
+	u32 wrote = 0, off = 0;
+	int err = 0;
+
+	while (off < nob) {
+		err = ksock_write_timeout(sock, (char *)buffer + off,
+				nob - off, (u32)0xFFFFFFFF, &wrote);
+		off+= wrote;
+		if (err)
+			break;
+	}
+	*pwrote = off;
+	return err;
 }
 
 int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,

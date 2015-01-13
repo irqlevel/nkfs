@@ -71,7 +71,7 @@ static int con_init(struct ds_con *con)
 	memset(con, 0, sizeof(*con));	
 	sock = socket(AF_INET,SOCK_STREAM,0);
 	if (sock < 0) {
-		CLOG(CL_ERR, "con_handle_init() -> socket() failed");
+		CLOG(CL_ERR, "socket() failed");
 		err =  DS_E_CON_INIT_FAILED;
 		con_fail(con, err);
 		goto out;
@@ -89,7 +89,7 @@ int ds_connect(struct ds_con *con, char *ip, int port)
 	
 	err = con_init(con);
 	if (err) {
-		CLOG(CL_INF, "ds_connect() -> err %x - %s", err, ds_error(err));
+		CLOG(CL_INF, "err %x - %s", err, ds_error(err));
 		return err;
 	}
 	
@@ -98,7 +98,7 @@ int ds_connect(struct ds_con *con, char *ip, int port)
 	
 	err = inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
 	if(!err) { 
-		CLOG(CL_ERR, "ds_connect() -> inet_aton(), invalid address");
+		CLOG(CL_ERR, "inet_aton(), invalid address");
 		err = -EFAULT;
 		goto out;
 	}
@@ -107,8 +107,8 @@ int ds_connect(struct ds_con *con, char *ip, int port)
 
 	err = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
 	if (err) {
-		CLOG(CL_ERR, "ds_connect() -> connect(), connection failed");
-		err = ENOTCONN;
+		CLOG(CL_ERR, "connect(), connection failed");
+		err = -ENOTCONN;
 		goto out;
 	}
 
@@ -138,19 +138,19 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
 
 	err = con_send(con, &cmd, sizeof(cmd));
 	if (err) {
-		CLOG(CL_ERR, "con_send err %d", err);
+		CLOG(CL_ERR, "send err %d", err);
 		goto out;
 	}
 
 	err = con_send(con, data, data_size);
 	if (err) {
-		CLOG(CL_ERR, "con_send err %d", err);
+		CLOG(CL_ERR, "send err %d", err);
 		goto out;
 	}
 
 	err = con_recv(con, &reply, sizeof(reply));
 	if (err) {
-		CLOG(CL_ERR, "con_recv err %d", err);
+		CLOG(CL_ERR, "recv err %d", err);
 		goto out;
 	}
 
@@ -159,9 +159,9 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
                 goto out;
         }
 
-	err = cmd.err;
+	err = reply.err;
 	if (err) {
-		CLOG(CL_ERR, "obj put err %d", err);
+		CLOG(CL_ERR, "reply err %d", err);
 	}
 out:
 	return err;
@@ -199,9 +199,9 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
                 goto out;
         }
 
-	err = cmd.err;
+	err = reply.err;
 	if (err) {
-		CLOG(CL_ERR, "obj get err %d", err);
+		CLOG(CL_ERR, "reply err %d", err);
 		goto out;
 	}
 
@@ -239,13 +239,13 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 
 	err = con_send(con, &cmd, sizeof(cmd));
 	if (err) {
-		CLOG(CL_ERR, "con_send err %d", err);
+		CLOG(CL_ERR, "send err %d", err);
 		goto out;
 	}
 
 	err = con_recv(con, &reply, sizeof(reply));
 	if (err) {
-		CLOG(CL_ERR, "con_recv err %d", err);
+		CLOG(CL_ERR, "recv err %d", err);
 		goto out;
 	}
 
@@ -254,9 +254,43 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
                 goto out;
         }
 
-	err = cmd.err;
+	err = reply.err;
 	if (err) {
-		CLOG(CL_ERR, "obj create err %d", err);
+		CLOG(CL_ERR, "reply err %d", err);
+	}
+out:
+	return err;
+}
+
+int ds_echo(struct ds_con *con)
+{
+	struct ds_net_pkt cmd, reply;
+	int err;
+
+	net_pkt_zero(&cmd);
+	cmd.type = DS_NET_PKT_ECHO;
+	net_pkt_sign(&cmd);
+
+	err = con_send(con, &cmd, sizeof(cmd));
+	if (err) {
+		CLOG(CL_ERR, "send err %d", err);
+		goto out;
+	}
+
+	err = con_recv(con, &reply, sizeof(reply));
+	if (err) {
+		CLOG(CL_ERR, "recv err %d", err);
+		goto out;
+	}
+
+        if ((err = net_pkt_check(&reply))) {
+                CLOG(CL_ERR, "reply invalid sign err %d", err);
+                goto out;
+        }
+
+	err = reply.err;
+	if (err) {
+		CLOG(CL_ERR, "reply err %d", err);
 	}
 out:
 	return err;

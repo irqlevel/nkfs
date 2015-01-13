@@ -33,17 +33,104 @@ static void ds_con_release(struct ds_con *con)
 	ds_con_free(con);
 }
 
+static int ds_con_reply_err(struct ds_con *con,
+		struct ds_net_pkt *reply, int err)
+{
+	int wrote;
+
+	reply->err = err;
+	net_pkt_sign(reply);
+	err = ksock_write(con->sock, reply, sizeof(*reply), &wrote);
+	if (err) {
+		KLOG(KL_ERR, "sock write err %d", err);
+		return err;
+	}
+	
+	if (wrote != sizeof(*reply)) {
+		KLOG(KL_ERR, "wrote reply invalid size %d", wrote);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
+{
+	struct ds_net_pkt *reply;
+	int err;
+
+	reply = net_pkt_alloc();
+	if (!reply) {
+		KLOG(KL_ERR, "no memory");
+		return -ENOMEM;
+	}
+
+	KLOG(KL_INF, "pkt %d", pkt->type);
+
+	switch (pkt->type) {
+		case DS_NET_PKT_ECHO:
+			err = ds_con_reply_err(con, reply, 0);
+			break;
+		case DS_NET_PKT_OBJ_PUT:
+			err = ds_con_reply_err(con, reply, -EFAULT);
+			break;
+		case DS_NET_PKT_OBJ_GET:
+			err = ds_con_reply_err(con, reply, -EFAULT);
+			break;
+		case DS_NET_PKT_OBJ_DELETE:
+			err = ds_con_reply_err(con, reply, -EFAULT);
+			break;
+		default:
+			err = ds_con_reply_err(con, reply, -EFAULT);
+			break;
+	}
+
+	crt_free(reply);
+	return err;
+}
+
 static int ds_con_thread_routine(void *data)
 {
 	struct ds_con *con = (struct ds_con *)data;
 	struct ds_server *server = con->server;
+	int err;
 
 	BUG_ON(con->thread != current);
 
 	KLOG_SOCK(con->sock, "con starting");
 
 	while (!kthread_should_stop()) {
+		struct ds_net_pkt *pkt = net_pkt_alloc();
+		u32 read;
 
+		if (!pkt) {
+			KLOG(KL_ERR, "no memory");
+			continue;
+		}
+		read = 0;
+		err = ksock_read(con->sock, pkt, sizeof(*pkt), &read);
+		if (err) {
+			KLOG(KL_ERR, "socket read err %d", err);
+			break;
+		}
+		
+		if (read != sizeof(*pkt)) {
+			err = -EIO;
+			KLOG(KL_ERR, "read err %d read %u", err, read);
+			goto drop_pkt;
+		}
+
+		if ((err = net_pkt_check(pkt))) {
+			KLOG(KL_ERR, "pkt check err %d", err);
+			goto drop_pkt;
+		}
+
+		err = ds_con_process_pkt(con, pkt);
+		if (err) {
+			KLOG(KL_ERR, "process pkt err %d", err);
+		}
+drop_pkt:
+		crt_free(pkt);
 	}
 
 	KLOG_SOCK(con->sock, "con stopping");

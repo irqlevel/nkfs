@@ -5,6 +5,7 @@ static char *ulog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "TEST", "MAX
 static char *ulog_name = NULL;
 static char *ulog_path = NULL;
 static int ulevel = CL_INV;
+static int uprintf = 0;
 
 void crt_log_set_path(char *log_path, char *log_name)
 {
@@ -15,6 +16,11 @@ void crt_log_set_path(char *log_path, char *log_name)
 void crt_log_set_level(int level)
 {
 	ulevel = level;
+}
+
+void crt_log_enable_printf(int enable)
+{
+	uprintf = !!enable;
 }
 
 static void crt_write_fmt_args(char **buff, int *left, const char *fmt, va_list args)
@@ -55,7 +61,7 @@ void crt_log_v(int level, const char *log_name, const char *subcomp, const char 
 {
 	char buf[PAGE_SIZE];
 	char *pos, *begin;
-	int left, count, len;
+	int left, count;
 	struct timeval tv;
 	struct tm tm;
 	char *level_s;
@@ -90,14 +96,9 @@ void crt_log_v(int level, const char *log_name, const char *subcomp, const char 
 	crt_write_fmt_args(&pos,&left,fmt,args);
 
 	begin[count-1] = '\0';
-	len = strlen(begin);
-	if (len == (count -1)) {
-		begin[len-1] = '\n';
-		begin[len] = '\0';
-	} else {
-		begin[len] = '\n';
-		begin[len+1] = '\0';
-	}
+
+	if (uprintf)
+		printf("%s\n", begin);
 
 	plog_path = ulog_path;
 	plog_name = ulog_name;
@@ -113,7 +114,7 @@ void crt_log_v(int level, const char *log_name, const char *subcomp, const char 
 	snprintf(log_path, sizeof(log_path), "%s/%s", plog_path, plog_name);
 	fp = fopen(log_path, "a+");
 	if (fp) {
-		fprintf(fp, "%s", begin);
+		fprintf(fp, "%s\n", begin);
 		fclose(fp);
 	}
 }
