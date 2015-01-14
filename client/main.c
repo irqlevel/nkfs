@@ -105,5 +105,5 @@ out:
 int main(int argc, const char *argv[])
 {
 	prepare_logging();
-	return echo_test();
+	return obj_test();
 }
