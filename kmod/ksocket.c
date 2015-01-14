@@ -157,11 +157,10 @@ void ksock_release(struct socket *sock)
 }
 
 int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
-	u32 timeout, u32 *pwrote)
+	unsigned long ticks, u32 *pwrote)
 {
 	int error;
-	long ticks = timeout*HZ;
-	unsigned long then;
+	unsigned long then, delta;
 	struct timeval tv;
 	u32 wrote = 0;
 	mm_segment_t oldmm = get_fs();
@@ -183,28 +182,28 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 			.msg_flags = (ticks == 0) ? MSG_DONTWAIT : 0
 		};
 		
-		if (ticks != 0) {
-			tv = (struct timeval) {
-				.tv_sec = ticks/HZ,
-				.tv_usec = ((ticks % HZ) * 1000000)/HZ
-			};
+		tv = (struct timeval) {
+			.tv_sec = ticks/HZ,
+			.tv_usec = ((ticks % HZ) * 1000000)/HZ
+		};
 
-			set_fs(KERNEL_DS);
-			error = sock_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
+		set_fs(KERNEL_DS);
+		error = sock_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					(char *)&tv, sizeof(tv));
-			set_fs(oldmm);
-			if (error) {
-				KLOG(KL_ERR, "cant set sock timeout, err=%d",
-					error);
-				goto out;
-			}
+		set_fs(oldmm);
+		if (error) {
+			KLOG(KL_ERR, "cant set sock timeout, err=%d",
+				error);
+			goto out;
 		}
 
 		then = jiffies;
 		set_fs(KERNEL_DS);
 		error = sock_sendmsg(sock, &msg, iov.iov_len);
 		set_fs(oldmm);
-		ticks-= jiffies - then;
+		delta = jiffies - then;
+		delta = (delta > ticks) ? ticks : delta;
+		ticks-= delta;
 
 		if (error < 0) {
 			KLOG(KL_ERR, "send err=%d", error);
@@ -230,7 +229,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 			goto out;
 		}
 
-		if (ticks <= 0) {
+		if (ticks == 0) {
 			KLOG(KL_ERR, "timeout reached");
 			error = -EAGAIN;
 			goto out;
@@ -244,17 +243,15 @@ out:
 }
 
 int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
-	u32 timeout, u32 *pread)
+	unsigned long ticks, u32 *pread)
 {
 	int error;
-	long ticks = timeout*HZ;
-	unsigned long then;
+	unsigned long then, delta;
 	struct timeval tv;
 	u32 read = 0;
 	mm_segment_t oldmm = get_fs();
 
 	BUG_ON(nob <= 0);
-	BUG_ON(ticks <= 0);
 
 	for (;;) {
 		struct iovec iov = {
@@ -293,8 +290,10 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		set_fs(KERNEL_DS);
 		error = sock_recvmsg(sock, &msg, iov.iov_len, 0);
 		set_fs(oldmm);
-		ticks-= jiffies - then;
-		
+		delta = (jiffies > then) ? jiffies - then : 0;
+		delta = (delta > ticks) ? ticks : delta;
+		ticks-= delta;
+
 		if (error < 0) {
 			KLOG(KL_ERR, "recv err=%d", error);
 			goto out;
@@ -318,7 +317,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 			goto out;
 		}
 
-		if (ticks <= 0) {
+		if (ticks == 0) {
 			KLOG(KL_ERR, "timeout reached");
 			error = -ETIMEDOUT;
 			goto out;
@@ -337,7 +336,7 @@ int ksock_read(struct socket *sock, void *buffer, u32 nob, u32 *pread)
 
 	while (off < nob) {
 		err = ksock_read_timeout(sock, (char *)buffer + off,
-				nob - off, (u32)0xFFFFFFFF, &read);
+				nob - off, ~((unsigned long)0), &read);
 		off+= read;
 		if (err)
 			break;
@@ -354,7 +353,7 @@ int ksock_write(struct socket *sock, void *buffer, u32 nob, u32 *pwrote)
 
 	while (off < nob) {
 		err = ksock_write_timeout(sock, (char *)buffer + off,
-				nob - off, (u32)0xFFFFFFFF, &wrote);
+				nob - off, ~((unsigned long)0), &wrote);
 		off+= wrote;
 		if (err)
 			break;

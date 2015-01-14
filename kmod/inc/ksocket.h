@@ -20,10 +20,10 @@ int ksock_connect(struct socket **sockp, __u32 local_ip, int local_port,
 void ksock_release(struct socket *sock);
 
 int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
-	u32 timeout, u32 *pwrote);
+	unsigned long ticks, u32 *pwrote);
 
 int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
-	u32 timeout, u32 *pread);
+	unsigned long ticks, u32 *pread);
 
 int ksock_read(struct socket *sock, void *buffer, u32 nob, u32 *pread);
 int ksock_write(struct socket *sock, void *buffer, u32 nob, u32 *pwrote);
