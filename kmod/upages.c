@@ -83,3 +83,67 @@ void ds_pages_region(unsigned long buf, u32 len,
 	*ppg_off = pg_off;
 	*pnr_pages = (u32)pages_delta;
 }
+
+int ds_pages_create(u32 len, struct ds_pages *ppages)
+{
+	struct ds_pages pages;
+	u32 i, j;
+
+	if (len == 0)
+		return -EINVAL;
+
+	memset(&pages, 0, sizeof(pages));
+	pages.nr_pages = len/PAGE_SIZE + (len & (PAGE_SIZE - 1)) ? 1 : 0;
+	pages.len = len;
+	pages.pages = kmalloc(pages.nr_pages*sizeof(struct page *), GFP_NOIO);
+	if (!pages.pages)
+		return -ENOMEM;
+
+	memset(pages.pages, 0, pages.nr_pages*sizeof(struct page *));
+	for (i = 0; i < pages.nr_pages; i++) {
+		pages.pages[i] = alloc_page(GFP_NOIO);
+		if (!pages.pages[i])
+			goto fail;
+	}
+
+	memcpy(ppages, &pages, sizeof(pages));
+	return 0;	
+fail:
+	for (j = 0; j < i; j++)
+		put_page(pages.pages[j]);
+	kfree(pages.pages);
+	return -ENOMEM;
+}
+
+void ds_pages_dsum(struct ds_pages *pages, struct sha256_sum *dsum)
+{
+	struct sha256_context ctx;
+	u32 i, len, ilen;
+	void *ibuf;
+
+	sha256_init(&ctx);
+	sha256_starts(&ctx, 0);
+
+	len = pages->len;
+	i = 0;
+	while (len > 0) {
+		BUG_ON(i >= pages->nr_pages);
+		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
+		ibuf = kmap(pages->pages[i]);
+		sha256_update(&ctx, ibuf, ilen);
+		kunmap(pages->pages[i]);
+		len-= ilen;
+		i++;
+	}
+
+	sha256_finish(&ctx, dsum);
+	sha256_free(&ctx);
+}
+
+void ds_pages_release(struct ds_pages *pages)
+{
+	u32 i;
+	for (i = 0; i < pages->nr_pages; i++)
+		put_page(pages->pages[i]);
+	kfree(pages->pages);
+}
