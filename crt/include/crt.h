@@ -15,6 +15,8 @@ size_t crt_strlen(const char * str);
 void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...);
 
+void crt_msleep(u32 ms);
+
 #include <crt/include/obj_id.h>
 #include <crt/include/char2hex.h>
 #include <crt/include/error.h>
@@ -22,6 +24,7 @@ void crt_log(int level, const char *file, int line,
 #include <crt/include/clog.h>
 #include <crt/include/net_pkt.h>
 #include <crt/include/random.h>
+#include <crt/include/nk8.h>
 
 #ifdef __KERNEL__
 #include <crt/kernel/crt.h>

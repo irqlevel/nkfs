@@ -36,3 +36,4 @@
 #include "klog.h"
 #include "vfile.h"
 
+int crt_queue_work(work_func_t func);

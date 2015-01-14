@@ -1,7 +1,10 @@
 #include "crt.h"
+#include <crt/include/nk8.h>
 
+#define __SUBCOMPONENT__ "crt"
 static struct file *dev_random;
 static struct file *dev_urandom;
+static struct workqueue_struct *crt_wq;
 
 void *crt_malloc(size_t size)
 {
@@ -85,9 +88,37 @@ void crt_random_release(void)
 	fput(dev_urandom);
 }
 
+
+
+int crt_queue_work(work_func_t func)
+{
+	struct work_struct *work = NULL;
+
+	work = kzalloc(sizeof(struct work_struct), GFP_ATOMIC);
+	if (!work) {
+		KLOG(KL_ERR, "cant alloc work");
+		return -ENOMEM;
+	}
+
+	INIT_WORK(work, func);
+	if (!queue_work(crt_wq, work)) {
+		kfree(work);
+		KLOG(KL_ERR, "cant queue work");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void crt_msleep(u32 ms)
+{
+	msleep_interruptible(ms);
+}
+
 static int __init crt_init(void)
 {	
 	int err = -EINVAL;
+
+	printk("ds_crt: initing\n");
 	err = klog_init();
 	if (err)
 		goto out;
@@ -96,8 +127,29 @@ static int __init crt_init(void)
 	if (err) {
 		goto rel_klog;
 	}
-	printk("ds_crt: inited\n");
+
+	crt_wq = alloc_workqueue("crt_wq",
+			WQ_MEM_RECLAIM|WQ_UNBOUND, 1);
+	if (!crt_wq) {
+		KLOG(KL_ERR, "cant create wq");
+		err = -ENOMEM;
+		goto rel_rnd;
+	}
+
+	KLOG(KL_INF, "nk8 initing");	
+	err = nk8_init();
+	if (err) {
+		KLOG(KL_ERR, "nk8 init err %d", err);
+		goto del_wq;
+	}
+
+	KLOG(KL_INF, "inited");
 	return 0;
+
+del_wq:
+	destroy_workqueue(crt_wq);
+rel_rnd:
+	crt_random_release();
 rel_klog:
 	klog_release();
 out:
@@ -106,6 +158,9 @@ out:
 
 static void __exit crt_exit(void)
 {
+	KLOG(KL_INF, "exiting");
+	destroy_workqueue(crt_wq);
+	nk8_release();
 	crt_random_release();
 	klog_release();
 	printk("ds_crt: exited\n");
