@@ -275,6 +275,7 @@ static void inode_block_erase(struct btree_key *key,
 
 void ds_inode_delete(struct ds_inode *inode)
 {
+	down_write(&inode->rw_sem);
 	if (inode->blocks_tree)
 		btree_erase(inode->blocks_tree,
 			inode_block_erase, inode);
@@ -285,6 +286,8 @@ void ds_inode_delete(struct ds_inode *inode)
 	ds_inodes_remove(inode->sb, inode);
 	ds_balloc_block_free(inode->sb, inode->block);
 	inode->block = 0;
+	inode->size = 0;
+	up_write(&inode->rw_sem);
 }
 
 static int ds_inode_write(struct ds_inode *inode)
