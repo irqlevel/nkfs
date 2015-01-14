@@ -10,6 +10,7 @@ struct ds_obj {
 	void			*body;
 };
 
+/*
 static void *pmalloc(u32 size)
 {
 	void *buf = NULL;
@@ -20,19 +21,23 @@ static void *pmalloc(u32 size)
 
 	return buf;
 }
+*/
 
-static struct ds_obj *__obj_gen(u32 nr_pages)
+static struct ds_obj *__obj_gen(u32 body_bytes)
 {
 	struct ds_obj *obj;
 	int err;
+
+	if (body_bytes == 0)
+		return NULL;
 
 	obj = malloc(sizeof(struct ds_obj));
 	if (!obj)
 		return NULL;
 
 	memset(obj, 0, sizeof(*obj));
-	obj->len = nr_pages*PAGE_SIZE;
-	obj->body = pmalloc(obj->len);
+	obj->len = body_bytes;
+	obj->body = malloc(obj->len);
 	if (!obj->body) {
 		free(obj);
 		return NULL;
@@ -54,8 +59,8 @@ static void __obj_free(struct ds_obj *obj)
 	free(obj);
 }
 
-static int __obj_arr_gen(struct ds_obj ***pobjs, u32 num_objs, u32 min_pages,
-	u32 max_pages)
+static int __obj_arr_gen(struct ds_obj ***pobjs, u32 num_objs, u32 min_bytes,
+	u32 max_bytes)
 {
 	struct ds_obj **objs;
 	u32 i, j;
@@ -65,7 +70,7 @@ static int __obj_arr_gen(struct ds_obj ***pobjs, u32 num_objs, u32 min_pages,
 	if (!objs)
 		return -ENOMEM;
 	for (i = 0; i < num_objs; i++) {
-		objs[i] = __obj_gen(rand_u32_min_max(min_pages, max_pages));
+		objs[i] = __obj_gen(rand_u32_min_max(min_bytes, max_bytes));
 		printf("gen obj %u %p\n", i, objs[i]);
 		if (!objs[i]) {
 			err = -ENOMEM;
@@ -91,7 +96,7 @@ static void __obj_arr_free(struct ds_obj **objs, u32 num_objs)
 	free(objs);
 }
 
-int ds_obj_test(u32 num_objs, u32 min_pages, u32 max_pages)
+int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 {
 	int err;
 	struct ds_obj **objs = NULL;
@@ -99,7 +104,7 @@ int ds_obj_test(u32 num_objs, u32 min_pages, u32 max_pages)
 
 	printf("obj_test num objs %d\n", num_objs);
 
-	err = __obj_arr_gen(&objs, num_objs, min_pages, max_pages);
+	err = __obj_arr_gen(&objs, num_objs, min_bytes, max_bytes);
 	if (err) {
 		printf("cant alloc objs\n");
 		goto out;
@@ -124,7 +129,7 @@ int ds_obj_test(u32 num_objs, u32 min_pages, u32 max_pages)
 
 	for (i = 0; i < num_objs; i++) {
 		void *result;
-		result = pmalloc(objs[i]->len);
+		result = malloc(objs[i]->len);
 		if (!result) {
 			printf("cant alloc result buf\n");
 			err = -ENOMEM;
@@ -139,7 +144,16 @@ int ds_obj_test(u32 num_objs, u32 min_pages, u32 max_pages)
 		}
 
 		if (0 != memcmp(objs[i]->body, result, objs[i]->len)) {
+			char *rhex, *bhex;
+			bhex = bytes_hex(objs[i]->body, objs[i]->len);
+			rhex = bytes_hex(result, objs[i]->len);
 			printf("read invalid buf of obj %u\n", i);
+			printf("b %s\n", bhex);
+			printf("r %s\n", rhex);
+			if (bhex)
+				crt_free(bhex);
+			if (rhex)
+				crt_free(rhex);
 			err = -EINVAL;
 			free(result);
 			goto cleanup;

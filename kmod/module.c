@@ -24,17 +24,24 @@ static int ds_ioctl_put_obj(struct ds_ctl *cmd)
 {
 	struct ds_user_pages up;
 	int err;
+	unsigned long pg_addr;
+	u32 pg_off;
+	u32 nr_pages;
 
-	err = ds_get_user_pages((unsigned long)cmd->u.put_obj.buf,
-				cmd->u.put_obj.len, 0, &up);
+	ds_pages_region((unsigned long)cmd->u.put_obj.buf,
+		cmd->u.put_obj.len, &pg_addr, &pg_off, &nr_pages);
+
+	err = ds_get_user_pages(pg_addr, nr_pages, 0, &up);
 	if (err) {
 		KLOG(KL_ERR, "cant get user pages at %p %d",
-			cmd->u.put_obj.buf, cmd->u.put_obj.len);
+			pg_addr, nr_pages);
 		goto out;
 	}
 
 	err = ds_sb_list_put_obj(&cmd->u.put_obj.obj_id,
 		cmd->u.put_obj.off,
+		pg_off,
+		cmd->u.put_obj.len,
 		up.pages,
 		up.nr_pages);
 
@@ -47,9 +54,14 @@ static int ds_ioctl_get_obj(struct ds_ctl *cmd)
 {
 	struct ds_user_pages up;
 	int err;
+	unsigned long pg_addr;
+	u32 pg_off;
+	u32 nr_pages;
 
-	err = ds_get_user_pages((unsigned long)cmd->u.get_obj.buf,
-				cmd->u.get_obj.len, 1, &up);
+	ds_pages_region((unsigned long)cmd->u.get_obj.buf,
+		cmd->u.get_obj.len, &pg_addr, &pg_off, &nr_pages);
+
+	err = ds_get_user_pages(pg_addr, nr_pages, 1, &up);
 	if (err) {
 		KLOG(KL_ERR, "cant get user pages at %p %d",
 			cmd->u.get_obj.buf, cmd->u.get_obj.len);
@@ -58,6 +70,8 @@ static int ds_ioctl_get_obj(struct ds_ctl *cmd)
 
 	err = ds_sb_list_get_obj(&cmd->u.get_obj.obj_id,
 		cmd->u.get_obj.off,
+		pg_off,
+		cmd->u.get_obj.len,
 		up.pages,
 		up.nr_pages);
 

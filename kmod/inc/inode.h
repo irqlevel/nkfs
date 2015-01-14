@@ -30,6 +30,7 @@ struct ds_inode {
 	struct btree		*blocks_tree;
 	struct btree		*blocks_sum_tree;
 	struct ds_sb		*sb;
+	u32			dirty;	
 	u32			sig2;
 };
 
@@ -62,7 +63,7 @@ int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
 		int write);
 
 int ds_inode_io_pages(struct ds_inode *inode, u64 off,
-		struct page **pages, int nr_pages, int write);
+		u32 pg_off, u32 len, struct page **pages, int nr_pages, int write);
 
 struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino);
 struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block);

@@ -39,9 +39,15 @@ int obj_test()
 		goto out;
 	}
 
-	err = ds_connect(&con, "127.0.0.1", 9111);
+	err = ds_connect(&con, "127.0.0.1", 8000);
 	if (err) {
-		CLOG(CL_ERR, "ds_connect failed err %d", err);
+		CLOG(CL_ERR, "connect err %d", err);
+		goto out;
+	}
+
+	err = ds_create_object(&con, &obj_id);
+	if (err) {
+		CLOG(CL_ERR, "create obj err %d", err);
 		goto out;
 	}
 
@@ -61,6 +67,12 @@ int obj_test()
 		CLOG(CL_ERR, "memcmp objects err");
 		err = -EINVAL;
 		goto discon;
+	}
+
+	err = ds_delete_object(&con, &obj_id);
+	if (err) {
+		CLOG(CL_ERR, "delete obj err %d", err);
+		goto out;
 	}
 
 discon:

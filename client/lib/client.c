@@ -127,9 +127,9 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
 
 	net_pkt_zero(&cmd);
 	cmd.dsize = data_size;
-	cmd.u.obj_put.off = off;
-	cmd.type = DS_NET_PKT_OBJ_PUT;
-	ds_obj_id_copy(&cmd.u.obj_put.obj_id, obj_id);
+	cmd.u.put_obj.off = off;
+	cmd.type = DS_NET_PKT_PUT_OBJ;
+	ds_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
 	
 	sha256(data, data_size, &sum, 0);
 	memcpy(&cmd.dsum, &sum, sizeof(sum));
@@ -176,9 +176,9 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
 
 	net_pkt_zero(&cmd);
 	cmd.dsize = data_size;
-	cmd.u.obj_get.off = off;
-	cmd.type = DS_NET_PKT_OBJ_GET;
-	ds_obj_id_copy(&cmd.u.obj_get.obj_id, obj_id);
+	cmd.u.get_obj.off = off;
+	cmd.type = DS_NET_PKT_GET_OBJ;
+	ds_obj_id_copy(&cmd.u.get_obj.obj_id, obj_id);
 
 	net_pkt_sign(&cmd);
 
@@ -232,8 +232,8 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 	int err;
 
 	net_pkt_zero(&cmd);
-	cmd.type = DS_NET_PKT_OBJ_DELETE;
-	ds_obj_id_copy(&cmd.u.obj_delete.obj_id, id);
+	cmd.type = DS_NET_PKT_DELETE_OBJ;
+	ds_obj_id_copy(&cmd.u.delete_obj.obj_id, id);
 
 	net_pkt_sign(&cmd);
 
@@ -261,6 +261,44 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 out:
 	return err;
 }
+
+int ds_create_object(struct ds_con *con, struct ds_obj_id *pobj_id)
+{
+	struct ds_net_pkt cmd, reply;
+	int err;
+
+	net_pkt_zero(&cmd);
+	cmd.type = DS_NET_PKT_CREATE_OBJ;
+	net_pkt_sign(&cmd);
+
+	err = con_send(con, &cmd, sizeof(cmd));
+	if (err) {
+		CLOG(CL_ERR, "send err %d", err);
+		goto out;
+	}
+
+	err = con_recv(con, &reply, sizeof(reply));
+	if (err) {
+		CLOG(CL_ERR, "recv err %d", err);
+		goto out;
+	}
+
+        if ((err = net_pkt_check(&reply))) {
+                CLOG(CL_ERR, "reply invalid sign err %d", err);
+                goto out;
+        }
+
+	err = reply.err;
+	if (err) {
+		CLOG(CL_ERR, "reply err %d", err);
+		goto out;
+	}
+
+	ds_obj_id_copy(pobj_id, &reply.u.create_obj.obj_id);
+out:
+	return err;
+}
+
 
 int ds_echo(struct ds_con *con)
 {

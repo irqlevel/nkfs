@@ -556,7 +556,8 @@ void ds_sb_finit(void)
 }
 
 static int ds_sb_get_obj(struct ds_sb *sb, 
-	struct ds_obj_id *id, u64 off, struct page **pages,
+	struct ds_obj_id *id, u64 off, u32 pg_off, u32 len,
+	struct page **pages,
 	int nr_pages)
 {
 	struct ds_inode *inode;
@@ -585,10 +586,10 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 		goto cleanup;
 	}
 
-	err = ds_inode_io_pages(inode, off, pages, nr_pages, 0);
+	err = ds_inode_io_pages(inode, off, pg_off, len, pages, nr_pages, 0);
 	if (err) {
-		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u err %d",
-			iblock, off, nr_pages, err);
+		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u len %u err %d",
+			iblock, off, nr_pages, len, err);
 		goto cleanup;
 	}
 
@@ -631,7 +632,8 @@ out:
 }
 
 static int ds_sb_put_obj(struct ds_sb *sb, 
-	struct ds_obj_id *obj_id, u64 off, struct page **pages, int nr_pages)
+	struct ds_obj_id *obj_id, u64 off, u32 pg_off, u32 len,
+	struct page **pages, int nr_pages)
 {
 	struct ds_inode *inode;
 	u64 iblock;
@@ -652,10 +654,10 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	}
 	BUG_ON(inode->block != iblock);
 
-	err = ds_inode_io_pages(inode, off, pages, nr_pages, 1);
+	err = ds_inode_io_pages(inode, off, pg_off, len, pages, nr_pages, 1);
 	if (err) {
-		KLOG(KL_ERR, "%llu off %llu pages %u err %d",
-			inode->block, off, nr_pages, err);
+		KLOG(KL_ERR, "block %llu off %llu pages %u len %u err %d",
+			inode->block, off, nr_pages, len, err);
 	}
 
 	INODE_DEREF(inode);
@@ -691,7 +693,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 }
 
 int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
-	struct page **pages, int nr_pages)
+	u32 pg_off, u32 len, struct page **pages, int nr_pages)
 {
 	struct list_head list;
 	int err;
@@ -708,7 +710,7 @@ int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
 		goto cleanup;
 	}
 
-	err = ds_sb_get_obj(sb, obj_id, off, pages, nr_pages);
+	err = ds_sb_get_obj(sb, obj_id, off, pg_off, len, pages, nr_pages);
 
 cleanup:
 	ds_sb_list_release(&list);
@@ -716,7 +718,7 @@ cleanup:
 }
 
 int ds_sb_list_put_obj(struct ds_obj_id *obj_id, u64 off,
-	struct page **pages, int nr_pages)
+	u32 pg_off, u32 len, struct page **pages, int nr_pages)
 {
 	struct list_head list;
 	int err;
@@ -733,7 +735,7 @@ int ds_sb_list_put_obj(struct ds_obj_id *obj_id, u64 off,
 		goto cleanup;
 	}
 
-	err = ds_sb_put_obj(sb, obj_id, off, pages, nr_pages);
+	err = ds_sb_put_obj(sb, obj_id, off, pg_off, len, pages, nr_pages);
 
 cleanup:
 	ds_sb_list_release(&list);

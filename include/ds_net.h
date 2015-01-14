@@ -5,9 +5,10 @@
 
 enum {
 	DS_NET_PKT_ECHO = 1,
-	DS_NET_PKT_OBJ_GET,
-	DS_NET_PKT_OBJ_PUT,
-	DS_NET_PKT_OBJ_DELETE
+	DS_NET_PKT_GET_OBJ,
+	DS_NET_PKT_PUT_OBJ,
+	DS_NET_PKT_DELETE_OBJ,
+	DS_NET_PKT_CREATE_OBJ
 };
 
 #define DS_NET_PKT_SIGN1	((u32)0xBEDABEDA)
@@ -17,20 +18,24 @@ enum {
 struct ds_net_pkt {
 	u32			sign1;
 	u32			type;
-	u32			dsize;
+	u32			dsize; /* data(after header) size */
 	int			err;
 	union {
 		struct {
 			struct ds_obj_id	obj_id;
 			u64			off;
-		} obj_get;
+		} get_obj;
 		struct {
 			struct ds_obj_id	obj_id;
 			u64			off;
-		} obj_put;
+		} put_obj;
 		struct {
 			struct ds_obj_id	obj_id;
-		} obj_delete;
+		} delete_obj;
+		struct {
+			struct ds_obj_id	obj_id;
+		} create_obj;
+		
 	} u;
 	struct sha256_sum	dsum;
 	struct sha256_sum	sum;	

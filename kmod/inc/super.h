@@ -43,11 +43,12 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb);
 int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb);
 
 int ds_sb_list_create_obj(struct ds_obj_id *pobj_id);
+
 int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
-	struct page **pages, int nr_pages);
+	u32 pg_off, u32 len, struct page **pages, int nr_pages);
 
 int ds_sb_list_put_obj(struct ds_obj_id *obj_id, u64 off,
-	struct page **pages, int nr_pages);
+	u32 pg_off, u32 len, struct page **pages, int nr_pages);
 
 int ds_sb_list_delete_obj(struct ds_obj_id *obj_id);
 

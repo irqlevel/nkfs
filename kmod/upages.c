@@ -1,6 +1,8 @@
 #include <inc/ds_priv.h>
 
-int ds_get_user_pages(unsigned long uaddr, u32 len,
+#define __SUBCOMPONENT__ "upages"
+
+int ds_get_user_pages(unsigned long uaddr, u32 nr_pages,
 	int write, struct ds_user_pages *pup)
 {
 	struct ds_user_pages up;
@@ -8,11 +10,11 @@ int ds_get_user_pages(unsigned long uaddr, u32 len,
 
 	if (uaddr & (PAGE_SIZE -1))
 		return -EINVAL;
-	if (len == 0 || (len & (PAGE_SIZE - 1)))
+	if (nr_pages == 0)
 		return -EINVAL;
 
 	memset(&up, 0, sizeof(up));
-	up.nr_pages = len/PAGE_SIZE;
+	up.nr_pages = nr_pages;
 	up.pages = kmalloc(up.nr_pages*sizeof(struct page *), GFP_NOIO);
 	if (!up.pages)
 		return -ENOMEM;
@@ -58,4 +60,26 @@ void ds_release_user_pages(struct ds_user_pages *up)
 	}
 
 	kfree(up->pages);
+}
+
+void ds_pages_region(unsigned long buf, u32 len,
+	unsigned long *ppg_addr, u32 *ppg_off, u32 *pnr_pages)
+{
+	u32 pg_off;
+	unsigned long pg_addr;
+	u64 buf_page, end_page, pages_delta;
+
+	pg_off = buf & (PAGE_SIZE - 1);
+	pg_addr = buf & ~(PAGE_SIZE -1);
+
+	buf_page = ds_div(buf, PAGE_SIZE);
+	end_page = ds_div(buf + len, PAGE_SIZE);
+
+	pages_delta = end_page - buf_page;
+	pages_delta += ((buf + len) & (PAGE_SIZE - 1)) ? 1 : 0;
+	KLOG(KL_DBG, "pg_addr %lx len %u nr_pages %llu pg_off %u",
+		pg_addr, len, pages_delta, pg_off);
+	*ppg_addr = pg_addr;
+	*ppg_off = pg_off;
+	*pnr_pages = (u32)pages_delta;
 }

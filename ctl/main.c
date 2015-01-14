@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 			err = -EINVAL;
 			goto out;
 		}
-		err = ds_obj_test(10, 1, 1000);
+		err = ds_obj_test(10, 1, 17000);
 		printf("obj test err %d\n", err);
 		goto out;
 	} else {

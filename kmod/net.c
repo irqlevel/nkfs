@@ -71,13 +71,16 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 		case DS_NET_PKT_ECHO:
 			err = ds_con_reply_err(con, reply, 0);
 			break;
-		case DS_NET_PKT_OBJ_PUT:
+		case DS_NET_PKT_PUT_OBJ:
 			err = ds_con_reply_err(con, reply, -EFAULT);
 			break;
-		case DS_NET_PKT_OBJ_GET:
+		case DS_NET_PKT_GET_OBJ:
 			err = ds_con_reply_err(con, reply, -EFAULT);
 			break;
-		case DS_NET_PKT_OBJ_DELETE:
+		case DS_NET_PKT_DELETE_OBJ:
+			err = ds_con_reply_err(con, reply, -EFAULT);
+			break;
+		case DS_NET_PKT_CREATE_OBJ:
 			err = ds_con_reply_err(con, reply, -EFAULT);
 			break;
 		default:

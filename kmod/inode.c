@@ -146,6 +146,15 @@ static void ds_inode_on_disk_sum(struct ds_inode_disk *on_disk,
 		offsetof(struct ds_inode_disk, sum), sum, 0); 
 }
 
+static void ds_inode_set_size(struct ds_inode *inode,
+	u64 size)
+{
+	if (inode->size != size) {
+		inode->size = size;
+		inode->dirty = 1;
+	}
+}
+
 static void ds_inode_to_on_disk(struct ds_inode *inode,
 	struct ds_inode_disk *on_disk)
 {
@@ -301,6 +310,18 @@ static int ds_inode_write(struct ds_inode *inode)
 	}
 	brelse(bh);
 	return err;
+}
+
+static int ds_inode_write_dirty(struct ds_inode *inode)
+{
+	if (!inode->dirty) {
+		return 0;
+	} else {
+		int err;
+		err = ds_inode_write(inode);
+		inode->dirty = 0;
+		return err;
+	}
 }
 
 struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
@@ -603,7 +624,16 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 {
 	int err;
 	struct inode_block ib;
+	u64 data_end;
+
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
+
+	data_end = vblock*inode->sb->bsize + off + len;
+	if (data_end > inode->size) {
+		KLOG(KL_ERR, "inode %llu read %llu size %llu",
+			inode->block, data_end, inode->size);
+		return -ERANGE;
+	}
 
 	err = ds_inode_block_read(inode, vblock, &ib);
 	if (err) {
@@ -615,12 +645,16 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 	if (err) {
 		KLOG(KL_ERR, "check sum b %llu vb %llu err %d",
 			ib.block, ib.vblock, err);
-		goto fail;
+		goto out;
 	}
 
+	KLOG(KL_DBG, "vb %llu off %u len %u b %llu",
+		vblock, off, len, ib.block);
+
 	memcpy(buf, ib.bh->b_data + off, len);
-	return 0;
-fail:
+
+	err = 0;
+out:
 	ds_inode_block_relse(&ib);
 	return err;
 }
@@ -631,6 +665,8 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 {
 	int err;
 	struct inode_block ib;
+	u64 data_end;
+
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
 
 	err = ds_inode_block_read_create(inode, vblock, &ib);
@@ -639,16 +675,33 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 		return err;
 	}
 
+	KLOG(KL_DBG, "vb %llu off %u len %u b %llu",
+		vblock, off, len, ib.block);
+
 	memcpy(ib.bh->b_data + off, buf, len);
 	err = ds_inode_block_write(inode, &ib);
 	if (err) {
 		KLOG(KL_ERR, "cant write to b %llu vb %llu",
 			ib.block, ib.vblock);
-		goto fail;
+		goto out;
 	}
 
-	return 0;
-fail:
+	data_end = vblock*inode->sb->bsize + off + len;
+	down_write(&inode->rw_sem);
+	if (data_end > inode->size) {
+		ds_inode_set_size(inode, data_end);
+		err = ds_inode_write_dirty(inode);
+		if (err) {
+			KLOG(KL_ERR, "cant update inode %llu",
+				inode->block);
+			up_write(&inode->rw_sem);
+			goto out;
+		}
+	}
+	up_write(&inode->rw_sem);
+
+	err = 0;
+out:
 	ds_inode_block_relse(&ib);
 	return err;
 }
@@ -662,43 +715,60 @@ int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
 	char *pos = (char *)buf;
 	u32 llen, res = len;
 
-	while (res) {
-		llen = (res > inode->sb->bsize) ? inode->sb->bsize : res;
-		if (write)
+	while (res > 0) {
+		llen = ((res + loff) > inode->sb->bsize) ?
+			(inode->sb->bsize - loff) : res;
+		if (write) {
 			err = ds_inode_write_block_buf(inode, vblock, loff,
 							pos, llen);
-		else
+		} else {
 			err = ds_inode_read_block_buf(inode, vblock, loff,
 							pos, llen);
+		}
+
 		if (err)
-			goto fail;
+			goto out;
+
 		pos+= llen;
 		res-= llen;
 		loff = 0;
 		vblock++;
 	}
 
-	return 0;
-fail:
+	err = 0;
+out:
 	return err;
 }
 
-int ds_inode_io_pages(struct ds_inode *inode, u64 off,
+int ds_inode_io_pages(struct ds_inode *inode, u64 off, u32 pg_off, u32 len,
 		struct page **pages, int nr_pages, int write)
 {
 	int err;
 	int i;
 	void *buf;
+	u32 llen;
 
-	BUG_ON(off & (PAGE_SIZE - 1));
-	
-	for (i = 0; i < nr_pages; i++) {
+	KLOG(KL_DBG, "off %llu pg_off %u len %u nr_pages %d write %d",
+		off, pg_off, len, nr_pages, write);
+
+	i = 0;
+	while (len > 0) {
+		if (i >= nr_pages) {
+			KLOG(KL_ERR, "overflow pages");
+			err = -EINVAL;
+			goto fail;
+		}
 		buf = kmap(pages[i]);
-		err = ds_inode_io_buf(inode, off, buf, PAGE_SIZE, write);
+		llen = ((len + pg_off) > PAGE_SIZE) ? (PAGE_SIZE - pg_off) : len;
+		err = ds_inode_io_buf(inode, off, (void *)((unsigned long)buf + pg_off),
+			llen, write);
 		kunmap(pages[i]);
 		if (err)
 			goto fail;
-		off+= PAGE_SIZE;
+		pg_off = 0;
+		off+= llen;
+		len-= llen;
+		i++;
 	}
 
 	return 0;
