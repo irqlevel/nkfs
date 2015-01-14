@@ -33,25 +33,249 @@ static void ds_con_release(struct ds_con *con)
 	ds_con_free(con);
 }
 
-static int ds_con_reply_err(struct ds_con *con,
-		struct ds_net_pkt *reply, int err)
+static void ds_con_fail(struct ds_con *con, int err)
 {
-	int wrote;
+	if (!con->err) {
+		KLOG(KL_INF, "con %p failed err %x", con, err);
+		con->err = err;
+	}
+}
 
-	reply->err = err;
-	net_pkt_sign(reply);
-	err = ksock_write(con->sock, reply, sizeof(*reply), &wrote);
+static int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
+{
+	u32 read;
+	int err;
+
+	if (con->err)
+		return con->err;
+
+	err = ksock_read(con->sock, buffer, nob, &read);
 	if (err) {
-		KLOG(KL_ERR, "sock write err %d", err);
+		ds_con_fail(con, err);
 		return err;
 	}
-	
-	if (wrote != sizeof(*reply)) {
-		KLOG(KL_ERR, "wrote reply invalid size %d", wrote);
-		return -EINVAL;
+
+	if (nob != read) {
+		KLOG(KL_ERR, "nob %u read %u", nob, read);
+		err = -EIO;
+		ds_con_fail(con, err);
+		return err;
 	}
 
 	return 0;
+}
+
+static int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
+{
+	u32 wrote;
+	int err;
+
+	if (con->err)
+		return con->err;
+
+	err = ksock_write(con->sock, buffer, nob, &wrote);
+	if (err) {
+		ds_con_fail(con, err);
+		return err;
+	}
+
+	if (nob != wrote) {
+		KLOG(KL_ERR, "nob %u wrote %u", nob, wrote);
+		err = -EIO;
+		ds_con_fail(con, err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int ds_con_reply(struct ds_con *con,
+		struct ds_net_pkt *reply, int err)
+{
+	reply->err = err;
+	net_pkt_sign(reply);
+	err = ds_con_send(con, reply, sizeof(*reply));
+	if (err) {
+		KLOG(KL_ERR, "reply send err %d", err);
+	}
+
+	return err;
+}
+
+static int ds_con_recv_pages(struct ds_con *con,
+	struct ds_net_pkt *pkt, struct ds_pages *ppages)
+{
+	struct sha256_sum dsum;
+	struct ds_pages pages;
+	int err;
+	u32 read, llen;
+	void *buf;
+	int i;
+
+	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
+		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
+		return -EINVAL;
+	}
+
+	err = ds_pages_create(pkt->dsize, &pages);
+	if (err) {
+		KLOG(KL_ERR, "no memory");
+		return err;
+	}	
+
+	read = pkt->dsize;
+	i = 0;
+	while (read > 0) {
+		BUG_ON(i >= pages.nr_pages);
+		buf = kmap(pages.pages[i]);
+		llen = (read > PAGE_SIZE) ? PAGE_SIZE : read;
+		err = ds_con_recv(con, buf, llen);
+		kunmap(pages.pages[i]);
+		if (err) {
+			KLOG(KL_ERR, "read err %d", err);
+			ds_con_fail(con, err);
+			goto free_pages;
+		}
+		i++;
+		read-= llen;
+	}
+
+	ds_pages_dsum(&pages, &dsum);
+	err = net_pkt_check_dsum(pkt, &dsum);
+	if (err) {
+		KLOG(KL_ERR, "invalid dsum");
+		goto free_pages;
+	}
+
+	memcpy(ppages, &pages, sizeof(pages));
+	return 0;
+
+free_pages:
+	ds_pages_release(&pages);
+	return err;
+}
+
+static int ds_con_send_pages(struct ds_con *con,
+	struct ds_pages *pages)
+{
+	u32 i, len, ilen;
+	void *ibuf;
+	int err;
+
+	len = pages->len;
+	i = 0;
+	while (len > 0) {
+		BUG_ON(i >= pages->nr_pages);
+		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
+		ibuf = kmap(pages->pages[i]);
+		err = ds_con_send(con, ibuf, ilen);
+		kunmap(pages->pages[i]);	
+		if (err) {
+			ds_con_fail(con, err);
+			goto out;
+		}	
+		len-= ilen;
+		i++;
+	}
+	err = 0;
+out:
+	return err;
+}
+
+static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+	struct ds_pages pages;
+	struct sha256_sum dsum;
+
+	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
+		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
+		return -EINVAL;
+	}
+
+	err = ds_pages_create(pkt->dsize, &pages);
+	if (err) {
+		ds_con_reply(con, reply, err);
+		goto out;
+	}
+
+	err = ds_sb_list_get_obj(&pkt->u.get_obj.obj_id,
+		pkt->u.get_obj.off,
+		0,
+		pkt->dsize,
+		pages.pages,
+		pages.nr_pages);
+	if (err) {
+		ds_con_reply(con, reply, err);
+		goto free_pages;
+	}
+	ds_pages_dsum(&pages, &dsum);
+	memcpy(&reply->dsum, &dsum, sizeof(dsum));
+	reply->dsize = pkt->dsize;
+
+	err = ds_con_reply(con, reply, 0);
+	if (err) {
+		goto free_pages;	
+	}
+
+	err = ds_con_send_pages(con, &pages);
+
+free_pages:
+	ds_pages_release(&pages);
+out:
+	return err;
+}
+
+static int ds_con_put_obj(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+	struct ds_pages pages;
+
+	err = ds_con_recv_pages(con, pkt, &pages);
+	if (err) {
+		if (!con->err)
+			ds_con_reply(con, reply, err);
+		goto out;
+	}
+	
+	err = ds_sb_list_put_obj(&pkt->u.put_obj.obj_id,
+		pkt->u.put_obj.off,
+		0,
+		pkt->dsize,
+		pages.pages,
+		pages.nr_pages);
+
+	err = ds_con_reply(con, reply, err);
+
+	ds_pages_release(&pages);
+out:
+	return err;
+}
+
+static int ds_con_create_obj(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+
+	err = ds_sb_list_create_obj(&reply->u.create_obj.obj_id);
+	return ds_con_reply(con, reply, err);
+}
+
+static int ds_con_delete_obj(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+
+	err = ds_sb_list_delete_obj(&pkt->u.delete_obj.obj_id);
+	return ds_con_reply(con, reply, err);
+}
+
+static int ds_con_echo(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	return ds_con_reply(con, reply, 0);
 }
 
 static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
@@ -61,30 +285,32 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 
 	reply = net_pkt_alloc();
 	if (!reply) {
+		err = -ENOMEM;
 		KLOG(KL_ERR, "no memory");
-		return -ENOMEM;
+		ds_con_fail(con, err);
+		return err;
 	}
 
 	KLOG(KL_INF, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
 		case DS_NET_PKT_ECHO:
-			err = ds_con_reply_err(con, reply, 0);
+			err = ds_con_echo(con, pkt, reply);
 			break;
 		case DS_NET_PKT_PUT_OBJ:
-			err = ds_con_reply_err(con, reply, -EFAULT);
+			err = ds_con_put_obj(con, pkt, reply);
 			break;
 		case DS_NET_PKT_GET_OBJ:
-			err = ds_con_reply_err(con, reply, -EFAULT);
+			err = ds_con_get_obj(con, pkt, reply);
 			break;
 		case DS_NET_PKT_DELETE_OBJ:
-			err = ds_con_reply_err(con, reply, -EFAULT);
+			err = ds_con_delete_obj(con, pkt, reply);
 			break;
 		case DS_NET_PKT_CREATE_OBJ:
-			err = ds_con_reply_err(con, reply, -EFAULT);
+			err = ds_con_create_obj(con, pkt, reply);
 			break;
 		default:
-			err = ds_con_reply_err(con, reply, -EFAULT);
+			err = ds_con_reply(con, reply, -EINVAL);
 			break;
 	}
 
@@ -102,46 +328,35 @@ static int ds_con_thread_routine(void *data)
 
 	KLOG_SOCK(con->sock, "con starting");
 
-	while (!kthread_should_stop()) {
+	while (!kthread_should_stop() && !con->err) {
 		struct ds_net_pkt *pkt = net_pkt_alloc();
-		u32 read;
-
 		if (!pkt) {
+			ds_con_fail(con, -ENOMEM);
 			KLOG(KL_ERR, "no memory");
-			continue;
-		}
-		read = 0;
-		err = ksock_read(con->sock, pkt, sizeof(*pkt), &read);
-		if (err) {
-			KLOG(KL_ERR, "socket read err %d", err);
-			crt_free(pkt);
-			goto stop;
+			break;
 		}
 		
-		if (read != sizeof(*pkt)) {
-			err = -EIO;
-			KLOG(KL_ERR, "read err %d read %u", err, read);
+		err = ds_con_recv(con, pkt, sizeof(*pkt));
+		if (err) {
+			KLOG(KL_ERR, "socket recv err %d", err);
 			crt_free(pkt);
-			goto stop;
+			break;
 		}
 
 		if ((err = net_pkt_check(pkt))) {
 			KLOG(KL_ERR, "pkt check err %d", err);
 			crt_free(pkt);
-			goto stop;
+			ds_con_fail(con, -EINVAL);
+			break;
 		}
 
-		err = ds_con_process_pkt(con, pkt);
-		if (err) {
-			KLOG(KL_ERR, "reply pkt err %d", err);
-			crt_free(pkt);
-			goto stop;
-		}
-
+		ds_con_process_pkt(con, pkt);
 		crt_free(pkt);
 	}
-stop:
+
 	KLOG_SOCK(con->sock, "con stopping");
+	KLOG(KL_INF, "stopping con %p err %d", con, con->err);
+
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&con->con_list))

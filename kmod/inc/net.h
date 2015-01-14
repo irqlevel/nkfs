@@ -19,6 +19,7 @@ struct ds_con {
 	struct socket 		*sock;
 	struct list_head	con_list;
 	struct ds_server	*server;
+	int			err;
 };
 
 int ds_server_start(u32 ip, int port);
