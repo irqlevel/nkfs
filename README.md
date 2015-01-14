@@ -32,6 +32,9 @@ and receive client requests.
 - export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES.
 - make
 
+Note, you can build ds for particular kernel by
+setting up export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES before make.
+
 #### How to run:
 - sudo insmod bin/ds.ko #load kernel module
 - sudo bin/ds_ctl --dev_add /dev/sdb #add block device to object storage
