@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "NET TEST"
+echo "CTL TEST"
 sync
 rm -rf /var/log/ds.log
 rm -rf lfile
@@ -10,10 +10,8 @@ insmod bin/ds.ko
 losetup -d /dev/loop0
 losetup /dev/loop0 lfile
 bin/ds_ctl --dev_add /dev/loop0 --format
-bin/ds_ctl --server_start 127.0.0.1 8000
-bin/ds_client --obj_test
+bin/ds_ctl --obj_test
 bin/ds_ctl --dev_rem /dev/loop0
-bin/ds_ctl --server_stop 127.0.0.1 8000
 rmmod ds
 rmmod ds_crt
 losetup -d /dev/loop0

@@ -125,8 +125,11 @@ static int ds_con_recv_pages(struct ds_con *con,
 
 	read = pkt->dsize;
 	i = 0;
+	llen = 0;
 	while (read > 0) {
-		BUG_ON(i >= pages.nr_pages);
+		KLOG(KL_DBG, "read %u nr_pages %u i %u, llen %u dsize %u plen %u",
+			read, pages.nr_pages, i, llen, pkt->dsize, pages.len);
+		DS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
 		llen = (read > PAGE_SIZE) ? PAGE_SIZE : read;
 		err = ds_con_recv(con, buf, llen);

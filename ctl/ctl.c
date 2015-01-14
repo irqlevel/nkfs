@@ -100,7 +100,7 @@ out:
 	return err;
 }
 
-int ds_get_obj(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
+int ds_get_object(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -129,7 +129,7 @@ out:
 	return err;
 }
 
-int ds_put_obj(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
+int ds_put_object(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -158,7 +158,7 @@ out:
 	return err;
 }
 
-int ds_delete_obj(struct ds_obj_id *obj_id)
+int ds_delete_object(struct ds_obj_id *obj_id)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -184,7 +184,7 @@ out:
 	return err;
 }
 
-int ds_create_obj(struct ds_obj_id *pobj_id)
+int ds_create_object(struct ds_obj_id *pobj_id)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;

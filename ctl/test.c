@@ -2,26 +2,11 @@
 #include "test.h"
 #include <stdlib.h>
 
-#define PAGE_SIZE 4096
-
 struct ds_obj {
 	struct ds_obj_id 	id;
 	u32			len;
 	void			*body;
 };
-
-/*
-static void *pmalloc(u32 size)
-{
-	void *buf = NULL;
-	int err;
-	err = posix_memalign(&buf, PAGE_SIZE, size);
-	if (err)
-		return NULL;
-
-	return buf;
-}
-*/
 
 static struct ds_obj *__obj_gen(u32 body_bytes)
 {
@@ -71,7 +56,7 @@ static int __obj_arr_gen(struct ds_obj ***pobjs, u32 num_objs, u32 min_bytes,
 		return -ENOMEM;
 	for (i = 0; i < num_objs; i++) {
 		objs[i] = __obj_gen(rand_u32_min_max(min_bytes, max_bytes));
-		printf("gen obj %u %p\n", i, objs[i]);
+		CLOG(CL_INF, "gen obj %u %p", i, objs[i]);
 		if (!objs[i]) {
 			err = -ENOMEM;
 			goto fail;		
@@ -102,26 +87,26 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 	struct ds_obj **objs = NULL;
 	u32 i;
 
-	printf("obj_test num objs %d\n", num_objs);
+	CLOG(CL_INF, "obj_test num objs %d", num_objs);
 
 	err = __obj_arr_gen(&objs, num_objs, min_bytes, max_bytes);
 	if (err) {
-		printf("cant alloc objs\n");
+		CLOG(CL_ERR, "cant alloc objs");
 		goto out;
 	}
 
 	for (i = 0; i < num_objs; i++) {
-		err = ds_create_obj(&objs[i]->id);
-		printf("create obj %u, err %d\n", i, err);
+		err = ds_create_object(&objs[i]->id);
+		CLOG(CL_ERR, "create obj %u, err %d", i, err);
 		if (err) {
 			goto cleanup;
 		}
 	}
 
 	for (i = 0; i < num_objs; i++) {
-		err = ds_put_obj(&objs[i]->id, 0,
+		err = ds_put_object(&objs[i]->id, 0,
 			objs[i]->body, objs[i]->len);
-		printf("put obj %u, err %d\n", i, err);
+		CLOG(CL_INF, "put obj %u, err %d", i, err);
 		if (err) {
 			goto cleanup;
 		}
@@ -131,13 +116,13 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 		void *result;
 		result = malloc(objs[i]->len);
 		if (!result) {
-			printf("cant alloc result buf\n");
+			CLOG(CL_ERR, "cant alloc result buf");
 			err = -ENOMEM;
 			goto cleanup;
 		}
 
-		err = ds_get_obj(&objs[i]->id, 0, result, objs[i]->len);
-		printf("get obj %u, err %d\n", i, err);
+		err = ds_get_object(&objs[i]->id, 0, result, objs[i]->len);
+		CLOG(CL_INF, "get obj %u, err %d", i, err);
 		if (err) {
 			free(result);
 			goto cleanup;
@@ -147,9 +132,9 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 			char *rhex, *bhex;
 			bhex = bytes_hex(objs[i]->body, objs[i]->len);
 			rhex = bytes_hex(result, objs[i]->len);
-			printf("read invalid buf of obj %u\n", i);
-			printf("b %s\n", bhex);
-			printf("r %s\n", rhex);
+			CLOG(CL_ERR, "read invalid buf of obj %u", i);
+			CLOG(CL_ERR, "b %s", bhex);
+			CLOG(CL_ERR, "r %s", rhex);
 			if (bhex)
 				crt_free(bhex);
 			if (rhex)
@@ -161,11 +146,19 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 		free(result);
 	}
 
+	for (i = 0; i < num_objs; i++) {
+		err = ds_delete_object(&objs[i]->id);
+		if (err) {
+			CLOG(CL_ERR, "del obj %u err %d", i, err);
+			goto cleanup;
+		}
+	}
+
 	err = 0;
 
 cleanup:
 	__obj_arr_free(objs, num_objs);
 out:
-	printf("completed err %d\n", err);
+	CLOG(CL_INF, "completed err %d", err);
 	return err;
 }

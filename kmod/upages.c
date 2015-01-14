@@ -72,8 +72,8 @@ void ds_pages_region(unsigned long buf, u32 len,
 	pg_off = buf & (PAGE_SIZE - 1);
 	pg_addr = buf & ~(PAGE_SIZE -1);
 
-	buf_page = ds_div(buf, PAGE_SIZE);
-	end_page = ds_div(buf + len, PAGE_SIZE);
+	buf_page = buf >> PAGE_SHIFT;
+	end_page = (buf + len) >> PAGE_SHIFT;
 
 	pages_delta = end_page - buf_page;
 	pages_delta += ((buf + len) & (PAGE_SIZE - 1)) ? 1 : 0;
@@ -93,7 +93,12 @@ int ds_pages_create(u32 len, struct ds_pages *ppages)
 		return -EINVAL;
 
 	memset(&pages, 0, sizeof(pages));
-	pages.nr_pages = len/PAGE_SIZE + (len & (PAGE_SIZE - 1)) ? 1 : 0;
+	pages.nr_pages = (len >> PAGE_SHIFT);
+	pages.nr_pages += (len & (PAGE_SIZE - 1)) ? 1 : 0;
+
+	KLOG(KL_DBG, "nr_pages %u len %u psize %lu",
+		pages.nr_pages, len, PAGE_SIZE);
+
 	pages.len = len;
 	pages.pages = kmalloc(pages.nr_pages*sizeof(struct page *), GFP_NOIO);
 	if (!pages.pages)

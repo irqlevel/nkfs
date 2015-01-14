@@ -27,6 +27,7 @@ static void prepare_logging()
 {
 	crt_log_set_path(NULL, "ds_client.log");
 	crt_log_set_level(CL_DBG);
+	crt_log_enable_printf(1);
 }
 
 int main(int argc, char *argv[])
