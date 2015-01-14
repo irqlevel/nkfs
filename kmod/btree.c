@@ -1329,12 +1329,14 @@ static void btree_log_node(struct btree_node *first, u32 height, int llevel)
 			node, node->nr_keys, node->leaf, height);
 
 	if (node->nr_keys) {
-		for (i = 0; i < node->nr_keys + 1; i++) {
-			child = btree_node_read(node->tree,
-				node->childs[i]);
-			BUG_ON(!child);
-			btree_log_node(child, height+1, llevel);
-			BTREE_NODE_DEREF(child);
+		if (!node->leaf) {
+			for (i = 0; i < node->nr_keys + 1; i++) {
+				child = btree_node_read(node->tree,
+					node->childs[i]);
+				BUG_ON(!child);
+				btree_log_node(child, height+1, llevel);
+				BTREE_NODE_DEREF(child);
+			}
 		}
 	}
 }
@@ -1346,12 +1348,14 @@ static void btree_node_stats(struct btree_node *node,
 	int i;
 
 	if (node->nr_keys) {
-		for (i = 0; i < node->nr_keys + 1; i++) {
-			child = btree_node_read(node->tree,
-				node->childs[i]);
-			BUG_ON(!child);
-			btree_node_stats(child, info);
-			BTREE_NODE_DEREF(child);
+		if (!node->leaf) {
+			for (i = 0; i < node->nr_keys + 1; i++) {
+				child = btree_node_read(node->tree,
+					node->childs[i]);
+				BUG_ON(!child);
+				btree_node_stats(child, info);
+				BTREE_NODE_DEREF(child);
+			}
 		}
 	}
 	info->nr_nodes++;
@@ -1390,14 +1394,15 @@ static void btree_erase_node(struct btree_node *root,
 	int i;
 
 	if (node->nr_keys) {
-		for (i = 0; i < node->nr_keys + 1; i++) {
-			child = btree_node_read(node->tree,
-				node->childs[i]);
-			BUG_ON(!child);
-			btree_erase_node(child, key_erase_clb, ctx);
-			BTREE_NODE_DEREF(child);
+		if (!node->leaf) {
+			for (i = 0; i < node->nr_keys + 1; i++) {
+				child = btree_node_read(node->tree,
+					node->childs[i]);
+				BUG_ON(!child);
+				btree_erase_node(child, key_erase_clb, ctx);
+				BTREE_NODE_DEREF(child);
+			}
 		}
-
 		if (key_erase_clb) {
 			for (i = 0; i < node->nr_keys; i++) {
 				key_erase_clb(&node->keys[i],
