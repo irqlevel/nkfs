@@ -10,6 +10,11 @@ EXPORT_SYMBOL(net_pkt_sum);
 int net_pkt_check(struct ds_net_pkt *pkt)
 {
 	struct sha256_sum sum;
+	if (pkt->dsize && pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
+		CLOG(CL_ERR, "invalid pkt dsize %llu", pkt->dsize);
+		return -EINVAL;
+	}
+
 	if (pkt->sign1 != DS_NET_PKT_SIGN1 ||
 			pkt->sign2 != DS_NET_PKT_SIGN2) {
 		CLOG(CL_ERR, "invalid pkt signs");
