@@ -113,6 +113,37 @@ void crt_msleep(u32 ms)
 {
 	msleep_interruptible(ms);
 }
+EXPORT_SYMBOL(crt_msleep);
+
+void *crt_file_open(char *path)
+{
+	return filp_open(path, O_APPEND|O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
+}
+EXPORT_SYMBOL(crt_file_open);
+
+int crt_file_read(void *file, const void *buf, u32 len, loff_t *off)
+{
+	return vfile_read((struct file *)file, buf, len, off);
+}
+EXPORT_SYMBOL(crt_file_read);
+
+int crt_file_write(void *file, const void *buf, u32 len, loff_t *off)
+{
+	return vfile_write((struct file *)file, buf, len, off);
+}
+EXPORT_SYMBOL(crt_file_write);
+
+int crt_file_sync(void *file)
+{
+	return vfile_sync((struct file *)file);
+}
+EXPORT_SYMBOL(crt_file_sync);
+
+void crt_file_close(void *file)
+{
+	filp_close((struct file *)file, NULL);
+}
+EXPORT_SYMBOL(crt_file_close);
 
 static int __init crt_init(void)
 {	

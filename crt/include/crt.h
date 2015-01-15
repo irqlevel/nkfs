@@ -17,6 +17,13 @@ void crt_log(int level, const char *file, int line,
 
 void crt_msleep(u32 ms);
 
+
+void *crt_file_open(char *path);
+int crt_file_read(void *file, const void *buf, u32 len, loff_t *off);
+int crt_file_write(void *file, const void *buf, u32 len, loff_t *off);
+int crt_file_sync(void *file);
+void crt_file_close(void *file);
+
 #include <crt/include/obj_id.h>
 #include <crt/include/char2hex.h>
 #include <crt/include/error.h>
@@ -32,3 +39,25 @@ void crt_msleep(u32 ms);
 #include <crt/user/crt.h>
 #define EXPORT_SYMBOL(s)
 #endif
+
+
+#define CLOG_BUF_SUM(buf, len)	do {				\
+		struct sha256_sum bsum;				\
+		char *hsum;					\
+		char *be = NULL, *en = NULL;			\
+		u32 llen = (len > 8) ? 8 : len;			\
+		sha256(buf, len, &bsum, 0);			\
+		hsum = sha256_sum_hex(&bsum);			\
+		be = bytes_hex(buf, llen);			\
+		en = bytes_hex((char *)buf + len - llen, llen);	\
+		CLOG(CL_INF, "b %p len %u sum %s be %s en %s",	\
+			buf, len, hsum, be, en);		\
+		if (hsum)					\
+			crt_free(hsum);				\
+		if (be)						\
+			crt_free(be);				\
+		if (en)						\
+			crt_free(en);				\
+	} while (0);
+
+

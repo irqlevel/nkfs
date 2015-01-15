@@ -11,6 +11,7 @@
 #endif
 
 #ifdef __CRT_LIB__
+typedef __UINT8_TYPE__	u8;
 typedef __UINT16_TYPE__ u16;
 typedef __UINT32_TYPE__ u32;
 typedef __UINT64_TYPE__ u64;
@@ -23,8 +24,12 @@ typedef __SIZE_TYPE__ size_t;
 #else
 
 #include <stdint.h>
+typedef uint8_t		u8;
 typedef uint16_t	u16;
 typedef uint32_t	u32;
 typedef uint64_t	u64;
+
+#include <sys/types.h>
+#include <unistd.h>
 
 #endif
