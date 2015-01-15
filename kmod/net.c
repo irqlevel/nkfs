@@ -294,7 +294,7 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 		return err;
 	}
 
-	KLOG(KL_INF, "pkt %d", pkt->type);
+	KLOG(KL_DBG, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
 		case DS_NET_PKT_ECHO:
