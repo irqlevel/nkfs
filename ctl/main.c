@@ -1,5 +1,4 @@
 #include "ctl.h"
-#include "test.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
