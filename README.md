@@ -50,7 +50,7 @@ $ sudo insmod bin/ds_crt.ko #load runtime helper module
 
 $ sudo insmod bin/ds.ko #load core kernel module
 
-$ sudo bin/ds_ctl dev_add -d /dev/sdb -f #add block device /dev/sdb to 
+$ sudo bin/ds_ctl dev_add -d /dev/sdb -f #attach block device /dev/sdb to 
 object storage and format(!!!) it.
 
 $ sudo bin/ds_ctl --server_start 127.0.0.1 8000 #run network server at 127.0.0.1:8000
@@ -66,7 +66,7 @@ bsize : 4096
 device : /dev/loop0
 sb_id : c7a236270cfb5accb45edeeb64f18e88
 
-$ bin/ds_ctl dev_query -d /dev/loop0
+$ bin/ds_ctl dev_query -d /dev/loop0 #query info about attached device
 dev_name : /dev/loop0
 major : 7
 minor : 0
