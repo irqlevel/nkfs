@@ -33,15 +33,16 @@ static int output_dev_info(struct ds_dev_info *info)
 	printf("major : %u\n", info->major);
 	printf("minor : %u\n", info->minor);	
 	printf("sb_id : %s\n", hex_sb_id);	
-	printf("size : %llu\n", info->size);
-	printf("used_size : %llu\n", info->used_size);
-	printf("free_size : %llu\n", info->free_size);
+	printf("size : %llu\n", (unsigned long long)info->size);
+	printf("used_size : %llu\n", (unsigned long long)info->used_size);
+	printf("free_size : %llu\n", (unsigned long long)info->free_size);
 	printf("bsize : %u\n", info->bsize);
-	printf("blocks : %llu\n", info->blocks);
-	printf("used_blocks : %llu\n", info->used_blocks);
-	printf("obj_tree_block : %llu\n", info->obj_tree_block);
-	printf("bm_block : %llu\n", info->bm_block);
-	printf("bm_blocks : %llu\n", info->bm_blocks);
+	printf("blocks : %llu\n", (unsigned long long)info->blocks);
+	printf("used_blocks : %llu\n", (unsigned long long)info->used_blocks);
+	printf("obj_tree_block : %llu\n",
+		(unsigned long long)info->obj_tree_block);
+	printf("bm_block : %llu\n", (unsigned long long)info->bm_block);
+	printf("bm_blocks : %llu\n", (unsigned long long)info->bm_blocks);
 	crt_free(hex_sb_id);
 	return 0;
 }
