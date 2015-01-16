@@ -623,19 +623,28 @@ fail:
 
 static int
 ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
-	u32 off, void *buf, u32 len)
+	u32 off, void *buf, u32 len, u32 *pio_count, u32 *peof)
 {
 	int err;
 	struct inode_block ib;
-	u64 data_end;
+	u64 data_off;
+	u32 llen;
 
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
+	*pio_count = 0;
+	*peof = 0;
 
-	data_end = vblock*inode->sb->bsize + off + len;
-	if (data_end > inode->size) {
-		KLOG(KL_ERR, "inode %llu read %llu size %llu",
-			inode->block, data_end, inode->size);
+	down_read(&inode->rw_sem);
+	data_off = vblock*inode->sb->bsize + off;
+	if (data_off > inode->size) {
+		up_read(&inode->rw_sem);
+		KLOG(KL_ERR, "inode %p %llu doff %llu isize %llu",
+			inode, inode->block, data_off, inode->size);
 		return -ERANGE;
+	} else if (data_off == inode->size) {
+		up_read(&inode->rw_sem);
+		*peof = 1;	
+		return 0;
 	}
 
 	err = ds_inode_block_read(inode, vblock, &ib);
@@ -654,8 +663,17 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 	KLOG(KL_DBG, "vb %llu off %u len %u b %llu",
 		vblock, off, len, ib.block);
 
-	memcpy(buf, ib.bh->b_data + off, len);
+	down_read(&inode->rw_sem);
+	if ((data_off + len) >= inode->size) {
+		llen = inode->size - data_off;
+		*peof = 1;
+	} else {
+		llen = len;
+	}
+	up_read(&inode->rw_sem);
 
+	memcpy(buf, ib.bh->b_data + off, llen);
+	*pio_count = llen;
 	err = 0;
 out:
 	ds_inode_block_relse(&ib);
@@ -664,13 +682,16 @@ out:
 
 static int
 ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
-	u32 off, void *buf, u32 len)
+	u32 off, void *buf, u32 len, u32 *pio_count, int *peof)
 {
 	int err;
 	struct inode_block ib;
 	u64 data_end;
 
+
 	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
+	*peof = 0;
+	*pio_count = 0;
 
 	err = ds_inode_block_read_create(inode, vblock, &ib);
 	if (err) {
@@ -703,57 +724,69 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 	}
 	up_write(&inode->rw_sem);
 
+	*pio_count = len;
 	err = 0;
 out:
 	ds_inode_block_relse(&ib);
 	return err;
 }
 
-int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
-		int write)
+static int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
+		int write, u32 *pio_count, int *peof)
 {
 	int err;
 	u64 vblock = ds_div(off, inode->sb->bsize);
 	u32 loff = ds_mod(off, inode->sb->bsize);
 	char *pos = (char *)buf;
 	u32 llen, res = len;
+	u32 io_count, io_count_sum;
+	int eof = 0;
 
+	*peof = 0;
+	io_count_sum = 0;
 	while (res > 0) {
 		llen = ((res + loff) > inode->sb->bsize) ?
 			(inode->sb->bsize - loff) : res;
 		if (write) {
 			err = ds_inode_write_block_buf(inode, vblock, loff,
-							pos, llen);
+							pos, llen, &io_count, &eof);
 		} else {
 			err = ds_inode_read_block_buf(inode, vblock, loff,
-							pos, llen);
+							pos, llen, &io_count, &eof);
 		}
-
 		if (err)
 			goto out;
-
+		io_count_sum+= io_count;
+		if (eof)
+			break;
+		BUG_ON(llen != io_count);
 		pos+= llen;
 		res-= llen;
 		loff = 0;
 		vblock++;
 	}
 
+	*peof = eof;
+	*pio_count = io_count_sum;
 	err = 0;
 out:
 	return err;
 }
 
 int ds_inode_io_pages(struct ds_inode *inode, u64 off, u32 pg_off, u32 len,
-		struct page **pages, int nr_pages, int write)
+		struct page **pages, int nr_pages, int write, u32 *pio_count)
 {
 	int err;
 	int i;
 	void *buf;
 	u32 llen;
+	u32 io_count, io_count_sum;
+	int eof;
 
 	KLOG(KL_DBG, "off %llu pg_off %u len %u nr_pages %d write %d",
 		off, pg_off, len, nr_pages, write);
 
+	io_count_sum = 0;
 	i = 0;
 	while (len > 0) {
 		if (i >= nr_pages) {
@@ -764,16 +797,21 @@ int ds_inode_io_pages(struct ds_inode *inode, u64 off, u32 pg_off, u32 len,
 		buf = kmap(pages[i]);
 		llen = ((len + pg_off) > PAGE_SIZE) ? (PAGE_SIZE - pg_off) : len;
 		err = ds_inode_io_buf(inode, off, (void *)((unsigned long)buf + pg_off),
-			llen, write);
+			llen, write, &io_count, &eof);
 		kunmap(pages[i]);
 		if (err)
 			goto fail;
+		io_count_sum+= io_count;
+		if (eof)
+			break;
+		BUG_ON(io_count != llen);
 		pg_off = 0;
 		off+= llen;
 		len-= llen;
 		i++;
 	}
 
+	*pio_count = io_count_sum;
 	return 0;
 fail:
 	return err;

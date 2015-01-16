@@ -41,6 +41,7 @@ struct ds_ctl {
 			void			*buf;
 			u64			off;
 			u32			len;
+			u32			read;
 		} get_obj;
 		struct {
 			struct ds_obj_id	obj_id;

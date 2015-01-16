@@ -36,7 +36,7 @@ static void ds_con_release(struct ds_con *con)
 static void ds_con_fail(struct ds_con *con, int err)
 {
 	if (!con->err) {
-		KLOG(KL_INF, "con %p failed err %x", con, err);
+		KLOG(KL_DBG, "con %p failed err %x", con, err);
 		con->err = err;
 	}
 }
@@ -143,7 +143,12 @@ static int ds_con_recv_pages(struct ds_con *con,
 		read-= llen;
 	}
 
-	ds_pages_dsum(&pages, &dsum);
+	err = ds_pages_dsum(&pages, &dsum, pkt->dsize);
+	if (err) {
+		KLOG(KL_ERR, "cant calc dsum");
+		goto free_pages;
+	}
+
 	err = net_pkt_check_dsum(pkt, &dsum);
 	if (err) {
 		KLOG(KL_ERR, "invalid dsum");
@@ -159,13 +164,15 @@ free_pages:
 }
 
 static int ds_con_send_pages(struct ds_con *con,
-	struct ds_pages *pages)
+	struct ds_pages *pages, u32 len)
 {
-	u32 i, len, ilen;
+	u32 i, ilen;
 	void *ibuf;
 	int err;
 
-	len = pages->len;
+	if (len > pages->len)
+		return -EINVAL;
+
 	i = 0;
 	while (len > 0) {
 		BUG_ON(i >= pages->nr_pages);
@@ -191,6 +198,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	int err;
 	struct ds_pages pages;
 	struct sha256_sum dsum;
+	u32 read;
 
 	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
 		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
@@ -208,21 +216,32 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 		0,
 		pkt->dsize,
 		pages.pages,
-		pages.nr_pages);
+		pages.nr_pages,
+		&read);
 	if (err) {
 		ds_con_reply(con, reply, err);
 		goto free_pages;
 	}
-	ds_pages_dsum(&pages, &dsum);
-	memcpy(&reply->dsum, &dsum, sizeof(dsum));
-	reply->dsize = pkt->dsize;
+
+	if (read) {	
+		err = ds_pages_dsum(&pages, &dsum, read);
+		if (err) {
+			KLOG(KL_ERR, "cant dsum pages err %d", err);
+			ds_con_reply(con, reply, err);
+			goto free_pages;	
+		}
+		memcpy(&reply->dsum, &dsum, sizeof(dsum));
+	}
+
+	reply->dsize = read;
 
 	err = ds_con_reply(con, reply, 0);
 	if (err) {
 		goto free_pages;	
 	}
 
-	err = ds_con_send_pages(con, &pages);
+	if (read)
+		err = ds_con_send_pages(con, &pages, read);
 
 free_pages:
 	ds_pages_release(&pages);
@@ -281,6 +300,16 @@ static int ds_con_echo(struct ds_con *con, struct ds_net_pkt *pkt,
 	return ds_con_reply(con, reply, 0);
 }
 
+static int ds_con_query_obj(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+
+	err = ds_sb_list_query_obj(&pkt->u.query_obj.obj_id,
+		&reply->u.query_obj.obj_info);
+	return ds_con_reply(con, reply, err);
+}
+
 static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 {
 	struct ds_net_pkt *reply;
@@ -312,6 +341,9 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 		case DS_NET_PKT_CREATE_OBJ:
 			err = ds_con_create_obj(con, pkt, reply);
 			break;
+		case DS_NET_PKT_QUERY_OBJ:
+			err = ds_con_query_obj(con, pkt, reply);
+			break;
 		default:
 			err = ds_con_reply(con, reply, -EINVAL);
 			break;
@@ -341,7 +373,7 @@ static int ds_con_thread_routine(void *data)
 		
 		err = ds_con_recv(con, pkt, sizeof(*pkt));
 		if (err) {
-			KLOG(KL_ERR, "socket recv err %d", err);
+			KLOG(KL_DBG, "socket recv err %d", err);
 			crt_free(pkt);
 			break;
 		}

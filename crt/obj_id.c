@@ -43,3 +43,25 @@ struct ds_obj_id *ds_obj_id_create(void)
 	return id;
 }
 EXPORT_SYMBOL(ds_obj_id_create);
+
+
+struct ds_obj_id *ds_obj_id_by_str(char *s)
+{
+	struct ds_obj_id *id;
+	
+	id = crt_malloc(sizeof(struct ds_obj_id));
+	if (!id) {
+		CLOG(CL_ERR, "no mem");
+		return NULL;
+	}
+
+	crt_memset(id, 0, sizeof(*id));
+	if (hex_bytes(s, crt_strlen(s), (char *)id, sizeof(*id))) {
+		crt_free(id);
+		CLOG(CL_ERR, "conv failed");
+		return NULL;
+	}
+
+	return id;
+}
+EXPORT_SYMBOL(ds_obj_id_by_str);

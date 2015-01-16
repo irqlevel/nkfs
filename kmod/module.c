@@ -73,7 +73,8 @@ static int ds_ioctl_get_obj(struct ds_ctl *cmd)
 		pg_off,
 		cmd->u.get_obj.len,
 		up.pages,
-		up.nr_pages);
+		up.nr_pages,
+		&cmd->u.get_obj.read);
 
 	ds_release_user_pages(&up);
 out:

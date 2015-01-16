@@ -1,6 +1,20 @@
-#include "ctl.h"
-#include "test.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <memory.h>
+#include <errno.h>
+#include <malloc.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <crt/include/crt.h>
+#include <include/ds_client.h> /* client lib */
+
+#include "test.h"
 
 struct ds_obj {
 	struct ds_obj_id 	id;
@@ -81,30 +95,43 @@ static void __obj_arr_free(struct ds_obj **objs, u32 num_objs)
 	free(objs);
 }
 
-int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
+int obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 {
 	int err;
 	struct ds_obj **objs = NULL;
+	struct ds_con con;
 	u32 i;
 
 	CLOG(CL_INF, "obj_test num objs %d", num_objs);
 
+	err = ds_connect(&con, "127.0.0.1", 8000);
+	if (err) {
+		CLOG(CL_ERR, "connect err %d", err);
+		goto out;
+	}
+	CLOG(CL_INF, "connected");
+	err = ds_echo(&con);
+	if (err) {
+		CLOG(CL_ERR, "echo failed err %d", err);
+		goto discon;
+	}
+
 	err = __obj_arr_gen(&objs, num_objs, min_bytes, max_bytes);
 	if (err) {
 		CLOG(CL_ERR, "cant alloc objs");
-		goto out;
+		goto discon;
 	}
 
 	for (i = 0; i < num_objs; i++) {
-		err = ds_create_object(&objs[i]->id);
-		CLOG(CL_ERR, "create obj %u, err %d", i, err);
+		err = ds_create_object(&con, &objs[i]->id);
+		CLOG(CL_INF, "create obj %u, err %d", i, err);
 		if (err) {
 			goto cleanup;
 		}
 	}
 
 	for (i = 0; i < num_objs; i++) {
-		err = ds_put_object(&objs[i]->id, 0,
+		err = ds_put_object(&con, &objs[i]->id, 0,
 			objs[i]->body, objs[i]->len);
 		CLOG(CL_INF, "put obj %u, err %d", i, err);
 		if (err) {
@@ -123,21 +150,20 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 			goto cleanup;
 		}
 
-		err = ds_get_object(&objs[i]->id, 0,
-				result, objs[i]->len, &read);
+		err = ds_get_object(&con, &objs[i]->id, 0, result,
+			objs[i]->len, &read);
 		CLOG(CL_INF, "get obj %u, err %d", i, err);
 		if (err) {
 			free(result);
 			goto cleanup;
 		}
 		if (read != objs[i]->len) {
-			CLOG(CL_ERR, "read %u vs olen %u",
-				read, objs[i]->len);
-			err = -EINVAL;
+			CLOG(CL_ERR, "obj %u read %d vs olen %d",
+				i, read, objs[i]->len);
+			err = -EIO;
 			free(result);
 			goto cleanup;
 		}
-
 		if (0 != memcmp(objs[i]->body, result, objs[i]->len)) {
 			char *rhex, *bhex;
 			bhex = bytes_hex(objs[i]->body, objs[i]->len);
@@ -157,7 +183,7 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 	}
 
 	for (i = 0; i < num_objs; i++) {
-		err = ds_delete_object(&objs[i]->id);
+		err = ds_delete_object(&con, &objs[i]->id);
 		if (err) {
 			CLOG(CL_ERR, "del obj %u err %d", i, err);
 			goto cleanup;
@@ -168,7 +194,32 @@ int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 
 cleanup:
 	__obj_arr_free(objs, num_objs);
+discon:
+	ds_close(&con);
 out:
 	CLOG(CL_INF, "completed err %d", err);
 	return err;
 }
+
+int echo_test(void)
+{
+	int err;
+	struct ds_con con;
+
+	err = ds_connect(&con, "127.0.0.1", 8000);
+	if (err) {
+		CLOG(CL_ERR, "ds_connect failed err %d", err);
+		goto out;
+	}
+
+	err = ds_echo(&con);
+	if (err) {
+		CLOG(CL_ERR, "echo failed err %d", err);
+	}
+
+	ds_close(&con);
+out:
+	return err;
+}
+
+

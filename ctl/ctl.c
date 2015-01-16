@@ -100,7 +100,8 @@ out:
 	return err;
 }
 
-int ds_get_object(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
+int ds_get_object(struct ds_obj_id *obj_id, u64 off,
+	void *buf, u32 len, u32 *pread)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -123,7 +124,7 @@ int ds_get_object(struct ds_obj_id *obj_id, u64 off, void *buf, u32 len)
 	err = cmd.err;
 	if (err)
 		goto out;
-
+	*pread = cmd.u.get_obj.read;
 out:
 	close(fd);
 	return err;

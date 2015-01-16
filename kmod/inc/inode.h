@@ -59,11 +59,9 @@ void ds_inode_deref(struct ds_inode *inode);
 #define INODE_DEREF(n)	\
 	ds_inode_deref(n);
 
-int ds_inode_io_buf(struct ds_inode *inode, u64 off, void *buf, u32 len,
-		int write);
-
 int ds_inode_io_pages(struct ds_inode *inode, u64 off,
-		u32 pg_off, u32 len, struct page **pages, int nr_pages, int write);
+		u32 pg_off, u32 len, struct page **pages,
+		int nr_pages, int write, u32 *pio_count);
 
 struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino);
 struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block);

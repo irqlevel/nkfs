@@ -9,8 +9,12 @@
 #include <memory.h>
 #include <errno.h>
 #include <malloc.h>
+#include <unistd.h>
+#include <getopt.h>
 #include <crt/include/crt.h>
 #include <include/ds_client.h> /* client lib */
+
+#include "test.h"
 
 static void prepare_logging()
 {
@@ -24,216 +28,330 @@ static void prepare_logging()
 	crt_log_enable_printf(1);
 }
 
-struct ds_obj {
-	struct ds_obj_id 	id;
-	u32			len;
-	void			*body;
-};
-
-static struct ds_obj *__obj_gen(u32 body_bytes)
+static void usage(char *program)
 {
-	struct ds_obj *obj;
-	int err;
-
-	if (body_bytes == 0)
-		return NULL;
-
-	obj = malloc(sizeof(struct ds_obj));
-	if (!obj)
-		return NULL;
-
-	memset(obj, 0, sizeof(*obj));
-	obj->len = body_bytes;
-	obj->body = malloc(obj->len);
-	if (!obj->body) {
-		free(obj);
-		return NULL;
-	}
-
-	err = crt_random_buf(obj->body, obj->len);
-	if (err) {
-		free(obj->body);
-		free(obj);
-		return NULL;
-	}
-
-	return obj;
+	printf("Usage: %s [-f file path] [-i obj id] [-s srv ip]"
+		"[-p srv port] command{put, get, query, delete}\n",
+		program);
 }
 
-static void __obj_free(struct ds_obj *obj)
+static int cmd_equal(char *cmd, const char *val)
 {
-	free(obj->body);
-	free(obj);
+	return (strncmp(cmd, val, strlen(val) + 1) == 0) ? 1 : 0;
 }
 
-static int __obj_arr_gen(struct ds_obj ***pobjs, u32 num_objs, u32 min_bytes,
-	u32 max_bytes)
+static int do_file_put(char *server, int port, char *fpath)
 {
-	struct ds_obj **objs;
-	u32 i, j;
-	int err;
-
-	objs = malloc(num_objs*sizeof(struct ds_obj *));
-	if (!objs)
-		return -ENOMEM;
-	for (i = 0; i < num_objs; i++) {
-		objs[i] = __obj_gen(rand_u32_min_max(min_bytes, max_bytes));
-		CLOG(CL_INF, "gen obj %u %p", i, objs[i]);
-		if (!objs[i]) {
-			err = -ENOMEM;
-			goto fail;		
-		}
-	}
-
-	*pobjs = objs;
-	return 0;
-
-fail:
-	for (j = 0; j < i; j++)
-		__obj_free(objs[i]);
-	free(objs);
-	return err;		
-}
-
-static void __obj_arr_free(struct ds_obj **objs, u32 num_objs)
-{
-	u32 i;
-	for (i = 0; i < num_objs; i++)
-		__obj_free(objs[i]);
-	free(objs);
-}
-
-int ds_obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
-{
-	int err;
-	struct ds_obj **objs = NULL;
+	int err, fd;
+	int bytes_read;
+	int buf_size = 16*4096;
+	struct ds_obj_id obj_id;
 	struct ds_con con;
-	u32 i;
+	u64 off;
+	void *buf;
+	char *hex_id = NULL;
 
-	CLOG(CL_INF, "obj_test num objs %d", num_objs);
+	fd = open(fpath, O_RDONLY);
+	if (fd < 0) {
+		err = errno;
+		CLOG(CL_ERR, "cant open file %s err %d", fpath, err);
+		return err;
+	}
+	buf = crt_malloc(buf_size);
+	if (!buf) {
+		err = -ENOMEM;
+		CLOG(CL_ERR, "no mem");
+		goto close;
+	}
 
-	err = ds_connect(&con, "127.0.0.1", 8000);
+	err = ds_connect(&con, server, port);
 	if (err) {
-		CLOG(CL_ERR, "connect err %d", err);
-		goto out;
+		CLOG(CL_ERR, "cant connect to server %s:%d",
+			server, port);
+		goto free_buf;
 	}
-	CLOG(CL_INF, "connected");
-	err = ds_echo(&con);
+
+	err = ds_create_object(&con, &obj_id);
 	if (err) {
-		CLOG(CL_ERR, "echo failed err %d", err);
-		goto discon;
+		CLOG(CL_ERR, "cant create object %d", err);
+		goto close_con;
 	}
 
-	err = __obj_arr_gen(&objs, num_objs, min_bytes, max_bytes);
+	hex_id = ds_obj_id_str(&obj_id);
+	if (!hex_id) {
+		CLOG(CL_ERR, "cant get string by id");
+		err = -EINVAL;
+		goto del_obj;
+	}
+
+	off = 0;
+	while (1) {
+		bytes_read = read(fd, buf, buf_size);
+		if (bytes_read < 0) {
+			err = errno;
+			CLOG(CL_ERR, "read err %d", err);
+			goto del_obj;
+		}
+		if (bytes_read == 0)
+			break;
+		err = ds_put_object(&con, &obj_id, off, buf, bytes_read);
+		if (err) {
+			CLOG(CL_ERR, "cant put obj off %llu len %d err %d",
+				off, bytes_read, err);
+			goto del_obj; 
+		}
+		off+= bytes_read;
+	}
+	printf("%s\n", hex_id);	
+	err = 0;
+	goto close_con;
+del_obj:
+	ds_delete_object(&con, &obj_id);
+close_con:
+	ds_close(&con);
+free_buf:
+	crt_free(buf);
+close:
+	close(fd);
+	if (hex_id)
+		crt_free(hex_id);
+
+	return err;
+}
+
+static int do_file_get(char *server, int port, struct ds_obj_id *obj_id, char *fpath)
+{
+	int err, fd;
+	int buf_size = 16*4096;
+	struct ds_con con;
+	u64 off;
+	int wrote, wrote_bytes;
+	u32 read;
+	void *buf;
+
+	fd = open(fpath, O_WRONLY|O_CREAT|O_EXCL, S_IRUSR|S_IWUSR);
+	if (fd < 0) {
+		err = errno;
+		CLOG(CL_ERR, "cant open file %s err %d", fpath, err);
+		return err;
+	}
+	buf = crt_malloc(buf_size);
+	if (!buf) {
+		err = -ENOMEM;
+		CLOG(CL_ERR, "no mem");
+		goto close;
+	}
+
+	err = ds_connect(&con, server, port);
 	if (err) {
-		CLOG(CL_ERR, "cant alloc objs");
-		goto discon;
+		CLOG(CL_ERR, "cant connect to server %s:%d",
+			server, port);
+		goto free_buf;
 	}
-
-	for (i = 0; i < num_objs; i++) {
-		err = ds_create_object(&con, &objs[i]->id);
-		CLOG(CL_INF, "create obj %u, err %d", i, err);
+	off = 0;
+	while (1) {
+		err = ds_get_object(&con, obj_id, off, buf, buf_size, &read);
 		if (err) {
-			goto cleanup;
-		}
-	}
-
-	for (i = 0; i < num_objs; i++) {
-		err = ds_put_object(&con, &objs[i]->id, 0,
-			objs[i]->body, objs[i]->len);
-		CLOG(CL_INF, "put obj %u, err %d", i, err);
-		if (err) {
-			goto cleanup;
-		}
-	}
-
-	for (i = 0; i < num_objs; i++) {
-		void *result;
-		result = malloc(objs[i]->len);
-		if (!result) {
-			CLOG(CL_ERR, "cant alloc result buf");
-			err = -ENOMEM;
-			goto cleanup;
+			CLOG(CL_ERR, "cant get obj err %d", err);
+			goto close_con;
 		}
 
-		err = ds_get_object(&con, &objs[i]->id, 0, result, objs[i]->len);
-		CLOG(CL_INF, "get obj %u, err %d", i, err);
-		if (err) {
-			free(result);
-			goto cleanup;
-		}
+		if (!read)
+			break;
 
-		if (0 != memcmp(objs[i]->body, result, objs[i]->len)) {
-			char *rhex, *bhex;
-			bhex = bytes_hex(objs[i]->body, objs[i]->len);
-			rhex = bytes_hex(result, objs[i]->len);
-			CLOG(CL_ERR, "read invalid buf of obj %u", i);
-			CLOG(CL_ERR, "b %s", bhex);
-			CLOG(CL_ERR, "r %s", rhex);
-			if (bhex)
-				crt_free(bhex);
-			if (rhex)
-				crt_free(rhex);
-			err = -EINVAL;
-			free(result);
-			goto cleanup;
-		}
-		free(result);
-	}
+		wrote = 0;
+		do {		
+			wrote_bytes = write(fd, (char *)buf + wrote,
+					read - wrote);
+			if (wrote_bytes < 0) {
+				CLOG(CL_ERR, "cant wrote err %d", err);
+				goto close_con;
+			}
+			wrote+= wrote_bytes;
+		} while (wrote < read);
 
-	for (i = 0; i < num_objs; i++) {
-		err = ds_delete_object(&con, &objs[i]->id);
-		if (err) {
-			CLOG(CL_ERR, "del obj %u err %d", i, err);
-			goto cleanup;
-		}
+		off+= read;
 	}
 
 	err = 0;
-
-cleanup:
-	__obj_arr_free(objs, num_objs);
-discon:
+close_con:
 	ds_close(&con);
-out:
-	CLOG(CL_INF, "completed err %d", err);
+free_buf:
+	crt_free(buf);
+close:
+	close(fd);
 	return err;
 }
 
-int echo_test()
+static int do_obj_query(char *server, int port, struct ds_obj_id *id)
+{
+	int err;
+	struct ds_obj_info info;
+	struct ds_con con;
+
+	err = ds_connect(&con, server, port);
+	if (err) {
+		CLOG(CL_ERR, "cant connect to server %s:%d",
+			server, port);
+	}
+
+	err = ds_query_object(&con, id, &info);
+	if (err) {
+		CLOG(CL_ERR, "cant query obj err %d", err);
+		goto close_con;
+	}
+
+	printf("size : %llu\n", (unsigned long long)info.size);
+	printf("block : %llu\n", (unsigned long long)info.block);
+	printf("bsize : %u\n", info.bsize);
+	printf("device : %s\n", info.dev_name);
+
+close_con:
+	ds_close(&con);
+	return err;
+}
+
+static int do_obj_delete(char *server, int port, struct ds_obj_id *id)
 {
 	int err;
 	struct ds_con con;
 
-	err = ds_connect(&con, "127.0.0.1", 8000);
+	err = ds_connect(&con, server, port);
 	if (err) {
-		CLOG(CL_ERR, "ds_connect failed err %d", err);
-		goto out;
+		CLOG(CL_ERR, "cant connect to server %s:%d",
+			server, port);
 	}
 
-	err = ds_echo(&con);
+	err = ds_delete_object(&con, id);
 	if (err) {
-		CLOG(CL_ERR, "echo failed err %d", err);
+		CLOG(CL_ERR, "cant delete obj err %d", err);
+		goto close_con;
 	}
 
+close_con:
 	ds_close(&con);
-out:
 	return err;
 }
 
-int main(int argc, const char *argv[])
+static int do_cmd(char *prog, char *cmd, char *server, int port,
+	char *fpath, char *obj_id)
 {
 	int err;
 
-	prepare_logging();
-	if (argc == 2 &&
-		(0 == strncmp(argv[1], "--obj_test",
-			strlen("--obj_test") + 1))) {
-		err = ds_obj_test(30, 10, 30000);
+	if (cmd_equal(cmd, "put")) {
+		if (fpath == NULL) {
+			printf("file path not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+		return do_file_put(server, port, fpath);
+	} else if (cmd_equal(cmd, "get")) {
+		struct ds_obj_id *id;
+		if (fpath == NULL) {
+			printf("file path not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (obj_id == NULL) {
+			printf("obj id not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		id = ds_obj_id_by_str(obj_id);
+		if (id == NULL) {
+			printf("cant convert string to obj id\n");
+			usage(prog);
+			return -EINVAL;
+		}
+		
+		err = do_file_get(server, port, id, fpath);
+		crt_free(id);
+		return err;
+	} else if (cmd_equal(cmd, "query")) {
+		struct ds_obj_id *id;
+		if (obj_id == NULL) {
+			printf("obj id not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		id = ds_obj_id_by_str(obj_id);
+		if (id == NULL) {
+			printf("cant convert string to obj id\n");
+			usage(prog);
+			return -EINVAL;
+		}
+		
+		err = do_obj_query(server, port, id);
+		crt_free(id);
+		return err;
+	} else if (cmd_equal(cmd, "delete")) {
+		struct ds_obj_id *id;
+		if (obj_id == NULL) {
+			printf("obj id not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		id = ds_obj_id_by_str(obj_id);
+		if (id == NULL) {
+			printf("cant convert string to obj id\n");
+			usage(prog);
+			return -EINVAL;
+		}
+		
+		err = do_obj_delete(server, port, id);
+		crt_free(id);
+		return err;
+	} else if (cmd_equal(cmd, "obj_test")) {
+		err = obj_test(30, 1, 51145);
 	} else {
-		CLOG(CL_ERR, "unknown parameters");
-		err = -EINVAL;		
+		printf("unknown cmd %s\n", cmd);
+		usage(prog);
+		return -EINVAL;
 	}
 
+	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+	int err;
+	int opt;
+	char *fpath = NULL;
+	char *obj_id = NULL;
+	char *cmd = NULL;
+	char *server = "127.0.0.1";
+	char *prog = argv[0];
+	int port = 8000;
+
+	prepare_logging();
+	while ((opt = getopt(argc, argv, "f:i:s:p:")) != -1) {
+		switch (opt) {
+			case 'f':
+				fpath = optarg;
+				break;
+			case 'i':
+				obj_id = optarg;
+				break;
+			case 's':
+				server = optarg;
+				break;
+			case 'p':
+				port = atoi(optarg);				
+			default:
+				usage(prog);
+				exit(-EINVAL);
+		}
+	}
+
+	if (optind >= argc) {
+		usage(prog);
+		exit(-EINVAL);
+	}	
+	cmd = argv[optind];
+	err = do_cmd(prog, cmd, server, port, fpath, obj_id);
 	return err;
 }

@@ -37,6 +37,7 @@
 #include <include/ds_obj_id.h>
 #include <include/ds_image.h>
 #include <include/ds_net.h>
+#include <include/ds_obj_info.h>
 
 #include <crt/include/crt.h>
 

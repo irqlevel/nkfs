@@ -300,7 +300,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		}
 		
 		if (error == 0) {
-			KLOG(KL_ERR, "recv returned zero size");
+			KLOG(KL_DBG, "recv returned zero size");
 			error = -ECONNRESET;
 			goto out;
 		}

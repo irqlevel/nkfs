@@ -168,7 +168,7 @@ out:
 }
 
 int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
-		u64 off, void *data, u32 data_size)
+		u64 off, void *data, u32 data_size, u32 *pread)
 {
 	struct ds_net_pkt cmd, reply;
 	struct sha256_sum dsum;
@@ -205,23 +205,21 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
 		goto out;
 	}
 
-	if (reply.dsize != cmd.dsize) {
-		CLOG(CL_ERR, "invalid size");
-		err = -EINVAL;
-		goto out;
-	}
+	if (reply.dsize) {
+		err = con_recv(con, data, reply.dsize);
+		if (err) {
+			CLOG(CL_ERR, "obj get err %d", err);
+			goto out;
+		}
 
-	err = con_recv(con, data, cmd.dsize);
-	if (err) {
-		CLOG(CL_ERR, "obj get err %d", err);
-		goto out;
+		sha256(data, reply.dsize, &dsum, 0);
+		if ((err = net_pkt_check_dsum(&reply, &dsum))) {
+			CLOG(CL_ERR, "obj inv dsum %d", err);
+			goto out;
+		}
 	}
+	*pread = reply.dsize;
 
-	sha256(data, cmd.dsize, &dsum, 0);
-	if ((err = net_pkt_check_dsum(&reply, &dsum))) {
-		CLOG(CL_ERR, "obj inv dsum %d", err);
-		goto out;
-	}
 out:
 	return err;
 }
@@ -258,6 +256,45 @@ int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
 	if (err) {
 		CLOG(CL_ERR, "reply err %d", err);
 	}
+out:
+	return err;
+}
+
+int ds_query_object(struct ds_con *con, struct ds_obj_id *id,
+	struct ds_obj_info *info)
+{
+	struct ds_net_pkt cmd, reply;
+	int err;
+
+	net_pkt_zero(&cmd);
+	cmd.type = DS_NET_PKT_QUERY_OBJ;
+	ds_obj_id_copy(&cmd.u.query_obj.obj_id, id);
+
+	net_pkt_sign(&cmd);
+
+	err = con_send(con, &cmd, sizeof(cmd));
+	if (err) {
+		CLOG(CL_ERR, "send err %d", err);
+		goto out;
+	}
+
+	err = con_recv(con, &reply, sizeof(reply));
+	if (err) {
+		CLOG(CL_ERR, "recv err %d", err);
+		goto out;
+	}
+
+        if ((err = net_pkt_check(&reply))) {
+                CLOG(CL_ERR, "reply invalid sign err %d", err);
+                goto out;
+        }
+
+	err = reply.err;
+	if (err) {
+		CLOG(CL_ERR, "reply err %d", err);
+	}
+
+	memcpy(info, &reply.u.query_obj.obj_info, sizeof(*info));
 out:
 	return err;
 }

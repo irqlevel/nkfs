@@ -120,16 +120,18 @@ fail:
 	return -ENOMEM;
 }
 
-void ds_pages_dsum(struct ds_pages *pages, struct sha256_sum *dsum)
+int ds_pages_dsum(struct ds_pages *pages, struct sha256_sum *dsum, u32 len)
 {
 	struct sha256_context ctx;
-	u32 i, len, ilen;
+	u32 i, ilen;
 	void *ibuf;
+
+	if (pages->len < len)
+		return -EINVAL;
 
 	sha256_init(&ctx);
 	sha256_starts(&ctx, 0);
 
-	len = pages->len;
 	i = 0;
 	while (len > 0) {
 		BUG_ON(i >= pages->nr_pages);
@@ -143,6 +145,8 @@ void ds_pages_dsum(struct ds_pages *pages, struct sha256_sum *dsum)
 
 	sha256_finish(&ctx, dsum);
 	sha256_free(&ctx);
+
+	return 0;
 }
 
 void ds_pages_release(struct ds_pages *pages)

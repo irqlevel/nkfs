@@ -9,3 +9,5 @@ int ds_obj_id_cmp(struct ds_obj_id *id1,
 			struct ds_obj_id *id2);
 void ds_obj_id_copy(struct ds_obj_id *dst,
 			struct ds_obj_id *src);
+
+struct ds_obj_id *ds_obj_id_by_str(char *s);

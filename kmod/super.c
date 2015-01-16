@@ -558,7 +558,8 @@ void ds_sb_finit(void)
 static int ds_sb_get_obj(struct ds_sb *sb, 
 	struct ds_obj_id *id, u64 off, u32 pg_off, u32 len,
 	struct page **pages,
-	int nr_pages)
+	int nr_pages,
+	u32 *pread)
 {
 	struct ds_inode *inode;
 	u64 iblock;
@@ -586,7 +587,8 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 		goto cleanup;
 	}
 
-	err = ds_inode_io_pages(inode, off, pg_off, len, pages, nr_pages, 0);
+	err = ds_inode_io_pages(inode, off, pg_off, len,
+		pages, nr_pages, 0, pread);
 	if (err) {
 		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u len %u err %d",
 			iblock, off, nr_pages, len, err);
@@ -638,6 +640,7 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	struct ds_inode *inode;
 	u64 iblock;
 	int err;
+	u32 io_count;
 
 	if (sb->stopping)
 		return -EAGAIN;
@@ -654,7 +657,8 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	}
 	BUG_ON(inode->block != iblock);
 
-	err = ds_inode_io_pages(inode, off, pg_off, len, pages, nr_pages, 1);
+	err = ds_inode_io_pages(inode, off, pg_off, len,
+		pages, nr_pages, 1, &io_count);
 	if (err) {
 		KLOG(KL_ERR, "block %llu off %llu pages %u len %u err %d",
 			inode->block, off, nr_pages, len, err);
@@ -693,7 +697,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 }
 
 int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
-	u32 pg_off, u32 len, struct page **pages, int nr_pages)
+	u32 pg_off, u32 len, struct page **pages, int nr_pages, u32 *pread)
 {
 	struct list_head list;
 	int err;
@@ -710,7 +714,8 @@ int ds_sb_list_get_obj(struct ds_obj_id *obj_id, u64 off,
 		goto cleanup;
 	}
 
-	err = ds_sb_get_obj(sb, obj_id, off, pg_off, len, pages, nr_pages);
+	err = ds_sb_get_obj(sb, obj_id, off, pg_off, len,
+		pages, nr_pages, pread);
 
 cleanup:
 	ds_sb_list_release(&list);
@@ -781,3 +786,64 @@ int ds_sb_list_create_obj(struct ds_obj_id *pobj_id)
 	ds_sb_deref(sb);
 	return err;
 }
+
+static int ds_sb_query_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
+	struct ds_obj_info *info)
+{
+	int err;
+	u64 iblock;
+	struct ds_inode *inode;
+
+	BUG_ON(!sb->obj_tree);
+	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	
+	if (sb->stopping)
+		return -EAGAIN;
+
+	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	if (err)
+		return err;
+
+	inode = ds_inode_read(sb, iblock);
+	if (!inode) {
+		KLOG(KL_ERR, "cant read inode %llu", iblock);
+		return -EIO;
+	}
+	KLOG(KL_INF, "in query");	
+	ds_obj_id_copy(&info->sb_id, &sb->id);
+	ds_obj_id_copy(&info->obj_id, &inode->ino);
+	info->block = inode->block;
+	info->bsize = sb->bsize;
+	snprintf(info->dev_name, sizeof(info->dev_name),
+		"%s", sb->dev->dev_name);
+	info->size = inode->size;
+	err = 0;
+
+	INODE_DEREF(inode);
+	return err;
+}
+
+int ds_sb_list_query_obj(struct ds_obj_id *obj_id, struct ds_obj_info *info)
+{
+	struct list_head list;
+	int err;
+	struct ds_sb *sb;
+
+	err = ds_sb_list_by_obj(obj_id, &list);
+	if (err)
+		return err;
+
+	BUG_ON(ds_sb_list_count(&list) > 1);
+	sb = ds_sb_list_first(&list);
+	if (!sb) {
+		err = -ENOENT;
+		goto cleanup;
+	}
+
+	err = ds_sb_query_obj(sb, obj_id, info);
+
+cleanup:
+	ds_sb_list_release(&list);
+	return err;
+}
+
