@@ -3,8 +3,7 @@
 #include <include/types.h>
 #include <include/ds_obj_info.h>
 #include <crt/include/sha256.h>
-
-#define DS_NET_PKT_MAX_DSIZE ((u32)512*1024)
+#include <include/const.h>
 
 enum {
 	DS_NET_PKT_ECHO = 1,

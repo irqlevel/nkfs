@@ -18,7 +18,7 @@ int ds_dev_add(const char *dev_name, int format);
 int ds_dev_rem(const char *dev_name);
 
 int ds_dev_query(const char *dev_name,
-			struct ds_obj_id *psb_id);
+			struct ds_dev_info *info);
 
 int ds_get_object(struct ds_obj_id *obj_id,
 		u64 off, void *buf, u32 len, u32 *pread);

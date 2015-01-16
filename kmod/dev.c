@@ -83,6 +83,41 @@ struct ds_dev *ds_dev_lookup(char *dev_name)
 	return NULL;
 }
 
+int ds_dev_query(char *dev_name, struct ds_dev_info *info)
+{
+	struct ds_dev *dev;
+	struct ds_sb *sb;
+
+	dev = ds_dev_lookup(dev_name);
+	if (!dev)
+		return -ENOENT;
+
+	memset(info, 0, sizeof(*info));
+	if ((sb = dev->sb)) {
+		ds_obj_id_copy(&info->sb_id, &sb->id);
+		info->size = sb->size;
+		info->blocks = sb->nr_blocks;
+		info->used_blocks = sb->used_blocks;
+		info->obj_tree_block = sb->obj_tree_block;
+		info->bm_block = sb->bm_block;
+	 	info->bm_blocks = sb->bm_blocks;
+		info->bsize = sb->bsize;
+		info->used_size = sb->bsize*sb->used_blocks;
+		info->free_size = info->size - info->used_size;
+	}
+
+	snprintf(info->dev_name, sizeof(info->dev_name),
+		"%s", dev->dev_name);
+
+	if (dev->bdev) {
+		info->major = MAJOR(dev->bdev->bd_dev);
+		info->minor = MINOR(dev->bdev->bd_dev);
+	}
+
+	ds_dev_deref(dev);
+	return 0;	
+}
+
 static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
 {
 	struct ds_dev *dev;

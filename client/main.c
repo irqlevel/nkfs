@@ -183,6 +183,30 @@ close:
 	return err;
 }
 
+static int output_obj_info(struct ds_obj_info *info)
+{
+	char *hex_obj_id, *hex_sb_id;
+	hex_obj_id = ds_obj_id_str(&info->obj_id);
+	if (!hex_obj_id)
+		return -ENOMEM;
+	hex_sb_id = ds_obj_id_str(&info->sb_id);
+	if (!hex_sb_id) {
+		crt_free(hex_obj_id);
+	}
+
+	printf("obj_id : %s\n", hex_obj_id);
+	printf("size : %llu\n", (unsigned long long)info->size);
+	printf("block : %llu\n", (unsigned long long)info->block);
+	printf("bsize : %u\n", info->bsize);
+	printf("device : %s\n", info->dev_name);
+	printf("sb_id : %s\n", hex_sb_id);
+
+	crt_free(hex_obj_id);
+	crt_free(hex_sb_id);
+
+	return 0;
+}
+
 static int do_obj_query(char *server, int port, struct ds_obj_id *id)
 {
 	int err;
@@ -201,10 +225,11 @@ static int do_obj_query(char *server, int port, struct ds_obj_id *id)
 		goto close_con;
 	}
 
-	printf("size : %llu\n", (unsigned long long)info.size);
-	printf("block : %llu\n", (unsigned long long)info.block);
-	printf("bsize : %u\n", info.bsize);
-	printf("device : %s\n", info.dev_name);
+	err = output_obj_info(&info);
+	if (err) {
+		CLOG(CL_ERR, "cant output obj info err %d", err);
+		goto close_con;
+	}
 
 close_con:
 	ds_close(&con);

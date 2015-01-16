@@ -70,6 +70,33 @@ out:
 	return err;
 }
 
+int ds_dev_query(const char *dev_name, struct ds_dev_info *info)
+{
+	int err = -EINVAL;
+	struct ds_ctl cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	snprintf(cmd.u.dev_query.dev_name, sizeof(cmd.u.dev_query.dev_name),
+		"%s", dev_name);
+	err = ioctl(fd, IOCTL_DS_DEV_QUERY, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+	memcpy(info, &cmd.u.dev_query.info, sizeof(*info));
+out:
+	close(fd);
+	return err;
+}
+
 int ds_server_stop(u32 ip, int port)
 {
 	int err = -EINVAL;

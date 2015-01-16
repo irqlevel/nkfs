@@ -44,6 +44,10 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		case IOCTL_DS_DEV_REMOVE:
 			err = ds_dev_remove(cmd->u.dev_remove.dev_name);
 			break;
+		case IOCTL_DS_DEV_QUERY:
+			err = ds_dev_query(cmd->u.dev_query.dev_name,
+				&cmd->u.dev_query.info);
+			break;
 		case IOCTL_DS_SRV_START:
 			err = ds_server_start(cmd->u.server_start.ip,
 				cmd->u.server_start.port);	

@@ -16,6 +16,7 @@ struct ds_dev {
 
 int ds_dev_add(char *dev_name, int format);
 int ds_dev_remove(char *dev_name);
+int ds_dev_query(char *dev_name, struct ds_dev_info *info);
 struct ds_dev *ds_dev_create(char *dev_name, int fmode);
 
 void ds_dev_ref(struct ds_dev *dev);
