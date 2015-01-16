@@ -38,7 +38,7 @@ $ make
 Note, that you can build ds for particular kernel by
 setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 
-#### How to make basic tests:
+#### How to run basic tests:
 ```sh
  sudo ./test.sh
 ```
