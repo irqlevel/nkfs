@@ -29,40 +29,48 @@ Core linux kernel module can:
 and receive clients/other computer nodes requests.
 
 #### How to build:
-- cd ~
-- git clone https://github.com/irqlevel/ds.git
-- cd ds
-- make
-
+```sh
+$ cd ~
+$ git clone https://github.com/irqlevel/ds.git
+$ cd ds
+$ make
+```
 Note, that you can build ds for particular kernel by
 setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 
 #### How to make basic tests:
-- sudo ./test.sh
+```sh
+ sudo ./test.sh
+```
 
 #### How to run:
-- cd ~/ds
-- sudo insmod bin/ds_crt.ko #load runtime helper module
-- sudo insmod bin/ds.ko #load core kernel module
-- sudo bin/ds_ctl --dev_add /dev/sdb --format #add block device /dev/sdb to 
+```sh
+$ cd ~/ds
+$ sudo insmod bin/ds_crt.ko #load runtime helper module
+$ sudo insmod bin/ds.ko #load core kernel module
+$ sudo bin/ds_ctl --dev_add /dev/sdb --format #add block device /dev/sdb to 
 object storage and format(!!!) it.
-- sudo bin/ds_ctl --server_start IP PORT_NUMBER #run network server on IP:PORT_NUMBER
-- bin/ds_client put -f myfile.txt #put file 'myfile.txt' inside storage
+$ sudo bin/ds_ctl --server_start IP PORT_NUMBER #run network server on IP:PORT_NUMBER
+$ bin/ds_client put -f myfile.txt #put file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
-- bin/ds_client query -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
+$ bin/ds_client query -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
 size : 11
 block : 3
 bsize : 4096
 device : /dev/loop0
-- bin/ds_client get -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
-- md5sum myfile.txt output.txt #check files are equal
+$ bin/ds_client get -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
+$ md5sum myfile.txt output.txt #check files are equal
 40dca55eb18baafa452e43cb4a3cc5b5  myfile.txt
 40dca55eb18baafa452e43cb4a3cc5b5  output.txt
-- bin/ds_client delete -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
+$ bin/ds_client delete -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
+```
 
 #### How to stop:
-- sudo rmmod ds_crt
-- sudo rmmod ds
-
+```sh
+$ sudo rmmod ds_crt
+$ sudo rmmod ds
+```
 #### How to see execution/debug log:
-/var/log/ds.log
+```sh
+$ tail -n 20 /var/log/ds.log
+```
