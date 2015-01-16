@@ -40,12 +40,11 @@ setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 
 #### Test:
 ```sh
- sudo ./test.sh
+$ sudo ./test.sh
 ```
 
 #### Usage:
 ```sh
-$ cd ~/ds
 $ sudo insmod bin/ds_crt.ko #load runtime helper module
 
 $ sudo insmod bin/ds.ko #load core kernel module
