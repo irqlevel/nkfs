@@ -88,7 +88,8 @@ $ md5sum myfile.txt output.txt #check files are equal
 
 $ bin/ds_client delete -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
 
-$ bin/ds_ctl dev_rem -d /dev/sdb #detach device from storage
+$ sudo bin/ds_ctl dev_rem -d /dev/sdb #detach device from storage
+$ sudo bin/ds_ctl srv_stop -s 127.0.0.1 -p 8000 #stop server
 ```
 #### Shutdown:
 ```sh
