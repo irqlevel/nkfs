@@ -28,7 +28,7 @@ Core linux kernel module can:
 - connect to other computers nodes
 and receive clients/other computer nodes requests.
 
-#### How to build:
+#### Build:
 ```sh
 $ cd ~
 $ git clone https://github.com/irqlevel/ds.git
@@ -38,12 +38,12 @@ $ make
 Note, that you can build ds for particular kernel by
 setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 
-#### How to run basic tests:
+#### Test:
 ```sh
  sudo ./test.sh
 ```
 
-#### How to run:
+#### Usage:
 ```sh
 $ cd ~/ds
 $ sudo insmod bin/ds_crt.ko #load runtime helper module
@@ -65,12 +65,12 @@ $ md5sum myfile.txt output.txt #check files are equal
 $ bin/ds_client delete -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
 $ bin/ds_ctl dev_rem -d /dev/sdb #detach device from storage
 ```
-#### How to stop:
+#### Shutdown:
 ```sh
 $ sudo rmmod ds_crt
 $ sudo rmmod ds
 ```
-#### How to see execution/debug log:
+#### Logs:
 ```sh
 $ tail -n 20 /var/log/ds.log
 ```
