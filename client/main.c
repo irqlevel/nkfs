@@ -341,6 +341,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'p':
 				port = atoi(optarg);				
+				break;
 			default:
 				usage(prog);
 				exit(-EINVAL);
@@ -348,6 +349,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind >= argc) {
+		printf("expected more args\n");
 		usage(prog);
 		exit(-EINVAL);
 	}	
