@@ -50,19 +50,19 @@ $ sudo insmod bin/ds_crt.ko #load runtime helper module
 $ sudo insmod bin/ds.ko #load core kernel module
 $ sudo bin/ds_ctl --dev_add /dev/sdb --format #add block device /dev/sdb to 
 object storage and format(!!!) it.
-$ sudo bin/ds_ctl --server_start IP PORT_NUMBER #run network server on IP:PORT_NUMBER
-$ bin/ds_client put -f myfile.txt #put file 'myfile.txt' inside storage
+$ sudo bin/ds_ctl --server_start 127.0.0.1 8000 #run network server on 0.0.0.0:8000
+$ bin/ds_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
-$ bin/ds_client query -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
+$ bin/ds_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
 size : 11
 block : 3
 bsize : 4096
 device : /dev/loop0
-$ bin/ds_client get -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
+$ bin/ds_client get -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
 $ md5sum myfile.txt output.txt #check files are equal
 40dca55eb18baafa452e43cb4a3cc5b5  myfile.txt
 40dca55eb18baafa452e43cb4a3cc5b5  output.txt
-$ bin/ds_client delete -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
+$ bin/ds_client delete -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
 ```
 
 #### How to stop:
