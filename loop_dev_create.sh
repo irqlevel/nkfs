@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "start"
+echo "create loop dev /dev/loop0"
 sync
 rm -rf lfile
 dd if=/dev/zero of=lfile bs=1M count=100
