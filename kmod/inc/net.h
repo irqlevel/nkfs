@@ -15,10 +15,10 @@ struct ds_server {
 };
 
 struct ds_con {
-	struct task_struct 	*thread;
 	struct socket 		*sock;
-	struct list_head	con_list;
+	struct list_head	list;
 	struct ds_server	*server;
+	struct task_struct 	*thread;	
 	int			err;
 };
 
@@ -26,3 +26,9 @@ int ds_server_start(u32 ip, int port);
 int ds_server_stop(u32 ip, int port);
 void ds_server_finit(void);
 int ds_server_init(void);
+
+int ds_con_connect(u32 ip, int port, struct ds_con **pcon);
+int ds_con_send(struct ds_con *con, void *buffer, u32 nob);
+int ds_con_recv(struct ds_con *con, void *buffer, u32 nob);
+void ds_con_release(struct ds_con *con);
+void ds_con_fail(struct ds_con *con, int err);

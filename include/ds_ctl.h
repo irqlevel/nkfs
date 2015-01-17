@@ -30,6 +30,14 @@ struct ds_ctl {
 			u32 ip;
 			int port;
 		} server_stop;
+		struct {
+			u32 ip;
+			int port;
+		} neigh_add;
+		struct {
+			u32 ip;
+			int port;
+		} neigh_remove;
 	} u;
 };
 
@@ -41,3 +49,7 @@ struct ds_ctl {
 
 #define IOCTL_DS_SRV_START	_IOWR(DS_IOC_MAGIC, 4, struct ds_cmd *)
 #define IOCTL_DS_SRV_STOP	_IOWR(DS_IOC_MAGIC, 5, struct ds_cmd *)
+
+#define IOCTL_DS_NEIGH_ADD	_IOWR(DS_IOC_MAGIC, 6, struct ds_cmd *)
+#define IOCTL_DS_NEIGH_REMOVE	_IOWR(DS_IOC_MAGIC, 7, struct ds_cmd *)
+

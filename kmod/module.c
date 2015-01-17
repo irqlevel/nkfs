@@ -56,6 +56,14 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			err = ds_server_stop(cmd->u.server_stop.ip,
 				cmd->u.server_stop.port);
 			break;
+		case IOCTL_DS_NEIGH_ADD:
+			err = ds_neigh_add(cmd->u.neigh_add.ip,
+				cmd->u.neigh_add.port);
+			break;
+		case IOCTL_DS_NEIGH_REMOVE:
+			err = ds_neigh_remove(cmd->u.neigh_remove.ip,
+				cmd->u.neigh_remove.port);
+			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);
 			err = DS_E_UNK_IOCTL;

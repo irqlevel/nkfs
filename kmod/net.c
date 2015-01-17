@@ -25,15 +25,16 @@ static void ds_con_free(struct ds_con *con)
 	kmem_cache_free(con_cachep, con);
 }
 
-static void ds_con_release(struct ds_con *con)
+void ds_con_release(struct ds_con *con)
 {
 	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
-	put_task_struct(con->thread);
+	if (con->thread)
+		put_task_struct(con->thread);
 	ds_con_free(con);
 }
 
-static void ds_con_fail(struct ds_con *con, int err)
+void ds_con_fail(struct ds_con *con, int err)
 {
 	if (!con->err) {
 		KLOG(KL_DBG, "con %p failed err %x", con, err);
@@ -41,7 +42,7 @@ static void ds_con_fail(struct ds_con *con, int err)
 	}
 }
 
-static int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
+int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
 {
 	u32 read;
 	int err;
@@ -65,7 +66,7 @@ static int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
 	return 0;
 }
 
-static int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
+int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
 {
 	u32 wrote;
 	int err;
@@ -394,8 +395,8 @@ static int ds_con_thread_routine(void *data)
 
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
-		if (!list_empty(&con->con_list))
-			list_del_init(&con->con_list);	
+		if (!list_empty(&con->list))
+			list_del_init(&con->list);	
 		else
 			con = NULL;
 		mutex_unlock(&server->con_list_lock);
@@ -407,11 +408,9 @@ static int ds_con_thread_routine(void *data)
 	return 0;
 }
 
-static struct ds_con *ds_con_start(struct ds_server *server,
-	struct socket *sock)
+static struct ds_con *ds_con_alloc(void)
 {
 	struct ds_con *con;
-	int err = -EINVAL;
 
 	con = kmem_cache_alloc(con_cachep, GFP_NOIO);
 	if (!con) {
@@ -419,6 +418,40 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 		return NULL;
 	}
 	memset(con, 0, sizeof(*con));
+	return con;
+}
+
+int ds_con_connect(u32 ip, int port, struct ds_con **pcon)
+{
+	struct ds_con *con;
+	int err;
+
+	con = ds_con_alloc();
+	if (con)
+		return -ENOMEM;
+
+	err = ksock_connect(&con->sock, 0, 0, ip, port);
+	if (err) {
+		KLOG(KL_ERR, "cant connect %d:%d", ip, port);
+		goto free_con;
+	}
+
+	*pcon = con;
+	err = 0;
+free_con:
+	ds_con_free(con);
+	return err;
+}
+
+static struct ds_con *ds_con_start(struct ds_server *server,
+	struct socket *sock)
+{
+	struct ds_con *con;
+	int err = -EINVAL;
+
+	con = ds_con_alloc();
+	if (!con)
+		return NULL;
 
 	con->server = server;
 	con->thread = NULL;
@@ -433,7 +466,7 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 
 	get_task_struct(con->thread);	
 	mutex_lock(&server->con_list_lock);
-	list_add_tail(&con->con_list, &server->con_list);
+	list_add_tail(&con->list, &server->con_list);
 	mutex_unlock(&server->con_list_lock);
 
 	wake_up_process(con->thread);
@@ -526,8 +559,8 @@ static int ds_server_thread_routine(void *data)
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&server->con_list)) {
 			con = list_first_entry(&server->con_list, struct ds_con,
-					con_list);
-			list_del_init(&con->con_list);		
+					list);
+			list_del_init(&con->list);		
 		}
 		mutex_unlock(&server->con_list_lock);
 		if (!con)
