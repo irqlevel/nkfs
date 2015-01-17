@@ -6,7 +6,7 @@ ccflags-y := -I$(src) -g3 -D __KERNEL__ $(COMMON_CFLAGS)
 
 ds-y := module.o dev_io.o dev.o net.o \
 	super.o balloc.o inode.o btree.o amap.o \
-	upages.o ksocket.o \
+	upages.o ksocket.o route.o\
 
 KBUILD_EXTRA_SYMBOLS = $(PROJ_ROOT)/crt/kernel/Module.symvers
 

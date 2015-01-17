@@ -130,10 +130,18 @@ static int __init ds_init(void)
 		goto out_dev_release;
 	}
 
+	err = ds_route_init();
+	if (err) {
+		KLOG(KL_ERR, "ds_route_init err %d", err);
+		goto out_srv_release;
+	}
+
 	KLOG(KL_INF, "inited");
 
 	return 0;
 
+out_srv_release:
+	ds_server_finit();
 out_dev_release:
 	ds_dev_finit();
 out_sb_release:
@@ -155,13 +163,13 @@ static void __exit ds_exit(void)
 	KLOG(KL_INF, "exiting");
 
 	misc_deregister(&ds_misc);
+	ds_route_finit();
 	ds_server_finit();
 	ds_dev_finit();
 	ds_sb_finit();
 	btree_finit();
 	ds_inode_finit();
 	amap_sys_release();
-
 	KLOG(KL_INF, "exited");
 }
 
