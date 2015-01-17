@@ -1,5 +1,16 @@
 #include <include/ds_client.h>
 #include <include/ds_net.h>
+#include <crt/include/crt.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 static void con_fail(struct ds_con *con, int err)
 {

@@ -1,18 +1,8 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <crt/include/crt.h>
-#include <errno.h>
 #include <include/ds_obj_id.h>
-#include <include/types.h>
+#include <include/ds_types.h>
+#include <include/ds_obj_info.h>
 
 #pragma pack(push, 1)
 struct ds_con {

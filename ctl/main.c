@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 	char *cmd = NULL;
 	char *server = NULL;
 	char *prog = argv[0];
-	int port = -1;
+	int port = DS_SRV_PORT;
 
 	prepare_logging();
 

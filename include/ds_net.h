@@ -1,9 +1,9 @@
 #pragma once
 
-#include <include/types.h>
+#include <include/ds_types.h>
 #include <include/ds_obj_info.h>
+#include <include/ds_const.h>
 #include <crt/include/sha256.h>
-#include <include/const.h>
 
 enum {
 	DS_NET_PKT_ECHO = 1,

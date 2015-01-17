@@ -12,7 +12,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <crt/include/crt.h>
-#include <include/ds_client.h> /* client lib */
+#include <include/ds_client.h>
+#include <include/ds_const.h>
 
 #include "test.h"
 
@@ -350,7 +351,7 @@ int main(int argc, char *argv[])
 	char *cmd = NULL;
 	char *server = "127.0.0.1";
 	char *prog = argv[0];
-	int port = 8000;
+	int port = DS_SRV_PORT;
 
 	prepare_logging();
 	while ((opt = getopt(argc, argv, "f:i:s:p:")) != -1) {

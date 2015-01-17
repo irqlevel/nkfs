@@ -2,8 +2,8 @@
 #include <linux/ioctl.h>
 #include <include/ds_obj_id.h>
 #include <include/ds_dev_info.h>
-#include <include/types.h>
-#include <include/const.h>
+#include <include/ds_types.h>
+#include <include/ds_const.h>
 
 #define DS_IOC_MAGIC 0xE1 
 #pragma pack(push, 1)

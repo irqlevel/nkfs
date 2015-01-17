@@ -1,6 +1,6 @@
 #pragma once
-#include <include/types.h>
-#include <include/const.h>
+#include <include/ds_types.h>
+#include <include/ds_const.h>
 #pragma pack(push, 1)
 
 struct ds_obj_info {
