@@ -52,9 +52,9 @@ $ sudo insmod bin/ds.ko #load core kernel module
 $ sudo bin/ds_ctl dev_add -d /dev/sdb -f #attach block device /dev/sdb to 
 object storage and format(!!!) it.
 
-$ sudo bin/ds_ctl --server_start 127.0.0.1 8000 #run network server at 127.0.0.1:8000
+$ sudo bin/ds_ctl srv_start -s 127.0.0.1 -p 8000 #run network server at 127.0.0.1:8000
 
-$ bin/ds_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put file 'myfile.txt' inside storage
+$ bin/ds_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put already created file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
 
 $ bin/ds_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
