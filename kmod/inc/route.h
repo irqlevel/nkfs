@@ -1,8 +1,8 @@
 #pragma once
 
 enum {
-	DS_NEIGH_INITED,
-	DS_NEIGH_CONNECTED,
+	DS_NEIGH_INIT,
+	DS_NEIGH_VALID,
 };
 
 #pragma pack(push, 1)
@@ -33,6 +33,8 @@ struct ds_host {
 	struct list_head	neigh_list;
 	struct timer_list 	timer;
 	struct workqueue_struct *wq;
+	u32			ip;
+	int			port;
 	int			neighs_active;
 	int			stopping;
 };
@@ -69,3 +71,6 @@ void ds_route_finit(void);
 int ds_neigh_add(u32 ip, int port);
 int ds_neigh_remove(u32 ip, int port);
 
+int ds_neigh_handshake(struct ds_obj_id *net_id,
+	struct ds_obj_id *host_id, u32 ip, int port,
+	struct ds_obj_id *reply_host_id);

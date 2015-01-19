@@ -25,7 +25,7 @@ static void ds_con_free(struct ds_con *con)
 	kmem_cache_free(con_cachep, con);
 }
 
-void ds_con_release(struct ds_con *con)
+void ds_con_close(struct ds_con *con)
 {
 	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
@@ -90,16 +90,40 @@ int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
 	return 0;
 }
 
-static int ds_con_reply(struct ds_con *con,
+int ds_con_send_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
+{
+	int err;
+
+	net_pkt_sign(pkt);
+	err = ds_con_send(con, pkt, sizeof(*pkt));
+	if (err) {
+		KLOG(KL_ERR, "pkt send err %d", err);
+	}
+	return err;
+}
+
+int ds_con_send_reply(struct ds_con *con,
 		struct ds_net_pkt *reply, int err)
 {
 	reply->err = err;
-	net_pkt_sign(reply);
-	err = ds_con_send(con, reply, sizeof(*reply));
-	if (err) {
-		KLOG(KL_ERR, "reply send err %d", err);
-	}
+	return ds_con_send_pkt(con, reply);
+}
 
+int ds_con_recv_pkt(struct ds_con *con,
+		struct ds_net_pkt *pkt)
+{
+	int err;
+	err = ds_con_recv(con, pkt, sizeof(*pkt));
+	if (err) {
+		KLOG(KL_ERR, "recv err %d", err);
+		return err;
+	}
+	
+	err = net_pkt_check(pkt);
+	if (err) {	
+		KLOG(KL_ERR, "pkt check err %d", err);
+		ds_con_fail(con, -EINVAL);
+	}
 	return err;
 }
 
@@ -208,7 +232,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 
 	err = ds_pages_create(pkt->dsize, &pages);
 	if (err) {
-		ds_con_reply(con, reply, err);
+		ds_con_send_reply(con, reply, err);
 		goto out;
 	}
 
@@ -220,7 +244,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 		pages.nr_pages,
 		&read);
 	if (err) {
-		ds_con_reply(con, reply, err);
+		ds_con_send_reply(con, reply, err);
 		goto free_pages;
 	}
 
@@ -228,7 +252,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 		err = ds_pages_dsum(&pages, &dsum, read);
 		if (err) {
 			KLOG(KL_ERR, "cant dsum pages err %d", err);
-			ds_con_reply(con, reply, err);
+			ds_con_send_reply(con, reply, err);
 			goto free_pages;	
 		}
 		memcpy(&reply->dsum, &dsum, sizeof(dsum));
@@ -236,7 +260,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 
 	reply->dsize = read;
 
-	err = ds_con_reply(con, reply, 0);
+	err = ds_con_send_reply(con, reply, 0);
 	if (err) {
 		goto free_pages;	
 	}
@@ -259,7 +283,7 @@ static int ds_con_put_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	err = ds_con_recv_pages(con, pkt, &pages);
 	if (err) {
 		if (!con->err)
-			ds_con_reply(con, reply, err);
+			ds_con_send_reply(con, reply, err);
 		goto out;
 	}
 	
@@ -270,7 +294,7 @@ static int ds_con_put_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 		pages.pages,
 		pages.nr_pages);
 
-	err = ds_con_reply(con, reply, err);
+	err = ds_con_send_reply(con, reply, err);
 
 	ds_pages_release(&pages);
 out:
@@ -283,7 +307,7 @@ static int ds_con_create_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	int err;
 
 	err = ds_sb_list_create_obj(&reply->u.create_obj.obj_id);
-	return ds_con_reply(con, reply, err);
+	return ds_con_send_reply(con, reply, err);
 }
 
 static int ds_con_delete_obj(struct ds_con *con, struct ds_net_pkt *pkt,
@@ -292,13 +316,13 @@ static int ds_con_delete_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	int err;
 
 	err = ds_sb_list_delete_obj(&pkt->u.delete_obj.obj_id);
-	return ds_con_reply(con, reply, err);
+	return ds_con_send_reply(con, reply, err);
 }
 
 static int ds_con_echo(struct ds_con *con, struct ds_net_pkt *pkt,
 	struct ds_net_pkt *reply)
 {
-	return ds_con_reply(con, reply, 0);
+	return ds_con_send_reply(con, reply, 0);
 }
 
 static int ds_con_query_obj(struct ds_con *con, struct ds_net_pkt *pkt,
@@ -308,8 +332,23 @@ static int ds_con_query_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 
 	err = ds_sb_list_query_obj(&pkt->u.query_obj.obj_id,
 		&reply->u.query_obj.obj_info);
-	return ds_con_reply(con, reply, err);
+	return ds_con_send_reply(con, reply, err);
 }
+
+static int ds_con_neigh_handshake(struct ds_con *con, struct ds_net_pkt *pkt,
+	struct ds_net_pkt *reply)
+{
+	int err;
+
+	err = ds_neigh_handshake(&pkt->u.neigh_handshake.net_id,
+		&pkt->u.neigh_handshake.host_id,
+		pkt->u.neigh_handshake.host_ip,
+		pkt->u.neigh_handshake.host_port,
+		&reply->u.neigh_handshake.reply_host_id);
+
+	return ds_con_send_reply(con, reply, err);
+}
+
 
 static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 {
@@ -345,8 +384,11 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 		case DS_NET_PKT_QUERY_OBJ:
 			err = ds_con_query_obj(con, pkt, reply);
 			break;
+		case DS_NET_PKT_NEIGH_HANDSHAKE:
+			err = ds_con_neigh_handshake(con, pkt, reply);
+			break;
 		default:
-			err = ds_con_reply(con, reply, -EINVAL);
+			err = ds_con_send_reply(con, reply, -EINVAL);
 			break;
 	}
 	KLOG(KL_DBG1, "pkt %d err %d reply.err %d",
@@ -376,21 +418,12 @@ static int ds_con_thread_routine(void *data)
 			KLOG(KL_ERR, "no memory");
 			break;
 		}
-		
-		err = ds_con_recv(con, pkt, sizeof(*pkt));
+		err = ds_con_recv_pkt(con, pkt);	
 		if (err) {
-			KLOG(KL_DBG, "socket recv err %d", err);
+			KLOG(KL_ERR, "pkt recv err %d", err);
 			crt_free(pkt);
 			break;
 		}
-
-		if ((err = net_pkt_check(pkt))) {
-			KLOG(KL_ERR, "pkt check err %d", err);
-			crt_free(pkt);
-			ds_con_fail(con, -EINVAL);
-			break;
-		}
-
 		ds_con_process_pkt(con, pkt);
 		crt_free(pkt);
 	}
@@ -407,7 +440,7 @@ static int ds_con_thread_routine(void *data)
 		mutex_unlock(&server->con_list_lock);
 
 		if (con)
-			ds_con_release(con);
+			ds_con_close(con);
 	}
 
 	return 0;
@@ -735,4 +768,20 @@ void ds_server_finit(void)
 	ds_server_stop_all();
 	kmem_cache_destroy(server_cachep);
 	kmem_cache_destroy(con_cachep);
+}
+
+int ds_ip_port_cmp(u32 ip1, int port1, u32 ip2, int port2)
+{
+	if (ip1 == ip2) {
+		if (port1 < port2)
+			return -1;
+		else if (port1 > port2)
+			return 1;
+		else
+			return 0;
+	} else if (ip1 > ip2) {
+		return 1;
+	} else {
+		return -1;
+	}
 }

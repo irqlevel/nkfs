@@ -6,8 +6,25 @@
 struct ds_host *ds_host;
 struct kmem_cache *ds_neigh_cachep;
 
-void ds_neighs_remove(struct ds_host *host,
+static void ds_neighs_remove(struct ds_host *host,
 	struct ds_neigh *neigh);
+
+static int ds_neigh_connect(struct ds_neigh *neigh)
+{
+	int err;
+
+	BUG_ON(neigh->con);
+	err = ds_con_connect(neigh->ip, neigh->port, &neigh->con);
+	return err;
+}
+
+static void ds_neigh_close(struct ds_neigh *neigh)
+{
+	if (neigh->con) {
+		ds_con_close(neigh->con);
+		neigh->con = NULL;
+	}
+}
 
 static struct ds_neigh *ds_neigh_alloc(void)
 {
@@ -32,6 +49,7 @@ static void ds_neigh_free(struct ds_neigh *neigh)
 static void ds_neigh_release(struct ds_neigh *neigh)
 {
 	ds_neighs_remove(neigh->host, neigh);
+	ds_neigh_close(neigh);
 	ds_neigh_free(neigh);
 }
 
@@ -48,8 +66,7 @@ void ds_neigh_deref(struct ds_neigh *neigh)
 		ds_neigh_release(neigh);	
 }
 
-struct ds_neigh *__ds_neighs_lookup(struct ds_host *host,
-	struct ds_obj_id *host_id)
+static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 ip, int port)
 {
 	struct rb_node *n = host->neighs.rb_node;
 	struct ds_neigh *found = NULL;
@@ -59,7 +76,7 @@ struct ds_neigh *__ds_neighs_lookup(struct ds_host *host,
 		int cmp;
 
 		neigh = rb_entry(n, struct ds_neigh, neighs_link);
-		cmp = ds_obj_id_cmp(host_id, &neigh->host_id);
+		cmp = ds_ip_port_cmp(ip, port, neigh->ip, neigh->port);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
@@ -73,24 +90,24 @@ struct ds_neigh *__ds_neighs_lookup(struct ds_host *host,
 }
 
 struct ds_neigh * ds_neighs_lookup(struct ds_host *host,
-	struct ds_obj_id *host_id)
+	u32 ip, int port)
 {	
 	struct ds_neigh *neigh;
 	read_lock_irq(&host->neighs_lock);
-	neigh = __ds_neighs_lookup(host, host_id);
+	neigh = __ds_neighs_lookup(host, ip, port);
 	if (neigh != NULL)
 		NEIGH_REF(neigh);
 	read_unlock_irq(&host->neighs_lock);
 	return neigh;
 }
 
-void ds_neighs_remove(struct ds_host *host,
+static void ds_neighs_remove(struct ds_host *host,
 	struct ds_neigh *neigh)
 {
 	struct ds_neigh *found;
 
 	write_lock_irq(&host->neighs_lock);
-	found = __ds_neighs_lookup(host, &neigh->host_id);
+	found = __ds_neighs_lookup(host, neigh->ip, neigh->port);
 	if (found) {
 		BUG_ON(found != neigh);
 		rb_erase(&found->neighs_link, &host->neighs);
@@ -99,20 +116,21 @@ void ds_neighs_remove(struct ds_host *host,
 	write_unlock_irq(&host->neighs_lock);
 }
 
-struct ds_neigh *ds_neighs_insert(struct ds_host *host,
+static struct ds_neigh *__ds_neighs_insert(struct ds_host *host,
 		struct ds_neigh *neigh)
 {
-	struct rb_node **p = &host->neighs.rb_node;
+	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct ds_neigh *inserted = NULL;
 
-	write_lock_irq(&host->neighs_lock);
+	p = &host->neighs.rb_node;
 	while (*p) {
 		struct ds_neigh *found;
 		int cmp;
 		parent = *p;
 		found = rb_entry(parent, struct ds_neigh, neighs_link);
-		cmp = ds_obj_id_cmp(&neigh->host_id, &found->host_id);
+		cmp = ds_ip_port_cmp(neigh->ip, neigh->port,
+			found->ip, found->port);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
 		} else if (cmp > 0) {
@@ -129,6 +147,15 @@ struct ds_neigh *ds_neighs_insert(struct ds_host *host,
 		inserted = neigh;
 	}
 	NEIGH_REF(inserted);
+	return inserted;
+}
+
+static struct ds_neigh *ds_neighs_insert(struct ds_host *host,
+		struct ds_neigh *neigh)
+{
+	struct ds_neigh *inserted;
+	write_lock_irq(&host->neighs_lock);
+	inserted = __ds_neighs_insert(host, neigh);
 	write_unlock_irq(&host->neighs_lock);
 	return inserted;
 }
@@ -173,25 +200,66 @@ static int ds_neigh_queue_work(struct ds_neigh *neigh,
 	return -EAGAIN;
 }
 
-int ds_neigh_do_connect(struct ds_neigh *neigh)
+static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 {
 	int err;
+	struct ds_net_pkt *req, *reply;
+	struct ds_host *host = neigh->host;
 	BUG_ON(neigh->con);
 
-	err = ds_con_connect(neigh->ip, neigh->port, &neigh->con);
+	err = ds_neigh_connect(neigh);
 	if (err)
 		return err;
 
-	neigh->state = DS_NEIGH_CONNECTED;
+	req = net_pkt_alloc();
+	if (!req) {
+		KLOG(KL_ERR, "no memory");
+		goto close_con;
+	}
 
+	reply = net_pkt_alloc();
+	if (!reply) {
+		KLOG(KL_ERR, "no memory");
+		goto free_req;
+	}
+
+	req->type = DS_NET_PKT_NEIGH_HANDSHAKE;
+	ds_obj_id_copy(&req->u.neigh_handshake.net_id, &host->net_id);
+	ds_obj_id_copy(&req->u.neigh_handshake.host_id, &host->host_id);
+	req->u.neigh_handshake.host_ip = neigh->host->ip;
+	req->u.neigh_handshake.host_port = neigh->host->port;
+
+	err = ds_con_send_pkt(neigh->con, req);
+	if (err) {
+		KLOG(KL_ERR, "send err %d", err);
+		goto free_reply;
+	}
+
+	err = ds_con_recv_pkt(neigh->con, reply);
+	if (err) {
+		KLOG(KL_ERR, "recv err %d", err);
+		goto free_reply;
+	}
+	
+	ds_obj_id_copy(&neigh->host_id,
+		&reply->u.neigh_handshake.reply_host_id);
+
+	neigh->state = DS_NEIGH_VALID;
+
+free_reply:
+	crt_free(reply);
+free_req:
+	crt_free(req);
+close_con:
+	ds_neigh_close(neigh);
 	return err;
 }
 
 static void ds_neigh_connect_work(struct work_struct *wrk)
 {
 	struct ds_neigh *neigh = container_of(wrk, struct ds_neigh, work);
-	if (neigh->state == DS_NEIGH_INITED) {
-		ds_neigh_do_connect(neigh);
+	if (neigh->state == DS_NEIGH_INIT) {
+		ds_neigh_do_handshake(neigh);
 	}
 	atomic_set(&neigh->work_used, 0);	
 }
@@ -205,7 +273,7 @@ static void ds_host_connect_work(struct work_struct *wrk)
 
 	read_lock(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, list) {
-		if (neigh->state == DS_NEIGH_INITED)
+		if (neigh->state == DS_NEIGH_INIT)
 			ds_neigh_queue_work(neigh,
 				ds_neigh_connect_work, NULL);
 	}
@@ -338,12 +406,22 @@ void ds_route_finit(void)
 	kmem_cache_destroy(ds_neigh_cachep);
 }
 
-void ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
+int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 {
-	neigh->host = host;
+	struct ds_neigh *inserted;
+	int err = -EEXIST;
+
 	write_lock_irq(&host->neighs_lock);
-	list_add_tail(&neigh->list, &host->neigh_list);
+	neigh->host = host;	
+	inserted = ds_neighs_insert(host, neigh);
+	BUG_ON(!inserted);
+	if (inserted == neigh) {
+		list_add_tail(&neigh->list, &host->neigh_list);
+		err = 0;
+	}
+	NEIGH_DEREF(inserted);
 	write_unlock_irq(&host->neighs_lock);
+	return err;
 }
 
 int ds_host_remove_neigh(struct ds_host *host, u32 ip, int port)
@@ -375,6 +453,8 @@ int ds_host_remove_neigh(struct ds_host *host, u32 ip, int port)
 int ds_neigh_add(u32 ip, int port)
 {
 	struct ds_neigh *neigh;
+	int err;
+
 	neigh = ds_neigh_alloc();
 	if (!neigh) {
 		KLOG(KL_ERR, "no mem");
@@ -382,12 +462,53 @@ int ds_neigh_add(u32 ip, int port)
 	}
 	neigh->ip = ip;
 	neigh->port = port;
-	neigh->state = DS_NEIGH_INITED;
-	ds_host_add_neigh(ds_host, neigh); 
-	return 0;
+	neigh->state = DS_NEIGH_INIT;
+	err = ds_host_add_neigh(ds_host, neigh); 
+	if (err) {
+		KLOG(KL_ERR, "cant add neigh");
+		ds_neigh_free(neigh);
+	}
+
+	return err;
 }
 
 int ds_neigh_remove(u32 ip, int port)
 {
 	return ds_host_remove_neigh(ds_host, ip, port);
+}
+
+int ds_neigh_handshake(struct ds_obj_id *net_id,
+	struct ds_obj_id *host_id, u32 ip, int port,
+	struct ds_obj_id *reply_host_id)
+{
+	struct ds_neigh *neigh;
+	int err;
+
+	if (0 == ds_obj_id_cmp(net_id, &ds_host->net_id)) {
+		KLOG(KL_ERR, "diff net id");
+		return -EINVAL;
+	}
+
+	neigh = ds_neigh_alloc();
+	if (!neigh) {
+		KLOG(KL_ERR, "no mem");
+		return -ENOMEM;
+	}
+
+	neigh->ip = ip;
+	neigh->port = port;
+	ds_obj_id_copy(&neigh->host_id, host_id);
+	neigh->state = DS_NEIGH_VALID;
+
+	err = ds_host_add_neigh(ds_host, neigh);
+	if (err) {
+		KLOG(KL_ERR, "cant add neigh");
+		goto free_neigh;
+	}
+
+	return 0;
+
+free_neigh:
+	ds_neigh_free(neigh);
+	return err;
 }
