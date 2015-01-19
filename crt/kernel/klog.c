@@ -20,7 +20,7 @@ static long klog_stopping = 0;
 static struct task_struct *klog_thread;
 static DECLARE_WAIT_QUEUE_HEAD(klog_thread_wait);
 
-static char *klog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "TST", "MAX"};
+static char *klog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" , "WRN" , "ERR", "FTL", "TST", "MAX"};
 
 static int klog_write_msg2(char **buff, int *left, const char *fmt, va_list args)
 {

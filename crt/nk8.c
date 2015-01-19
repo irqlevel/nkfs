@@ -101,7 +101,7 @@ static void gf_init(void)
 			gf_log[i][j] = gf_mult_direct(i, j);
 			count++;
 			if ((count % 1000) == 0) {
-				CLOG(CL_DBG, "count %u i %u j %u",
+				CLOG(CL_DBG1, "count %u i %u j %u",
 					count, i, j);
 				crt_msleep(1);
 			}
@@ -114,7 +114,7 @@ static void gf_init(void)
 			gf_alog[i][j] = gf_div_brute(i, j);
 			count++;
 			if ((count % 1000) == 0) {
-				CLOG(CL_DBG, "count %u i %u j %u",
+				CLOG(CL_DBG1, "count %u i %u j %u",
 					count, i, j);
 				crt_msleep(1);
 			}
@@ -238,7 +238,7 @@ static int gf_inverse_matrix(u8 **matrix, u8**inverse, u32 size)
 			}
 		}
 		if (!ok) {
-			CLOG(CL_ERR, "cant make inverse");
+			CLOG(CL_WRN, "cant make inverse");
 			return -EFAULT;
 		}
 	}
@@ -292,10 +292,10 @@ static int gf_test_matrix(void)
 
 	err = gf_inverse_matrix(mult, inverse, size);
 	if (err) {
-		CLOG(CL_ERR, "cant inverse err %d", err);
+		CLOG(CL_WRN, "cant inverse err %d", err);
 		goto free_mult;
 	}
-	CLOG(CL_INF, "complete");
+	CLOG(CL_DBG, "complete");
 free_mult:
 	gf_free_matrix(mult, size);
 free_inverse:
@@ -393,7 +393,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 		crt_memset(tail + tail_size, 0, k - tail_size);
 		part_size-= 1;
 	}		
-	CLOG(CL_INF, "part_size %u tail_size %u",
+	CLOG(CL_DBG, "part_size %u tail_size %u",
 		part_size, tail_size);
 
 	nk8_gen_part_ids(ids, n);	
@@ -476,7 +476,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 		part_size-= 1;
 	}
 
-	CLOG(CL_INF, "part_size %u tail_size %u",
+	CLOG(CL_DBG, "part_size %u tail_size %u",
 		part_size, tail_size);
 
 	if (tail_size) {
@@ -613,7 +613,7 @@ static int nk8_test(u32 block_size, int n, int k)
 	u8 id;
 	int found = 0;
 
-	CLOG(CL_INF, "bsize %u n %d k %d", block_size, n, k);
+	CLOG(CL_DBG, "bsize %u n %d k %d", block_size, n, k);
 
 	block = crt_malloc(block_size);
 	if (!block) {
@@ -693,7 +693,7 @@ static int nk8_test(u32 block_size, int n, int k)
 		err = -EINVAL;
 		goto cleanup;
 	}
-	CLOG(CL_INF, "success");
+	CLOG(CL_INF, "success block_size %u n %d k %d", block_size, n, k);
 	err = 0;
 cleanup:
 	if (parts) {
@@ -717,15 +717,30 @@ cleanup:
 
 int nk8_init(void)
 {
+	int err;
+
 	gf_init();
 	inited = 1;
-	gf_test_matrix();
-	nk8_test(12123, 5, 3);
-	nk8_test(63203, 9, 7);
-	nk8_test(45021, 43, 5);
-	nk8_test(4096, 6, 3);
 
-	return 0;
+	gf_test_matrix();
+
+	err = nk8_test(12123, 5, 3);
+	if (err)
+		goto out;
+
+	err = nk8_test(63203, 9, 7);
+	if (err)
+		goto out;
+	
+	err = nk8_test(45021, 43, 5);
+	if (err)
+		goto out;
+
+	err = nk8_test(4096, 6, 3);
+	if (err)
+		goto out;
+out:
+	return err;
 }
 
 void nk8_release(void)

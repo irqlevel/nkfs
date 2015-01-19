@@ -1,12 +1,16 @@
 #pragma once
 
 #define CL_INV	0
-#define CL_DBG	1
-#define CL_INF	2
-#define CL_WRN	3
-#define CL_ERR	4
-#define CL_TST	5
-#define CL_MAX	6
+#define CL_DBG3	1
+#define CL_DBG2	2
+#define CL_DBG1	3
+#define CL_DBG	4
+#define CL_INF	5
+#define CL_WRN	6
+#define CL_ERR	7
+#define CL_FTL	8
+#define CL_TST	9
+#define CL_MAX	10
 
 #define CLOG_ENABLED	1
 #define CLOG_SRC	1

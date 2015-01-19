@@ -2,12 +2,16 @@
 
 #include <stdarg.h>
 #define KL_INV		0
-#define KL_DBG		1
-#define KL_INF		2
-#define KL_WRN		3
-#define KL_ERR		4
-#define KL_TST		5
-#define KL_MAX		6
+#define KL_DBG3		1
+#define KL_DBG2		2
+#define KL_DBG1		3
+#define KL_DBG		4
+#define KL_INF		5
+#define KL_WRN		6
+#define KL_ERR		7
+#define KL_FTL		8
+#define KL_TST		9
+#define KL_MAX		10
 
 void klog(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...);
 void klog_v(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args);

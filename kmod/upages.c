@@ -77,7 +77,7 @@ void ds_pages_region(unsigned long buf, u32 len,
 
 	pages_delta = end_page - buf_page;
 	pages_delta += ((buf + len) & (PAGE_SIZE - 1)) ? 1 : 0;
-	KLOG(KL_DBG, "pg_addr %lx len %u nr_pages %llu pg_off %u",
+	KLOG(KL_DBG1, "pg_addr %lx len %u nr_pages %llu pg_off %u",
 		pg_addr, len, pages_delta, pg_off);
 	*ppg_addr = pg_addr;
 	*ppg_off = pg_off;
@@ -96,7 +96,7 @@ int ds_pages_create(u32 len, struct ds_pages *ppages)
 	pages.nr_pages = (len >> PAGE_SHIFT);
 	pages.nr_pages += (len & (PAGE_SIZE - 1)) ? 1 : 0;
 
-	KLOG(KL_DBG, "nr_pages %u len %u psize %lu",
+	KLOG(KL_DBG1, "nr_pages %u len %u psize %lu",
 		pages.nr_pages, len, PAGE_SIZE);
 
 	pages.len = len;

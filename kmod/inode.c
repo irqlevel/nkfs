@@ -660,7 +660,7 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 		goto out;
 	}
 
-	KLOG(KL_DBG, "vb %llu off %u len %u b %llu",
+	KLOG(KL_DBG1, "vb %llu off %u len %u b %llu",
 		vblock, off, len, ib.block);
 
 	down_read(&inode->rw_sem);
@@ -699,7 +699,7 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 		return err;
 	}
 
-	KLOG(KL_DBG, "vb %llu off %u len %u b %llu",
+	KLOG(KL_DBG1, "vb %llu off %u len %u b %llu",
 		vblock, off, len, ib.block);
 
 	memcpy(ib.bh->b_data + off, buf, len);
@@ -783,7 +783,7 @@ int ds_inode_io_pages(struct ds_inode *inode, u64 off, u32 pg_off, u32 len,
 	u32 io_count, io_count_sum;
 	int eof;
 
-	KLOG(KL_DBG, "off %llu pg_off %u len %u nr_pages %d write %d",
+	KLOG(KL_DBG1, "off %llu pg_off %u len %u nr_pages %d write %d",
 		off, pg_off, len, nr_pages, write);
 
 	io_count_sum = 0;

@@ -23,7 +23,7 @@ static struct btree_node *btree_node_alloc(void)
 	node->sig2 = BTREE_SIG2;
 	atomic_set(&node->ref, 1);
 
-	KLOG(KL_DBG, "node %p", node);
+	KLOG(KL_DBG1, "node %p", node);
 	return node;
 }
 
@@ -32,14 +32,14 @@ static void btree_nodes_remove(struct btree *tree,
 
 static void __btree_node_free(struct btree_node *node)
 {
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
+	KLOG(KL_DBG1, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);
 	kmem_cache_free(btree_node_cachep, node);
 }
 
 static void __btree_node_release(struct btree_node *node)
 {
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d",
+	KLOG(KL_DBG1, "node %p leaf %d nr_keys %d",
 		node, node->leaf, node->nr_keys);	
 
 	btree_nodes_remove(node->tree, node);
@@ -55,12 +55,12 @@ static void btree_node_ref(struct btree_node *node)
 #define BTREE_NODE_REF(n)						\
 {									\
 	btree_node_ref((n));						\
-	KLOG(KL_DBG, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
+	KLOG(KL_DBG3, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
 }
 
 #define BTREE_NODE_DEREF(n)						\
 {									\
-	KLOG(KL_DBG, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
+	KLOG(KL_DBG3, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
 	btree_node_deref((n));						\
 }
 
@@ -284,7 +284,7 @@ static int btree_node_write(struct btree_node *node)
 	BUG_ON(sizeof(struct btree_node_disk) > node->tree->sb->bsize);
 	BUG_ON(node->block == 0 || node->block >= node->tree->sb->nr_blocks);
 
-	KLOG(KL_DBG, "node %p block %llu", node, node->block);
+	KLOG(KL_DBG1, "node %p block %llu", node, node->block);
 
 	bh = __bread(node->tree->sb->bdev,
 			node->block,
@@ -311,7 +311,7 @@ static int btree_node_write(struct btree_node *node)
 
 static void btree_node_delete(struct btree_node *node)
 {	
-	KLOG(KL_DBG, "node %p leaf %d nr_keys %d block %llu",
+	KLOG(KL_DBG1, "node %p leaf %d nr_keys %d block %llu",
 		node, node->leaf, node->nr_keys, node->block);
 
 	btree_nodes_remove(node->tree, node);
@@ -363,10 +363,10 @@ static struct btree_node *btree_node_create(struct btree *tree)
 		btree_node_delete(node);
 		__btree_node_free(node);	
 		node = inserted;
-		KLOG(KL_DBG, "node %p found block %llu", node, node->block);	
+		KLOG(KL_DBG1, "node %p found block %llu", node, node->block);	
 	} else {
 		BTREE_NODE_DEREF(inserted);
-		KLOG(KL_DBG, "node %p created block %llu", node, node->block);
+		KLOG(KL_DBG1, "node %p created block %llu", node, node->block);
 	}
 
 	return node;	
@@ -472,7 +472,7 @@ struct btree *btree_create(struct ds_sb *sb, u64 root_block)
 			goto fail;
 	}
 
-	KLOG(KL_DBG, "tree %p created root %p ref=%d",
+	KLOG(KL_DBG1, "tree %p created root %p ref=%d",
 		tree, tree->root, atomic_read(&tree->root->ref));
 
 	return tree;
@@ -494,14 +494,14 @@ static void btree_release(struct btree *tree)
 	if (tree->root)
 		BTREE_NODE_DEREF(tree->root);
 
-	KLOG(KL_DBG, "tree %p nodes_active %d root %p",
+	KLOG(KL_DBG1, "tree %p nodes_active %d root %p",
 		tree, tree->nodes_active,
 		rb_entry(tree->nodes.rb_node, struct btree_node, nodes_link));
 
 	DS_BUG_ON(tree->nodes_active);
 
 	kmem_cache_free(btree_cachep, tree);
-	KLOG(KL_DBG, "tree %p deleted", tree);
+	KLOG(KL_DBG1, "tree %p deleted", tree);
 }
 
 static int btree_cmp_key(
@@ -641,7 +641,7 @@ static void btree_node_split_child(struct btree_node *node,
 	BUG_ON(!child || !btree_node_is_full(child));	
 	BUG_ON(!new);
 
-	KLOG(KL_DBG, "Splitting node [%p %d] child[%d]=[%p %d]",
+	KLOG(KL_DBG1, "Splitting node [%p %d] child[%d]=[%p %d]",
 		node, node->nr_keys, child_index, child, child->nr_keys);
 
 	new->leaf = child->leaf;
@@ -667,7 +667,7 @@ static void btree_node_split_child(struct btree_node *node,
 	btree_node_put_kv(node, child_index, child, new->t - 1);
 	node->nr_keys++;
 
-	KLOG(KL_DBG, "Splitted node [%p %d] child[%d]=[%p %d] new [%p %d]",
+	KLOG(KL_DBG1, "Splitted node [%p %d] child[%d]=[%p %d] new [%p %d]",
 		node, node->nr_keys, child_index, child, child->nr_keys,
 		new, new->nr_keys);
 }
@@ -703,7 +703,7 @@ static int btree_node_insert_nonfull(
 	struct btree_node *node = first;
 	
 	while (1) {
-		KLOG(KL_DBG, "node [%p %d] leaf %d",
+		KLOG(KL_DBG1, "node [%p %d] leaf %d",
 			node, node->nr_keys, node->leaf);
 		/* if key exists replace value */
 		i = btree_node_has_key(node, key);
@@ -730,7 +730,7 @@ static int btree_node_insert_nonfull(
 			i = btree_node_find_key_index(node, key);
 			btree_node_put_key_value(node, i, key, value);
 			node->nr_keys++;
-			KLOG(KL_DBG, "inserted key into node=%p nr_keys=%d",
+			KLOG(KL_DBG1, "inserted key into node=%p nr_keys=%d",
 					node, node->nr_keys);
 			btree_node_write(node);
 			if (node != first)
@@ -1003,7 +1003,7 @@ static void btree_node_merge(struct btree_node *dst,
 {
 	int i, pos;
 
-	KLOG(KL_DBG, "Merging %p %d -> %p %d",
+	KLOG(KL_DBG1, "Merging %p %d -> %p %d",
 		src, src->nr_keys, dst, dst->nr_keys);
 	/* copy mid key and value */
 	btree_copy_key(&dst->keys[dst->nr_keys], key);
@@ -1021,7 +1021,7 @@ static void btree_node_merge(struct btree_node *dst,
 	/* update keys num */
 	dst->nr_keys = dst->nr_keys + 1 + src->nr_keys;
 
-	KLOG(KL_DBG, "Merged %p -> %p nr_keys %d",
+	KLOG(KL_DBG1, "Merged %p -> %p nr_keys %d",
 		src, dst, dst->nr_keys);	
 }
 
@@ -1130,7 +1130,7 @@ btree_node_child_balance(struct btree_node *node,
 		return NULL;
 	}
 
-	KLOG(KL_DBG, "child %p nr_keys %d t %d",
+	KLOG(KL_DBG1, "child %p nr_keys %d t %d",
 		child, child->nr_keys, child->t);
 
 	if (child->nr_keys < child->t) {

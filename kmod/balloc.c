@@ -156,7 +156,7 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 		if (!err) {
 			u64 block = ((i - sb->bm_block)*sb->bsize + byte)*8
 				+ bit;
-			KLOG(KL_DBG, "alloc byte %u bit %u i %llu block %llu",
+			KLOG(KL_DBG3, "alloc byte %u bit %u i %llu block %llu",
 				byte, bit , i, block);
 			*pblock = block;
 			brelse(bh);

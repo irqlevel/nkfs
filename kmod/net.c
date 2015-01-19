@@ -4,9 +4,9 @@
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
-#define KLOG_SOCK(s, msg)						\
-	KLOG(KL_INF, "%s socket %p self %08x:%u peer %08x:%u",		\
-		msg, s, ksock_self_addr(s), ksock_self_port(s),		\
+#define KLOG_SOCK(lvl, s, msg)						\
+	KLOG((lvl), "%s socket %p self %08x:%u peer %08x:%u",		\
+		(msg), (s), ksock_self_addr(s), ksock_self_port(s),		\
 			ksock_peer_addr(s), ksock_peer_port(s));
 
 static struct kmem_cache *server_cachep;
@@ -128,7 +128,7 @@ static int ds_con_recv_pages(struct ds_con *con,
 	i = 0;
 	llen = 0;
 	while (read > 0) {
-		KLOG(KL_DBG, "read %u nr_pages %u i %u, llen %u dsize %u plen %u",
+		KLOG(KL_DBG1, "read %u nr_pages %u i %u, llen %u dsize %u plen %u",
 			read, pages.nr_pages, i, llen, pkt->dsize, pages.len);
 		DS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
@@ -324,7 +324,7 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 		return err;
 	}
 
-	KLOG(KL_DBG, "pkt %d", pkt->type);
+	KLOG(KL_DBG1, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
 		case DS_NET_PKT_ECHO:
@@ -349,7 +349,12 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 			err = ds_con_reply(con, reply, -EINVAL);
 			break;
 	}
+	KLOG(KL_DBG1, "pkt %d err %d reply.err %d",
+			pkt->type, err, reply->err);
 
+	if (err || reply->err)
+		KLOG(KL_DBG, "pkt %d err %d reply.err %d",
+				pkt->type, err, reply->err);
 	crt_free(reply);
 	return err;
 }
@@ -362,7 +367,7 @@ static int ds_con_thread_routine(void *data)
 
 	BUG_ON(con->thread != current);
 
-	KLOG_SOCK(con->sock, "con starting");
+	KLOG_SOCK(KL_DBG, con->sock, "con starting");
 
 	while (!kthread_should_stop() && !con->err) {
 		struct ds_net_pkt *pkt = net_pkt_alloc();
@@ -390,8 +395,8 @@ static int ds_con_thread_routine(void *data)
 		crt_free(pkt);
 	}
 
-	KLOG_SOCK(con->sock, "con stopping");
-	KLOG(KL_INF, "stopping con %p err %d", con, con->err);
+	KLOG_SOCK(KL_DBG, con->sock, "con stopping");
+	KLOG(KL_DBG, "stopping con %p err %d", con, con->err);
 
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
@@ -496,7 +501,7 @@ static int ds_server_thread_routine(void *data)
 
 	while (!kthread_should_stop()) {
 		if (!server->sock) {
-			KLOG(KL_INF, "start listen on ip %x port %d",
+			KLOG(KL_DBG, "start listening on ip %x port %d",
 				server->ip, server->port);
 			err = ksock_listen(&lsock, (server->ip) ? server->ip :
 				INADDR_ANY, server->port, 5);
@@ -511,7 +516,7 @@ static int ds_server_thread_routine(void *data)
 						server->ip, server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
-				KLOG_SOCK(server->sock, "listened");
+				KLOG_SOCK(KL_DBG, server->sock, "listened");
 				mutex_unlock(&server->lock);
 			} else {
 				KLOG(KL_ERR, "csock_listen err=%d", err);	
@@ -533,7 +538,7 @@ static int ds_server_thread_routine(void *data)
 				}
 				continue;
 			}
-			KLOG_SOCK(con_sock, "accepted");
+			KLOG_SOCK(KL_DBG, con_sock, "accepted");
 			if (!ds_con_start(server, con_sock)) {
 				KLOG(KL_ERR, "ds_con_start failed");
 				ksock_release(con_sock);
@@ -638,7 +643,7 @@ int ds_server_start(u32 ip, int port)
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port && server->ip == ip) {
-			KLOG(KL_INF, "server for ip %x port %d already exists",
+			KLOG(KL_WRN, "server for ip %x port %d already exists",
 				ip, port);
 			err = -EEXIST;
 			mutex_unlock(&srv_list_lock);

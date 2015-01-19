@@ -1,6 +1,6 @@
 #include <crt/include/crt.h>
 
-static char *ulog_level_s[] = {"INV", "DBG", "INF" , "WRN" , "ERR", "TEST", "MAX"};
+static char *ulog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" , "WRN" , "ERR", "FTL", "TST", "MAX"};
 
 static char *ulog_name = NULL;
 static char *ulog_path = NULL;
