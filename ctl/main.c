@@ -13,7 +13,8 @@ static void prepare_logging()
 static void usage(char *program)
 {
 	printf("Usage: %s [-d device] [-f format] [-s srv ip] [-p srv port]"
-		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop}\n",
+		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
+		" neigh_add, neigh_remove}\n",
 		program);
 }
 
@@ -139,6 +140,60 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		err = ds_server_stop(ip, port);
 		if (err) {
 			printf("cant stop server %s:%d err %d\n",
+				server, port, err);
+		}
+	} else if (cmd_equal(cmd, "neigh_add")) {
+		struct in_addr addr;	
+		u32 ip;
+
+		if (port <= 0 || port > 64000) {
+			printf("server port %d invalid\n", port);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!server) {
+			printf("server ip not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!inet_aton(server, &addr)) {
+			printf("server ip %s is not valid\n", server);
+			usage(prog);
+			return -EINVAL;
+		}
+		ip = ntohl(addr.s_addr);
+		err = ds_neigh_add(ip, port);
+		if (err) {
+			printf("cant add neighbour %s:%d err %d\n",
+				server, port, err);
+		}
+	} else if (cmd_equal(cmd, "neigh_remove")) {
+		struct in_addr addr;	
+		u32 ip;
+
+		if (port <= 0 || port > 64000) {
+			printf("server port %d invalid\n", port);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!server) {
+			printf("server ip not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!inet_aton(server, &addr)) {
+			printf("server ip %s is not valid\n", server);
+			usage(prog);
+			return -EINVAL;
+		}
+		ip = ntohl(addr.s_addr);
+		err = ds_neigh_remove(ip, port);
+		if (err) {
+			printf("cant remove neighbour %s:%d err %d\n",
 				server, port, err);
 		}
 	} else {

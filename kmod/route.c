@@ -255,7 +255,7 @@ close_con:
 	return err;
 }
 
-static void ds_neigh_connect_work(struct work_struct *wrk)
+static void ds_neigh_handshake_work(struct work_struct *wrk)
 {
 	struct ds_neigh *neigh = container_of(wrk, struct ds_neigh, work);
 	if (neigh->state == DS_NEIGH_INIT) {
@@ -274,8 +274,8 @@ static void ds_host_connect_work(struct work_struct *wrk)
 	read_lock(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, list) {
 		if (neigh->state == DS_NEIGH_INIT)
-			ds_neigh_queue_work(neigh,
-				ds_neigh_connect_work, NULL);
+			ds_neigh_handshake_work(neigh, ds_neigh_connect_work,
+					NULL);
 	}
 	read_unlock(&host->neighs_lock);
 	kfree(work);
@@ -505,6 +505,7 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 		KLOG(KL_ERR, "cant add neigh");
 		goto free_neigh;
 	}
+	ds_obj_id_copy(reply_host_id, &ds_host->host_id);
 
 	return 0;
 

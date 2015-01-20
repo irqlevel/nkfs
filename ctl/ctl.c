@@ -149,3 +149,55 @@ out:
 	close(fd);
 	return err;
 }
+
+int ds_neigh_add(u32 ip, int port)
+{
+	int err = -EINVAL;
+	struct ds_ctl cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+	
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.u.neigh_add.ip = ip;
+	cmd.u.neigh_add.port = port;
+	err = ioctl(fd, IOCTL_DS_NEIGH_ADD, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+out:
+	close(fd);
+	return err;
+}
+
+int ds_neigh_remove(u32 ip, int port)
+{
+	int err = -EINVAL;
+	struct ds_ctl cmd;
+	int fd;
+
+	err = ds_ctl_open(&fd);
+	if (err)
+		return err;
+	
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.u.neigh_remove.ip = ip;
+	cmd.u.neigh_remove.port = port;
+	err = ioctl(fd, IOCTL_DS_NEIGH_REMOVE, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+out:
+	close(fd);
+	return err;
+}
