@@ -150,7 +150,7 @@ static struct ds_neigh *__ds_neighs_insert(struct ds_host *host,
 	return inserted;
 }
 
-static struct ds_neigh *ds_neighs_insert(struct ds_host *host,
+struct ds_neigh *ds_neighs_insert(struct ds_host *host,
 		struct ds_neigh *neigh)
 {
 	struct ds_neigh *inserted;
@@ -419,7 +419,7 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 
 	write_lock_irq(&host->neighs_lock);
 	neigh->host = host;	
-	inserted = ds_neighs_insert(host, neigh);
+	inserted = __ds_neighs_insert(host, neigh);
 	BUG_ON(!inserted);
 	if (inserted == neigh) {
 		list_add_tail(&neigh->list, &host->neigh_list);
