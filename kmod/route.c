@@ -3,6 +3,30 @@
 #define __SUBCOMPONENT__ "route"
 #define HOST_TIMER_TIMEOUT_MS 5000
 
+#define KLOG_HOST(lvl, h)					\
+	do {							\
+		char *host_id, *net_id;				\
+		host_id = ds_obj_id_str(&((h)->host_id));	\
+		net_id = ds_obj_id_str(&((h)->net_id));	\
+		KLOG((lvl), "host %p host_id %s net_id %s",	\
+			(h), host_id, net_id);			\
+		if (host_id)					\
+			crt_free(host_id);			\
+		if (net_id)					\
+			crt_free(net_id);			\
+	} while (0);						\
+
+#define KLOG_NEIGH(lvl, n)						\
+	do {								\
+		char *host_id;						\
+		host_id = ds_obj_id_str(&((n)->host_id));		\
+		KLOG((lvl), "neigh %p host_id %s s%d %x:%d -> %x:%d",	\
+			(n), &(n)->host_id, (n)->state, (n)->s_ip,	\
+			(n)->s_port, (n)->d_ip, (n)->d_port);		\
+		if (host_id)						\
+			crt_free(host_id);				\
+	} while (0);							\
+
 struct ds_host *ds_host;
 struct kmem_cache *ds_neigh_cachep;
 
@@ -207,9 +231,6 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 	struct ds_host *host = neigh->host;
 	BUG_ON(neigh->con);
 
-	KLOG(KL_INF, "handshake with %x:%d srv %x:%d",
-		neigh->d_ip, neigh->d_port, neigh->s_ip, neigh->s_port);
-
 	err = ds_neigh_connect(neigh);
 	if (err) {
 		KLOG(KL_ERR, "cant connect err %d", err);
@@ -259,7 +280,7 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		&reply->u.neigh_handshake.reply_host_id);
 
 	neigh->state = DS_NEIGH_VALID;
-	KLOG(KL_INF, "neigh %p state %d", neigh, neigh->state);
+	KLOG_NEIGH(KL_INF, neigh);
 
 free_reply:
 	crt_free(reply);
@@ -353,6 +374,7 @@ static struct ds_host *ds_host_create(void)
 		goto del_wq;
 	}
 
+	KLOG_HOST(KL_INF, host);
 	return host;
 
 del_wq:
@@ -429,14 +451,14 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 	inserted = __ds_neighs_insert(host, neigh);
 	BUG_ON(!inserted);
 	if (inserted == neigh) {
-		KLOG(KL_INF, "added neigh %p s%d %x:%d -> %x:%d",
-			neigh, neigh->state, neigh->s_ip, neigh->s_port,
-			neigh->d_ip, neigh->d_port);
 		list_add_tail(&neigh->list, &host->neigh_list);
 		err = 0;
 	}
 	NEIGH_DEREF(inserted);
 	write_unlock_irq(&host->neighs_lock);
+	if (!err)
+		KLOG_NEIGH(KL_INF, neigh);
+
 	return err;
 }
 
@@ -524,7 +546,7 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 
 	err = ds_host_add_neigh(ds_host, neigh);
 	if (err) {
-		KLOG(KL_ERR, "cant add neigh");
+		KLOG(KL_ERR, "cant add neigh err %d", err);
 		goto free_neigh;
 	}
 	ds_obj_id_copy(reply_host_id, &ds_host->host_id);
