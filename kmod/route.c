@@ -332,7 +332,7 @@ static struct ds_host *ds_host_create(void)
 	if (!host)
 		return NULL;
 	
-	ds_obj_id_gen(&host->net_id);
+	ds_obj_id_gen(&host->host_id);
 	host->neighs = RB_ROOT;
 	rwlock_init(&host->neighs_lock);
 	INIT_LIST_HEAD(&host->neigh_list);
