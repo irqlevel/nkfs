@@ -136,9 +136,11 @@ void ds_host_id_free(struct ds_host_id *host_id)
 
 static void ds_host_id_release(struct ds_host_id *host_id)
 {
-	write_lock(&host_id->host->host_ids_lock);
-	__ds_host_ids_remove(host_id->host, host_id);
-	write_unlock(&host_id->host->host_ids_lock);
+	if (host_id->host) {
+		write_lock(&host_id->host->host_ids_lock);
+		__ds_host_ids_remove(host_id->host, host_id);
+		write_unlock(&host_id->host->host_ids_lock);
+	}
 	ds_host_id_free(host_id);
 }
 
@@ -231,6 +233,7 @@ struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
 	hid = ds_host_id_alloc();
 	if (!hid)
 		return NULL;
+	
 	ds_obj_id_copy(&hid->host_id, host_id);
 	hid->host = host;
 
@@ -238,7 +241,7 @@ struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
 	inserted = __ds_host_id_insert(host, hid);
 	write_unlock_irq(&host->host_ids_lock);
 	if (inserted != hid) {
-		ds_host_id_free(hid);
+		HOST_ID_DEREF(hid);
 		hid = inserted;
 	}
 
