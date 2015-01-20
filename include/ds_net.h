@@ -46,8 +46,10 @@ struct ds_net_pkt {
 		struct {
 			struct ds_obj_id	net_id;
 			struct ds_obj_id	host_id;
-			u32			host_ip;
-			int			host_port;
+			u32			d_ip;
+			int			d_port;
+			u32			s_ip;
+			int			s_port;
 			struct ds_obj_id	reply_host_id;
 		} neigh_handshake;
 	} u;

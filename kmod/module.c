@@ -57,12 +57,14 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 				cmd->u.server_stop.port);
 			break;
 		case IOCTL_DS_NEIGH_ADD:
-			err = ds_neigh_add(cmd->u.neigh_add.ip,
-				cmd->u.neigh_add.port);
+			err = ds_neigh_add(cmd->u.neigh_add.d_ip,
+				cmd->u.neigh_add.d_port,
+				cmd->u.neigh_add.s_ip,
+				cmd->u.neigh_add.s_port);
 			break;
 		case IOCTL_DS_NEIGH_REMOVE:
-			err = ds_neigh_remove(cmd->u.neigh_remove.ip,
-				cmd->u.neigh_remove.port);
+			err = ds_neigh_remove(cmd->u.neigh_remove.d_ip,
+				cmd->u.neigh_remove.d_port);
 			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);

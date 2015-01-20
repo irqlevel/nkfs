@@ -33,5 +33,5 @@ int ds_create_object(struct ds_obj_id *obj_id);
 int ds_server_stop(u32 ip, int port);
 int ds_server_start(u32 ip, int port);
 
-int ds_neigh_add(u32 ip, int port);
-int ds_neigh_remove(u32 ip, int port);
+int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
+int ds_neigh_remove(u32 d_ip, int d_port);

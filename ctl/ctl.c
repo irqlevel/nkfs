@@ -150,7 +150,7 @@ out:
 	return err;
 }
 
-int ds_neigh_add(u32 ip, int port)
+int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -162,8 +162,10 @@ int ds_neigh_add(u32 ip, int port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.u.neigh_add.ip = ip;
-	cmd.u.neigh_add.port = port;
+	cmd.u.neigh_add.d_ip = d_ip;
+	cmd.u.neigh_add.d_port = d_port;
+	cmd.u.neigh_add.s_ip = s_ip;
+	cmd.u.neigh_add.s_port = s_port;
 	err = ioctl(fd, IOCTL_DS_NEIGH_ADD, &cmd);
 	if (err)
 		goto out;
@@ -176,7 +178,7 @@ out:
 	return err;
 }
 
-int ds_neigh_remove(u32 ip, int port)
+int ds_neigh_remove(u32 d_ip, int d_port)
 {
 	int err = -EINVAL;
 	struct ds_ctl cmd;
@@ -188,8 +190,8 @@ int ds_neigh_remove(u32 ip, int port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.u.neigh_remove.ip = ip;
-	cmd.u.neigh_remove.port = port;
+	cmd.u.neigh_remove.d_ip = d_ip;
+	cmd.u.neigh_remove.d_port = d_port;
 	err = ioctl(fd, IOCTL_DS_NEIGH_REMOVE, &cmd);
 	if (err)
 		goto out;

@@ -31,12 +31,14 @@ struct ds_ctl {
 			int port;
 		} server_stop;
 		struct {
-			u32 ip;
-			int port;
+			u32 d_ip;
+			int d_port;
+			u32 s_ip;
+			int s_port;
 		} neigh_add;
 		struct {
-			u32 ip;
-			int port;
+			u32 d_ip;
+			int d_port;
 		} neigh_remove;
 	} u;
 };

@@ -342,8 +342,10 @@ static int ds_con_neigh_handshake(struct ds_con *con, struct ds_net_pkt *pkt,
 
 	err = ds_neigh_handshake(&pkt->u.neigh_handshake.net_id,
 		&pkt->u.neigh_handshake.host_id,
-		pkt->u.neigh_handshake.host_ip,
-		pkt->u.neigh_handshake.host_port,
+		pkt->u.neigh_handshake.d_ip,
+		pkt->u.neigh_handshake.d_port,
+		pkt->u.neigh_handshake.s_ip,
+		pkt->u.neigh_handshake.s_port,
 		&reply->u.neigh_handshake.reply_host_id);
 
 	return ds_con_send_reply(con, reply, err);

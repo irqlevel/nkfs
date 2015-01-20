@@ -6,18 +6,6 @@ enum {
 };
 
 #pragma pack(push, 1)
-struct ds_neigh_info {
-	struct ds_obj_id	host_id;
-	u32			ip;
-	int			port;	
-};
-
-struct ds_host_info {
-	struct ds_obj_id	net_id;
-	struct ds_obj_id	host_id;
-	int			nr_neighs;
-	struct ds_neigh_info	neighs[128];
-};
 
 struct ds_host_work {
 	struct work_struct	work;
@@ -33,8 +21,6 @@ struct ds_host {
 	struct list_head	neigh_list;
 	struct timer_list 	timer;
 	struct workqueue_struct *wq;
-	u32			ip;
-	int			port;
 	int			neighs_active;
 	int			stopping;
 };
@@ -46,8 +32,10 @@ struct ds_neigh {
 	struct rb_node		neighs_link;
 	struct ds_host		*host;
 	struct ds_con		*con;
-	u32			ip;
-	int			port;
+	u32			d_ip;
+	int			d_port;
+	u32			s_ip;
+	int			s_port;
 	int			state;
 	struct work_struct	work;
 	atomic_t		work_used;
@@ -68,9 +56,9 @@ void ds_neigh_deref(struct ds_neigh *neigh);
 int ds_route_init(void);
 void ds_route_finit(void);
 
-int ds_neigh_add(u32 ip, int port);
-int ds_neigh_remove(u32 ip, int port);
+int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
+int ds_neigh_remove(u32 d_ip, int d_port);
 
 int ds_neigh_handshake(struct ds_obj_id *net_id,
-	struct ds_obj_id *host_id, u32 ip, int port,
-	struct ds_obj_id *reply_host_id);
+	struct ds_obj_id *host_id, u32 d_ip, int d_port,
+	u32 s_ip, int s_port, struct ds_obj_id *reply_host_id);

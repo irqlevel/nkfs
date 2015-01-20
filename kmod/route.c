@@ -14,7 +14,7 @@ static int ds_neigh_connect(struct ds_neigh *neigh)
 	int err;
 
 	BUG_ON(neigh->con);
-	err = ds_con_connect(neigh->ip, neigh->port, &neigh->con);
+	err = ds_con_connect(neigh->d_ip, neigh->d_port, &neigh->con);
 	return err;
 }
 
@@ -66,7 +66,7 @@ void ds_neigh_deref(struct ds_neigh *neigh)
 		ds_neigh_release(neigh);	
 }
 
-static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 ip, int port)
+static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 d_ip, int d_port)
 {
 	struct rb_node *n = host->neighs.rb_node;
 	struct ds_neigh *found = NULL;
@@ -76,7 +76,7 @@ static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 ip, int por
 		int cmp;
 
 		neigh = rb_entry(n, struct ds_neigh, neighs_link);
-		cmp = ds_ip_port_cmp(ip, port, neigh->ip, neigh->port);
+		cmp = ds_ip_port_cmp(d_ip, d_port, neigh->d_ip, neigh->d_port);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
@@ -90,11 +90,11 @@ static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 ip, int por
 }
 
 struct ds_neigh * ds_neighs_lookup(struct ds_host *host,
-	u32 ip, int port)
+	u32 d_ip, int d_port)
 {	
 	struct ds_neigh *neigh;
 	read_lock_irq(&host->neighs_lock);
-	neigh = __ds_neighs_lookup(host, ip, port);
+	neigh = __ds_neighs_lookup(host, d_ip, d_port);
 	if (neigh != NULL)
 		NEIGH_REF(neigh);
 	read_unlock_irq(&host->neighs_lock);
@@ -107,7 +107,7 @@ static void ds_neighs_remove(struct ds_host *host,
 	struct ds_neigh *found;
 
 	write_lock_irq(&host->neighs_lock);
-	found = __ds_neighs_lookup(host, neigh->ip, neigh->port);
+	found = __ds_neighs_lookup(host, neigh->d_ip, neigh->d_port);
 	if (found) {
 		BUG_ON(found != neigh);
 		rb_erase(&found->neighs_link, &host->neighs);
@@ -129,8 +129,8 @@ static struct ds_neigh *__ds_neighs_insert(struct ds_host *host,
 		int cmp;
 		parent = *p;
 		found = rb_entry(parent, struct ds_neigh, neighs_link);
-		cmp = ds_ip_port_cmp(neigh->ip, neigh->port,
-			found->ip, found->port);
+		cmp = ds_ip_port_cmp(neigh->d_ip, neigh->d_port,
+			found->d_ip, found->d_port);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
 		} else if (cmp > 0) {
@@ -207,6 +207,9 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 	struct ds_host *host = neigh->host;
 	BUG_ON(neigh->con);
 
+	KLOG(KL_INF, "handshake with %u:%d srv %u:%d",
+		neigh->d_ip, neigh->d_port, neigh->s_ip, neigh->s_port);
+
 	err = ds_neigh_connect(neigh);
 	if (err)
 		return err;
@@ -226,8 +229,11 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 	req->type = DS_NET_PKT_NEIGH_HANDSHAKE;
 	ds_obj_id_copy(&req->u.neigh_handshake.net_id, &host->net_id);
 	ds_obj_id_copy(&req->u.neigh_handshake.host_id, &host->host_id);
-	req->u.neigh_handshake.host_ip = neigh->host->ip;
-	req->u.neigh_handshake.host_port = neigh->host->port;
+
+	req->u.neigh_handshake.s_ip = neigh->d_ip;
+	req->u.neigh_handshake.s_port = neigh->d_port;
+	req->u.neigh_handshake.d_ip = neigh->s_ip;
+	req->u.neigh_handshake.d_port = neigh->s_port;
 
 	err = ds_con_send_pkt(neigh->con, req);
 	if (err) {
@@ -274,7 +280,7 @@ static void ds_host_connect_work(struct work_struct *wrk)
 	read_lock(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, list) {
 		if (neigh->state == DS_NEIGH_INIT)
-			ds_neigh_handshake_work(neigh, ds_neigh_connect_work,
+			ds_neigh_queue_work(neigh, ds_neigh_handshake_work,
 					NULL);
 	}
 	read_unlock(&host->neighs_lock);
@@ -424,7 +430,7 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 	return err;
 }
 
-int ds_host_remove_neigh(struct ds_host *host, u32 ip, int port)
+int ds_host_remove_neigh(struct ds_host *host, u32 d_ip, int d_port)
 {
 	struct ds_neigh *neigh, *tmp;
 	struct list_head neigh_list;	
@@ -434,7 +440,7 @@ int ds_host_remove_neigh(struct ds_host *host, u32 ip, int port)
 
 	write_lock_irq(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, list) {
-		if (neigh->ip == ip && neigh->port == port) {
+		if (neigh->d_ip == d_ip && neigh->d_port == d_port) {
 			list_del_init(&neigh->list);
 			list_add_tail(&neigh->list, &neigh_list);
 		}
@@ -450,7 +456,7 @@ int ds_host_remove_neigh(struct ds_host *host, u32 ip, int port)
 	return (found) ? 0 : -ENOENT;
 }
 
-int ds_neigh_add(u32 ip, int port)
+int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 {
 	struct ds_neigh *neigh;
 	int err;
@@ -460,8 +466,10 @@ int ds_neigh_add(u32 ip, int port)
 		KLOG(KL_ERR, "no mem");
 		return -ENOMEM;
 	}
-	neigh->ip = ip;
-	neigh->port = port;
+	neigh->d_ip = d_ip;
+	neigh->d_port = d_port;
+	neigh->s_ip = s_ip;
+	neigh->s_port = s_port;
 	neigh->state = DS_NEIGH_INIT;
 	err = ds_host_add_neigh(ds_host, neigh); 
 	if (err) {
@@ -472,19 +480,21 @@ int ds_neigh_add(u32 ip, int port)
 	return err;
 }
 
-int ds_neigh_remove(u32 ip, int port)
+int ds_neigh_remove(u32 d_ip, int d_port)
 {
-	return ds_host_remove_neigh(ds_host, ip, port);
+	return ds_host_remove_neigh(ds_host, d_ip, d_port);
 }
 
 int ds_neigh_handshake(struct ds_obj_id *net_id,
-	struct ds_obj_id *host_id, u32 ip, int port,
+	struct ds_obj_id *host_id, 
+	u32 d_ip, int d_port,
+	u32 s_ip, int s_port,
 	struct ds_obj_id *reply_host_id)
 {
 	struct ds_neigh *neigh;
 	int err;
 
-	if (0 == ds_obj_id_cmp(net_id, &ds_host->net_id)) {
+	if (0 != ds_obj_id_cmp(net_id, &ds_host->net_id)) {
 		KLOG(KL_ERR, "diff net id");
 		return -EINVAL;
 	}
@@ -495,8 +505,10 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 		return -ENOMEM;
 	}
 
-	neigh->ip = ip;
-	neigh->port = port;
+	neigh->d_ip = d_ip;
+	neigh->d_port = d_port;
+	neigh->s_ip = s_ip;
+	neigh->s_port = s_port;
 	ds_obj_id_copy(&neigh->host_id, host_id);
 	neigh->state = DS_NEIGH_VALID;
 

@@ -48,7 +48,8 @@ static int output_dev_info(struct ds_dev_info *info)
 	return 0;
 }
 
-static int do_cmd(char *prog, char *cmd, char *server, int port,
+static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
+	char *server, int server_port,
 	char *dev_name, int format)
 {
 	int err;
@@ -92,8 +93,8 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		struct in_addr addr;	
 		u32 ip;
 
-		if (port <= 0 || port > 64000) {
-			printf("server port %d invalid\n", port);
+		if (server_port <= 0 || server_port > 64000) {
+			printf("server port %d invalid\n", server_port);
 			usage(prog);
 			return -EINVAL;
 		}
@@ -110,17 +111,17 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			return -EINVAL;
 		}
 		ip = ntohl(addr.s_addr);
-		err = ds_server_start(ip, port);
+		err = ds_server_start(ip, server_port);
 		if (err) {
 			printf("cant start server %s:%d err %d\n",
-				server, port, err);
+				server, server_port, err);
 		}
 	} else if (cmd_equal(cmd, "srv_stop")) {
 		struct in_addr addr;	
 		u32 ip;
 
-		if (port <= 0 || port > 64000) {
-			printf("server port %d invalid\n", port);
+		if (server_port <= 0 || server_port > 64000) {
+			printf("server port %d invalid\n", server_port);
 			usage(prog);
 			return -EINVAL;
 		}
@@ -137,17 +138,17 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			return -EINVAL;
 		}
 		ip = ntohl(addr.s_addr);
-		err = ds_server_stop(ip, port);
+		err = ds_server_stop(ip, server_port);
 		if (err) {
 			printf("cant stop server %s:%d err %d\n",
-				server, port, err);
+				server, server_port, err);
 		}
 	} else if (cmd_equal(cmd, "neigh_add")) {
-		struct in_addr addr;	
-		u32 ip;
+		struct in_addr s_addr, r_addr;	
+		u32 s_ip, r_ip;
 
-		if (port <= 0 || port > 64000) {
-			printf("server port %d invalid\n", port);
+		if (server_port <= 0 || server_port > 64000) {
+			printf("server port %d invalid\n", server_port);
 			usage(prog);
 			return -EINVAL;
 		}
@@ -158,43 +159,63 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			return -EINVAL;
 		}
 
-		if (!inet_aton(server, &addr)) {
+		if (remote_port <= 0 || remote_port > 64000) {
+			printf("remote port %d invalid\n", remote_port);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!remote) {
+			printf("remote ip not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!inet_aton(server, &s_addr)) {
 			printf("server ip %s is not valid\n", server);
 			usage(prog);
 			return -EINVAL;
 		}
-		ip = ntohl(addr.s_addr);
-		err = ds_neigh_add(ip, port);
+
+		if (!inet_aton(remote, &r_addr)) {
+			printf("remote ip %s is not valid\n", remote);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		s_ip = ntohl(s_addr.s_addr);
+		r_ip = ntohl(r_addr.s_addr);
+		err = ds_neigh_add(r_ip, remote_port, s_ip, server_port);
 		if (err) {
-			printf("cant add neighbour %s:%d err %d\n",
-				server, port, err);
+			printf("cant add neighbour %s:%d->%s:%d err %d\n",
+				server, server_port, remote, remote_port, err);
 		}
 	} else if (cmd_equal(cmd, "neigh_remove")) {
-		struct in_addr addr;	
-		u32 ip;
+		struct in_addr r_addr;	
+		u32 r_ip;
 
-		if (port <= 0 || port > 64000) {
-			printf("server port %d invalid\n", port);
+		if (remote_port <= 0 || remote_port > 64000) {
+			printf("remote port %d invalid\n", remote_port);
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!server) {
-			printf("server ip not specified\n");
+		if (!remote) {
+			printf("remote ip not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!inet_aton(server, &addr)) {
+		if (!inet_aton(remote, &r_addr)) {
 			printf("server ip %s is not valid\n", server);
 			usage(prog);
 			return -EINVAL;
 		}
-		ip = ntohl(addr.s_addr);
-		err = ds_neigh_remove(ip, port);
+		r_ip = ntohl(r_addr.s_addr);
+		err = ds_neigh_remove(r_ip, remote_port);
 		if (err) {
 			printf("cant remove neighbour %s:%d err %d\n",
-				server, port, err);
+				remote, remote_port, err);
 		}
 	} else {
 		printf("unknown cmd\n");
@@ -213,12 +234,14 @@ int main(int argc, char *argv[])
 	char *dev_name = NULL;
 	char *cmd = NULL;
 	char *server = NULL;
+	char *remote = NULL;
 	char *prog = argv[0];
-	int port = DS_SRV_PORT;
+	int server_port = DS_SRV_PORT;
+	int remote_port = DS_SRV_PORT;
 
 	prepare_logging();
 
-	while ((opt = getopt(argc, argv, "s:p:fd:")) != -1) {
+	while ((opt = getopt(argc, argv, "r:t:s:p:fd:")) != -1) {
 		switch (opt) {
 			case 'f':
 				format = 1;
@@ -230,7 +253,13 @@ int main(int argc, char *argv[])
 				server = optarg;
 				break;
 			case 'p':
-				port = atoi(optarg);				
+				server_port = atoi(optarg);				
+				break;
+			case 'r':
+				remote = optarg;
+				break;
+			case 't':
+				remote_port = atoi(optarg);
 				break;
 			default:
 				usage(prog);
@@ -245,6 +274,7 @@ int main(int argc, char *argv[])
 	}	
 
 	cmd = argv[optind];
-	err = do_cmd(prog, cmd, server, port, dev_name, format);
+	err = do_cmd(prog, cmd, remote, remote_port, server, server_port,
+		dev_name, format);
 	return err;
 }
