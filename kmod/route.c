@@ -429,6 +429,9 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 	inserted = __ds_neighs_insert(host, neigh);
 	BUG_ON(!inserted);
 	if (inserted == neigh) {
+		KLOG(KL_INF, "added neigh %p s%d %x:%d -> %x:%d",
+			neigh, neigh->state, neigh->s_ip, neigh->s_port,
+			neigh->d_ip, neigh->d_port);
 		list_add_tail(&neigh->list, &host->neigh_list);
 		err = 0;
 	}
