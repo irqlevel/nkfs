@@ -477,7 +477,7 @@ int ds_con_connect(u32 ip, int port, struct ds_con **pcon)
 	}
 
 	*pcon = con;
-	err = 0;
+	return 0;
 free_con:
 	ds_con_free(con);
 	return err;

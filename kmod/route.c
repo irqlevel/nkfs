@@ -207,7 +207,7 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 	struct ds_host *host = neigh->host;
 	BUG_ON(neigh->con);
 
-	KLOG(KL_INF, "handshake with %u:%d srv %u:%d",
+	KLOG(KL_INF, "handshake with %x:%d srv %x:%d",
 		neigh->d_ip, neigh->d_port, neigh->s_ip, neigh->s_port);
 
 	err = ds_neigh_connect(neigh);
