@@ -21,7 +21,7 @@
 		char *host_id;						\
 		host_id = ds_obj_id_str(&((n)->host_id));		\
 		KLOG((lvl), "neigh %p host_id %s s%d %x:%d -> %x:%d",	\
-			(n), &(n)->host_id, (n)->state, (n)->s_ip,	\
+			(n), host_id, (n)->state, (n)->s_ip,	\
 			(n)->s_port, (n)->d_ip, (n)->d_port);		\
 		if (host_id)						\
 			crt_free(host_id);				\
