@@ -16,26 +16,27 @@
 			crt_free(net_id);			\
 	} while (0);						\
 
-#define KLOG_NEIGH(lvl, n)						\
-	do {								\
-		char *host_id;						\
-		host_id = ds_obj_id_str(&((n)->host_id));		\
-		KLOG((lvl), "neigh %p host_id %s s%d %x:%d -> %x:%d",	\
-			(n), host_id, (n)->state, (n)->s_ip,	\
-			(n)->s_port, (n)->d_ip, (n)->d_port);		\
-		if (host_id)						\
-			crt_free(host_id);				\
-	} while (0);							\
+#define KLOG_NEIGH(lvl, n)							\
+	do {									\
+		char *host_id = NULL;						\
+		if ((n)->host_id)						\
+			host_id = ds_obj_id_str(&((n)->host_id)->host_id);	\
+		KLOG((lvl), "neigh %p host_id %s s%d %x:%d -> %x:%d",		\
+			(n), host_id, (n)->state, (n)->s_ip,			\
+			(n)->s_port, (n)->d_ip, (n)->d_port);			\
+		if (host_id)							\
+			crt_free(host_id);					\
+	} while (0);								\
 
 struct ds_host *ds_host;
 struct kmem_cache *ds_neigh_cachep;
-struct kmem_cache *ds_neigh_id_cachep;
+struct kmem_cache *ds_host_id_cachep;
 
 static void __ds_neighs_remove(struct ds_host *host,
 	struct ds_neigh *neigh);
 
-void __ds_neigh_ids_remove(struct ds_host *host,
-	struct ds_neigh_id *neigh_id);
+void __ds_host_ids_remove(struct ds_host *host,
+	struct ds_host_id *host_id);
 
 static int ds_neigh_connect(struct ds_neigh *neigh)
 {
@@ -66,6 +67,8 @@ static struct ds_neigh *ds_neigh_alloc(void)
 	memset(neigh, 0, sizeof(*neigh));
 	atomic_set(&neigh->ref, 1);
 	atomic_set(&neigh->work_used, 0);
+	INIT_LIST_HEAD(&neigh->neigh_list);
+	INIT_LIST_HEAD(&neigh->host_id_list);
 	return neigh;
 }
 
@@ -74,12 +77,25 @@ static void ds_neigh_free(struct ds_neigh *neigh)
 	kmem_cache_free(ds_neigh_cachep, neigh);
 }
 
+static void ds_neigh_detach_host_id(struct ds_neigh *neigh)
+{
+	struct ds_host_id *hid = neigh->host_id;
+	if (hid) {
+		write_lock_irq(&hid->neigh_list_lock);
+		list_del_init(&neigh->host_id_list);
+		write_unlock_irq(&hid->neigh_list_lock);
+		HOST_ID_DEREF(hid);
+	}
+}
+
 static void ds_neigh_release(struct ds_neigh *neigh)
 {
-	write_lock(&neigh->host->neighs_lock);
-	__ds_neighs_remove(neigh->host, neigh);
-	write_unlock(&neigh->host->neighs_lock);
-
+	ds_neigh_detach_host_id(neigh);
+	if (neigh->host) {
+		write_lock(&neigh->host->neighs_lock);
+		__ds_neighs_remove(neigh->host, neigh);
+		write_unlock(&neigh->host->neighs_lock);
+	}
 	ds_neigh_close(neigh);
 	ds_neigh_free(neigh);
 }
@@ -97,96 +113,98 @@ void ds_neigh_deref(struct ds_neigh *neigh)
 		ds_neigh_release(neigh);	
 }
 
-struct ds_neigh_id *ds_neigh_id_alloc(void)
+struct ds_host_id *ds_host_id_alloc(void)
 {
-	struct ds_neigh_id *neigh_id;
+	struct ds_host_id *host_id;
 
-	neigh_id = kmem_cache_alloc(ds_neigh_id_cachep, GFP_NOIO);
-	if (!neigh_id) {
-		KLOG(KL_ERR, "cant alloc neigh_id");
+	host_id = kmem_cache_alloc(ds_host_id_cachep, GFP_NOIO);
+	if (!host_id) {
+		KLOG(KL_ERR, "cant alloc host_id");
 		return NULL;
 	}
-	memset(neigh_id, 0, sizeof(*neigh_id));
-	atomic_set(&neigh_id->ref, 1);
-	return neigh_id;
+	memset(host_id, 0, sizeof(*host_id));
+	INIT_LIST_HEAD(&host_id->neigh_list);
+	rwlock_init(&host_id->neigh_list_lock);
+	atomic_set(&host_id->ref, 1);
+	return host_id;
 }
 
-void ds_neigh_id_free(struct ds_neigh_id *neigh_id)
+void ds_host_id_free(struct ds_host_id *host_id)
 {
-	kmem_cache_free(ds_neigh_id_cachep, neigh_id);
+	kmem_cache_free(ds_host_id_cachep, host_id);
 }
 
-static void ds_neigh_id_release(struct ds_neigh_id *neigh_id)
+static void ds_host_id_release(struct ds_host_id *host_id)
 {
-	write_lock(&neigh_id->host->neigh_ids_lock);
-	__ds_neigh_ids_remove(neigh_id->host, neigh_id);
-	write_unlock(&neigh_id->host->neigh_ids_lock);
-	ds_neigh_id_free(neigh_id);
+	write_lock(&host_id->host->host_ids_lock);
+	__ds_host_ids_remove(host_id->host, host_id);
+	write_unlock(&host_id->host->host_ids_lock);
+	ds_host_id_free(host_id);
 }
 
-void ds_neigh_id_ref(struct ds_neigh_id *neigh_id)
+void ds_host_id_ref(struct ds_host_id *host_id)
 {
-	BUG_ON(atomic_read(&neigh_id->ref) <= 0);
-	atomic_inc(&neigh_id->ref);
+	BUG_ON(atomic_read(&host_id->ref) <= 0);
+	atomic_inc(&host_id->ref);
 }
 
-void ds_neigh_id_deref(struct ds_neigh_id *neigh_id)
+void ds_host_id_deref(struct ds_host_id *host_id)
 {
-	BUG_ON(atomic_read(&neigh_id->ref) <= 0);	
-	if (atomic_dec_and_test(&neigh_id->ref))
-		ds_neigh_id_release(neigh_id);	
+	BUG_ON(atomic_read(&host_id->ref) <= 0);	
+	if (atomic_dec_and_test(&host_id->ref))
+		ds_host_id_release(host_id);	
 }
 
-struct ds_neigh_id *__ds_neigh_ids_lookup(struct ds_host *host, struct ds_obj_id *host_id)
+struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct ds_obj_id *host_id)
 {
 	struct rb_node *n = host->neighs.rb_node;
-	struct ds_neigh_id *found = NULL;
+	struct ds_host_id *found = NULL;
 
 	while (n) {
-		struct ds_neigh_id *neigh_id;
+		struct ds_host_id *hid;
 		int cmp;
 
-		neigh_id = rb_entry(n, struct ds_neigh_id, neigh_ids_link);
-		cmp = ds_obj_id_cmp(host_id, &neigh_id->host_id);
+		hid = rb_entry(n, struct ds_host_id, host_ids_link);
+		cmp = ds_obj_id_cmp(host_id, &hid->host_id);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
 			n = n->rb_right;
 		} else {
-			found = neigh_id;
+			found = hid;
 			break;
 		}
 	}
 	return found;
 }
 
-void __ds_neigh_ids_remove(struct ds_host *host,
-	struct ds_neigh_id *neigh_id)
+void __ds_host_ids_remove(struct ds_host *host,
+	struct ds_host_id *host_id)
 {
-	struct ds_neigh_id *found;
+	struct ds_host_id *found;
 
-	found = __ds_neigh_ids_lookup(host, &neigh_id->host_id);
+	found = __ds_host_ids_lookup(host, &host_id->host_id);
 	if (found) {
-		BUG_ON(found != neigh_id);
-		rb_erase(&found->neigh_ids_link, &host->neigh_ids);
-		host->neigh_ids_active--;
+		BUG_ON(found != host_id);
+		rb_erase(&found->host_ids_link, &host->host_ids);
+		host->host_ids_active--;
 	}
 }
 
-struct ds_neigh_id *__ds_neigh_id_insert(struct ds_host *host,
-		struct ds_neigh_id *neigh_id)
+struct ds_host_id *__ds_host_id_insert(struct ds_host *host,
+		struct ds_host_id *host_id)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
-	struct ds_neigh_id *inserted = NULL;
+	struct ds_host_id *inserted = NULL;
 
-	p = &host->neigh_ids.rb_node;
+	p = &host->host_ids.rb_node;
 	while (*p) {
-		struct ds_neigh_id *found;
+		struct ds_host_id *found;
 		int cmp;
 		parent = *p;
-		found = rb_entry(parent, struct ds_neigh_id, neigh_ids_link);
-		cmp = ds_obj_id_cmp(&neigh_id->host_id, &found->host_id);
+		found = rb_entry(parent, struct ds_host_id, host_ids_link);
+		cmp = ds_obj_id_cmp(&host_id->host_id, &found->host_id);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
 		} else if (cmp > 0) {
@@ -197,13 +215,34 @@ struct ds_neigh_id *__ds_neigh_id_insert(struct ds_host *host,
 		}
 	}
 	if (!inserted) {
-		rb_link_node(&neigh_id->neigh_ids_link, parent, p);
-		rb_insert_color(&neigh_id->neigh_ids_link, &host->neigh_ids);
-		host->neigh_ids_active++;
-		inserted = neigh_id;
+		rb_link_node(&host_id->host_ids_link, parent, p);
+		rb_insert_color(&host_id->host_ids_link, &host->host_ids);
+		host->host_ids_active++;
+		inserted = host_id;
 	}
-	NEIGH_ID_REF(inserted);
+	HOST_ID_REF(inserted);
 	return inserted;
+}
+
+struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
+	struct ds_obj_id *host_id)
+{
+	struct ds_host_id *hid, *inserted;
+	hid = ds_host_id_alloc();
+	if (!hid)
+		return NULL;
+	ds_obj_id_copy(&hid->host_id, host_id);
+	hid->host = host;
+
+	write_lock_irq(&host->host_ids_lock);
+	inserted = __ds_host_id_insert(host, hid);
+	write_unlock_irq(&host->host_ids_lock);
+	if (inserted != hid) {
+		ds_host_id_free(hid);
+		hid = inserted;
+	}
+
+	return hid;
 }
 
 static struct ds_neigh *__ds_neighs_lookup(struct ds_host *host, u32 d_ip, int d_port)
@@ -316,11 +355,24 @@ static int ds_neigh_queue_work(struct ds_neigh *neigh,
 	return -EAGAIN;
 }
 
+static void ds_neigh_attach_host_id(struct ds_neigh *neigh,
+	struct ds_host_id *host_id)
+{
+	BUG_ON(neigh->host_id);
+	BUG_ON(!list_empty(&neigh->host_id_list));
+
+	write_lock_irq(&host_id->neigh_list_lock);
+	neigh->host_id = host_id;	
+	list_add_tail(&neigh->host_id_list, &host_id->neigh_list); 
+	write_unlock_irq(&host_id->neigh_list_lock);
+}
+
 static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 {
 	int err;
 	struct ds_net_pkt *req, *reply;
 	struct ds_host *host = neigh->host;
+	struct ds_host_id *hid;
 	BUG_ON(neigh->con);
 
 	err = ds_neigh_connect(neigh);
@@ -368,9 +420,14 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		goto free_reply;
 	}
 
-	ds_obj_id_copy(&neigh->host_id,
+	hid = ds_host_id_lookup_or_create(neigh->host,
 		&reply->u.neigh_handshake.reply_host_id);
-
+	if (!hid) {
+		err = -ENOMEM;
+		KLOG(KL_ERR, "cant get host_id %d", err);
+		goto free_reply;
+	}
+	ds_neigh_attach_host_id(neigh, hid);
 	neigh->state = DS_NEIGH_VALID;
 	KLOG_NEIGH(KL_INF, neigh);
 
@@ -449,8 +506,8 @@ static struct ds_host *ds_host_create(void)
 	host->neighs = RB_ROOT;
 	rwlock_init(&host->neighs_lock);
 
-	host->neigh_ids = RB_ROOT;
-	rwlock_init(&host->neigh_ids_lock);
+	host->host_ids = RB_ROOT;
+	rwlock_init(&host->host_ids_lock);
 
 	INIT_LIST_HEAD(&host->neigh_list);
 
@@ -503,7 +560,7 @@ static void ds_host_release(struct ds_host *host)
 		NEIGH_DEREF(neigh);
 	}
 	BUG_ON(host->neighs_active);
-
+	BUG_ON(host->host_ids_active);
 	ds_host_free(host);
 }
 
@@ -602,7 +659,7 @@ int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	err = ds_host_add_neigh(ds_host, neigh); 
 	if (err) {
 		KLOG(KL_ERR, "cant add neigh");
-		ds_neigh_free(neigh);
+		NEIGH_DEREF(neigh);
 	}
 
 	return err;
@@ -620,6 +677,7 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 	struct ds_obj_id *reply_host_id)
 {
 	struct ds_neigh *neigh;
+	struct ds_host_id *hid;
 	int err;
 
 	if (0 != ds_obj_id_cmp(net_id, &ds_host->net_id)) {
@@ -637,19 +695,26 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 	neigh->d_port = d_port;
 	neigh->s_ip = s_ip;
 	neigh->s_port = s_port;
-	ds_obj_id_copy(&neigh->host_id, host_id);
+
+	hid = ds_host_id_lookup_or_create(ds_host, host_id);
+	if (!hid) {
+		err = -ENOMEM;
+		KLOG(KL_ERR, "cat ref hid");
+		goto deref_neigh;
+	}
+	ds_neigh_attach_host_id(neigh, hid);
 	neigh->state = DS_NEIGH_VALID;
 
 	err = ds_host_add_neigh(ds_host, neigh);
 	if (err) {
 		KLOG(KL_ERR, "cant add neigh err %d", err);
-		goto free_neigh;
+		goto deref_neigh;
 	}
 	ds_obj_id_copy(reply_host_id, &ds_host->host_id);
 
 	return 0;
 
-free_neigh:
-	ds_neigh_free(neigh);
+deref_neigh:
+	NEIGH_DEREF(neigh);
 	return err;
 }

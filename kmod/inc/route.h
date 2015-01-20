@@ -23,24 +23,25 @@ struct ds_host {
 	struct workqueue_struct *wq;
 	int			neighs_active;
 	int			stopping;
-	struct rb_root		neigh_ids;
-	rwlock_t		neigh_ids_lock;
-	int			neigh_ids_active;
+	struct rb_root		host_ids;
+	rwlock_t		host_ids_lock;
+	int			host_ids_active;
 };
 
-struct ds_neigh_id {
+struct ds_host_id {
 	atomic_t		ref;
 	struct ds_host		*host;
-	struct list_head	neigh_ids_list;
+	struct list_head	neigh_list;
+	rwlock_t		neigh_list_lock;
 	struct ds_obj_id	host_id;
-	struct rb_node		neigh_ids_link;
+	struct rb_node		host_ids_link;
 };
 
 struct ds_neigh {
 	struct list_head	neigh_list;
-	struct list_head	neigh_id_list;
+	struct list_head	host_id_list;
 	atomic_t		ref;
-	struct ds_obj_id	host_id;
+	struct ds_host_id	*host_id;
 	struct rb_node		neighs_link;
 	struct ds_host		*host;
 	struct ds_con		*con;
@@ -65,14 +66,14 @@ void ds_neigh_deref(struct ds_neigh *neigh);
 #define NEIGH_DEREF(n)	\
 	ds_neigh_deref(n);
 
-void ds_neigh_id_ref(struct ds_neigh_id *neigh_id);
-void ds_neigh_id_deref(struct ds_neigh_id *neigh_id);
+void ds_host_id_ref(struct ds_host_id *host_id);
+void ds_host_id_deref(struct ds_host_id *host_id);
 
-#define NEIGH_ID_REF(n)	\
-	ds_neigh_id_ref(n);
+#define HOST_ID_REF(hid)	\
+	ds_host_id_ref((hid));
 
-#define NEIGH_ID_DEREF(n)	\
-	ds_neigh_id_deref(n);
+#define HOST_ID_DEREF(hid)	\
+	ds_host_id_deref((hid));
 
 int ds_route_init(void);
 void ds_route_finit(void);
