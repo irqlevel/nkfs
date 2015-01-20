@@ -23,10 +23,22 @@ struct ds_host {
 	struct workqueue_struct *wq;
 	int			neighs_active;
 	int			stopping;
+	struct rb_root		neigh_ids;
+	rwlock_t		neigh_ids_lock;
+	int			neigh_ids_active;
+};
+
+struct ds_neigh_id {
+	atomic_t		ref;
+	struct ds_host		*host;
+	struct list_head	neigh_ids_list;
+	struct ds_obj_id	host_id;
+	struct rb_node		neigh_ids_link;
 };
 
 struct ds_neigh {
-	struct list_head	list;
+	struct list_head	neigh_list;
+	struct list_head	neigh_id_list;
 	atomic_t		ref;
 	struct ds_obj_id	host_id;
 	struct rb_node		neighs_link;
@@ -52,6 +64,15 @@ void ds_neigh_deref(struct ds_neigh *neigh);
 
 #define NEIGH_DEREF(n)	\
 	ds_neigh_deref(n);
+
+void ds_neigh_id_ref(struct ds_neigh_id *neigh_id);
+void ds_neigh_id_deref(struct ds_neigh_id *neigh_id);
+
+#define NEIGH_ID_REF(n)	\
+	ds_neigh_id_ref(n);
+
+#define NEIGH_ID_DEREF(n)	\
+	ds_neigh_id_deref(n);
 
 int ds_route_init(void);
 void ds_route_finit(void);
