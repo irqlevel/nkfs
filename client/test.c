@@ -95,7 +95,7 @@ static void __obj_arr_free(struct ds_obj **objs, u32 num_objs)
 	free(objs);
 }
 
-int obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
+int obj_test(char *server, int port, u32 num_objs, u32 min_bytes, u32 max_bytes)
 {
 	int err;
 	struct ds_obj **objs = NULL;
@@ -104,9 +104,9 @@ int obj_test(u32 num_objs, u32 min_bytes, u32 max_bytes)
 
 	CLOG(CL_INF, "obj_test num objs %d", num_objs);
 
-	err = ds_connect(&con, "127.0.0.1", 8000);
+	err = ds_connect(&con, server, port);
 	if (err) {
-		CLOG(CL_ERR, "connect err %d", err);
+		CLOG(CL_ERR, "connect %s:%d err %d", server, port, err);
 		goto out;
 	}
 	CLOG(CL_INF, "connected");

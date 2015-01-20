@@ -332,7 +332,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		crt_free(id);
 		return err;
 	} else if (cmd_equal(cmd, "obj_test")) {
-		err = obj_test(30, 1, 51145);
+		err = obj_test("127.0.0.1", DS_SRV_PORT, 30, 1, 51145);
 	} else {
 		printf("unknown cmd %s\n", cmd);
 		usage(prog);

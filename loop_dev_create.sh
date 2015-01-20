@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "create loop dev /dev/loop0"
+echo "create loop devs"
 sync
 rm -f lfile0
 rm -f lfile1
