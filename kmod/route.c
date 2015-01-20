@@ -1,7 +1,7 @@
 #include <inc/ds_priv.h>
 
 #define __SUBCOMPONENT__ "route"
-#define HOST_TIMER_TIMEOUT_MS 1000
+#define HOST_TIMER_TIMEOUT_MS 5000
 
 struct ds_host *ds_host;
 struct kmem_cache *ds_neigh_cachep;
@@ -211,8 +211,10 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		neigh->d_ip, neigh->d_port, neigh->s_ip, neigh->s_port);
 
 	err = ds_neigh_connect(neigh);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "cant connect err %d", err);
 		return err;
+	}
 
 	req = net_pkt_alloc();
 	if (!req) {
@@ -251,6 +253,7 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		&reply->u.neigh_handshake.reply_host_id);
 
 	neigh->state = DS_NEIGH_VALID;
+	KLOG(KL_INF, "neigh %p state %d", neigh, neigh->state);
 
 free_reply:
 	crt_free(reply);

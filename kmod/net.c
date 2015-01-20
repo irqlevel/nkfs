@@ -467,7 +467,7 @@ int ds_con_connect(u32 ip, int port, struct ds_con **pcon)
 	int err;
 
 	con = ds_con_alloc();
-	if (con)
+	if (!con)
 		return -ENOMEM;
 
 	err = ksock_connect(&con->sock, 0, 0, ip, port);
