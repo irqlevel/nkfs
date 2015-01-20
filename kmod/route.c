@@ -248,7 +248,13 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		KLOG(KL_ERR, "recv err %d", err);
 		goto free_reply;
 	}
-	
+
+	if (reply->err) {
+		KLOG(KL_ERR, "reply err %d", reply->err);
+		err = reply->err;
+		goto free_reply;
+	}
+
 	ds_obj_id_copy(&neigh->host_id,
 		&reply->u.neigh_handshake.reply_host_id);
 
@@ -327,8 +333,6 @@ static struct ds_host *ds_host_create(void)
 		return NULL;
 	
 	ds_obj_id_gen(&host->net_id);
-	ds_obj_id_gen(&host->host_id);
-
 	host->neighs = RB_ROOT;
 	rwlock_init(&host->neighs_lock);
 	INIT_LIST_HEAD(&host->neigh_list);
