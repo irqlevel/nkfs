@@ -572,6 +572,10 @@ static void ds_host_release(struct ds_host *host)
 		list_del_init(&neigh->neigh_list);
 		NEIGH_DEREF(neigh);
 	}
+
+	KLOG(KL_DBG, "neighs %d host_ids %d",
+		host->neighs_active, host->host_ids_active);
+
 	DS_BUG_ON(host->neighs_active);
 	DS_BUG_ON(host->host_ids_active);
 	ds_host_free(host);
