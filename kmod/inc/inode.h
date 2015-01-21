@@ -1,20 +1,6 @@
 #pragma once
 
-#define DS_INODE_SIG1 ((u32)0xCBDACBDA)
-#define DS_INODE_SIG2 ((u32)0xBEDABEDA)
-
 #pragma pack(push, 1)
-
-struct ds_inode_disk {
-	__be32			sig1;
-	struct ds_obj_id 	ino;
-	__be64			size;
-	__be64			blocks_tree_block;
-	__be64			blocks_sum_tree_block;
-	u8			pad[4016];			
-	struct sha256_sum	sum;
-	__be32			sig2;
-};
 
 struct ds_inode {
 	u32			sig1;
@@ -45,10 +31,6 @@ struct inode_block {
 };
 
 #pragma pack(pop)
-
-_Static_assert(sizeof(struct ds_inode_disk) == DS_BLOCK_SIZE,
-	"incorrect sizes");
-
 
 void ds_inode_ref(struct ds_inode *inode);
 void ds_inode_deref(struct ds_inode *inode);

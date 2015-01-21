@@ -319,14 +319,14 @@ static void btree_node_delete(struct btree_node *node)
 	node->block = 0;
 }
 
-void btree_key_by_u64(u64 val, struct btree_key *key)
+void btree_key_by_u64(u64 val, struct ds_obj_id *key)
 {
 	BUG_ON(sizeof(val) > sizeof(*key));
 	memset(key, 0, sizeof(*key));
 	memcpy(key, &val, sizeof(val));
 }
 
-u64 btree_key_to_u64(struct btree_key *key)
+u64 btree_key_to_u64(struct ds_obj_id *key)
 {
 	u64 val;
 	memcpy(&val, key, sizeof(val));
@@ -372,14 +372,14 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	return node;	
 }
 
-void btree_key_fee(struct btree_key *key)
+void btree_key_fee(struct ds_obj_id *key)
 {
 	kmem_cache_free(btree_key_cachep, key);
 }
 
-struct btree_key *btree_gen_key(void)
+struct ds_obj_id *btree_gen_key(void)
 {
-	struct btree_key *key;
+	struct ds_obj_id *key;
 	key = kmem_cache_alloc(btree_key_cachep, GFP_NOIO);
 	if (!key)
 		return NULL;
@@ -402,7 +402,7 @@ u64 btree_gen_value(void)
 	return value;
 }
 
-char *btree_key_hex(struct btree_key *key)
+char *btree_key_hex(struct ds_obj_id *key)
 {
 	return bytes_hex((char *)key, sizeof(*key));
 }
@@ -505,17 +505,17 @@ static void btree_release(struct btree *tree)
 }
 
 static int btree_cmp_key(
-	struct btree_key *key1,
-	struct btree_key *key2)
+	struct ds_obj_id *key1,
+	struct ds_obj_id *key2)
 {
-	return memcmp(key1, key2, sizeof(*key1));
+	return ds_obj_id_cmp(key1, key2);
 }
 
 static void btree_copy_key(
-	struct btree_key *dst,
-	struct btree_key *src)
+	struct ds_obj_id *dst,
+	struct ds_obj_id *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	ds_obj_id_copy(dst, src);
 }
 
 static void btree_copy_value(
@@ -531,7 +531,7 @@ static int btree_node_is_full(struct btree_node *node)
 }
 
 static void btree_node_copy_key_value(struct btree_node *dst, int dst_index,
-	struct btree_key *key, u64 *value)
+	struct ds_obj_id *key, u64 *value)
 {
 	BUG_ON(dst_index < 0 ||
 		dst_index >= ARRAY_SIZE(dst->keys));
@@ -598,7 +598,7 @@ static void btree_node_put_child(struct btree_node *dst, int dst_index,
 }
 
 static void btree_node_put_key_value(struct btree_node *dst, int dst_index,
-	struct btree_key *key, u64 *value)
+	struct ds_obj_id *key, u64 *value)
 {
 	int i;
 
@@ -627,7 +627,7 @@ static void btree_node_zero_kv(struct btree_node *dst, int dst_index)
 {
 	BUG_ON(dst_index < 0 || dst_index >= ARRAY_SIZE(dst->keys));
 
-	memset(&dst->keys[dst_index], 0, sizeof(struct btree_key));
+	memset(&dst->keys[dst_index], 0, sizeof(struct ds_obj_id));
 	memset(&dst->values[dst_index], 0, sizeof(u64));
 }
 
@@ -672,7 +672,7 @@ static void btree_node_split_child(struct btree_node *node,
 		new, new->nr_keys);
 }
 
-static int btree_node_has_key(struct btree_node *node, struct btree_key *key)
+static int btree_node_has_key(struct btree_node *node, struct ds_obj_id *key)
 {
 	int i;
 
@@ -685,7 +685,7 @@ static int btree_node_has_key(struct btree_node *node, struct btree_key *key)
 
 static int
 btree_node_find_key_index(struct btree_node *node,
-	struct btree_key *key)
+	struct ds_obj_id *key)
 {
 	int i = 0;
 	while (i < node->nr_keys && btree_cmp_key(key, &node->keys[i]) > 0)
@@ -695,7 +695,7 @@ btree_node_find_key_index(struct btree_node *node,
 
 static int btree_node_insert_nonfull(
 	struct btree_node *first,
-	struct btree_key *key,
+	struct ds_obj_id *key,
 	u64 *value,
 	int replace)
 {
@@ -774,7 +774,7 @@ static int btree_node_insert_nonfull(
 
 static void btree_node_copy(struct btree_node *dst, struct btree_node *src);
 
-int btree_insert_key(struct btree *tree, struct btree_key *key,
+int btree_insert_key(struct btree *tree, struct ds_obj_id *key,
 	u64 value,
 	int replace)
 {
@@ -840,7 +840,7 @@ out:
 }
 
 static struct btree_node *btree_node_find_key(struct btree_node *first,
-		struct btree_key *key, int *pindex)
+		struct ds_obj_id *key, int *pindex)
 {
 	int i;
 	struct btree_node *node = first;
@@ -874,7 +874,7 @@ static struct btree_node *btree_node_find_key(struct btree_node *first,
 }
 
 int btree_find_key(struct btree *tree,
-	struct btree_key *key,
+	struct ds_obj_id *key,
 	u64 *pvalue)
 {
 	struct btree_node *found;
@@ -930,7 +930,7 @@ static void __btree_node_delete_key_index(struct btree_node *node,
 }
 
 static void btree_node_leaf_delete_key(struct btree_node *node,
-		struct btree_key *key)
+		struct ds_obj_id *key)
 {
 	int index;
 	BUG_ON(!node->leaf);
@@ -998,7 +998,7 @@ btree_node_find_right_most(struct btree_node *node, int *pindex)
 }
 
 static void btree_node_merge(struct btree_node *dst,
-	struct btree_node *src, struct btree_key *key,
+	struct btree_node *src, struct ds_obj_id *key,
 	u64 *value)
 {
 	int i, pos;
@@ -1182,9 +1182,9 @@ btree_node_child_balance(struct btree_node *node,
 }
 
 static int btree_node_delete_key(struct btree_node *first,
-		struct btree_key *key)
+		struct ds_obj_id *key)
 {
-	struct btree_key key_copy;
+	struct ds_obj_id key_copy;
 	struct btree_node *node = first;
 	int i;
 
@@ -1302,7 +1302,7 @@ restart:
 	}
 }
 
-int btree_delete_key(struct btree *tree, struct btree_key *key)
+int btree_delete_key(struct btree *tree, struct ds_obj_id *key)
 {
 	int rc;
 
@@ -1428,7 +1428,7 @@ static int btree_node_check(struct btree_node *first, int root)
 {
 	int i;
 	int errs = 0;
-	struct btree_key *prev_key;
+	struct ds_obj_id *prev_key;
 	struct btree_node *node = first;
 
 	if (btree_node_check_sigs(node)) {
@@ -1528,7 +1528,7 @@ int btree_init(void)
 	}
 
 	btree_key_cachep = kmem_cache_create("btree_key_cache",
-			sizeof(struct btree_key), 0,
+			sizeof(struct ds_obj_id), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!btree_key_cachep) {
 		KLOG(KL_ERR, "cant create cache");

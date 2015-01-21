@@ -265,7 +265,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 	}
 }
 
-static void inode_block_erase(struct btree_key *key,
+static void inode_block_erase(struct ds_obj_id *key,
 	u64 value, void *ctx)
 {
 	struct ds_inode *inode = (struct ds_inode *)ctx;
@@ -463,7 +463,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 {
 	int err;
 	struct inode_block ib;
-	struct btree_key key;
+	struct ds_obj_id key;
 	int sum_block_allocated = 0;
 	int sum_block_inserted = 0;
 
@@ -528,7 +528,7 @@ static void
 ds_inode_block_erase(struct ds_inode *inode,
 	struct inode_block *ib)
 {
-	struct btree_key key;
+	struct ds_obj_id key;
 
 	btree_key_by_u64(ib->vblock, &key);
 	btree_delete_key(inode->blocks_tree, &key);
@@ -557,7 +557,7 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	struct inode_block *pib)
 {
 	int err;
-	struct btree_key key;
+	struct ds_obj_id key;
 	struct inode_block ib;
 	
 	ds_inode_block_zero(&ib);

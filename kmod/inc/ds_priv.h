@@ -59,8 +59,6 @@
 		BUG();				\
 	} while (0);				\
 
-#define DS_BLOCK_SIZE 4096
-
 _Static_assert(DS_BLOCK_SIZE == PAGE_SIZE,
 	"size is not correct");
 

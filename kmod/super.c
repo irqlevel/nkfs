@@ -150,7 +150,7 @@ static int ds_sb_list_by_obj(struct ds_obj_id *obj_id,
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
-		err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id,
+		err = btree_find_key(sb->obj_tree, obj_id,
 				&block);
 		if (err)
 			continue;
@@ -568,7 +568,7 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, (struct btree_key *)id, &iblock);
+	err = btree_find_key(sb->obj_tree, id, &iblock);
 	if (err) {
 		KLOG(KL_ERR, "obj not found");
 		return err;
@@ -617,7 +617,7 @@ static int ds_sb_create_obj(struct ds_sb *sb,
 		return -ENOMEM;
 	}
 
-	err = btree_insert_key(sb->obj_tree, (struct btree_key *)&inode->ino,
+	err = btree_insert_key(sb->obj_tree, &inode->ino,
 			inode->block, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant insert ino in obj_tree err %d",
@@ -645,7 +645,7 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
 	if (err)
 		return err;
 
@@ -680,7 +680,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
 	if (err)
 		return err;
 
@@ -690,7 +690,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 		return -EIO;
 	}
 
-	btree_delete_key(sb->obj_tree, (struct btree_key *)&inode->ino);
+	btree_delete_key(sb->obj_tree, &inode->ino);
 	ds_inode_delete(inode);
 	INODE_DEREF(inode);
 	return err;
@@ -800,7 +800,7 @@ static int ds_sb_query_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, (struct btree_key *)obj_id, &iblock);
+	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
 	if (err)
 		return err;
 

@@ -28,9 +28,6 @@ struct ds_sb_link {
 	struct ds_sb		*sb;
 };
 
-_Static_assert(sizeof(struct ds_obj_id) == sizeof(struct btree_key),
-	"not equal sizes");
-
 void ds_sb_stop(struct ds_sb *sb);
 
 void ds_sb_ref(struct ds_sb *sb);
