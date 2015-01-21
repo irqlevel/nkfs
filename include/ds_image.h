@@ -7,11 +7,11 @@
  * Ds image on disk structure:
  *  header-> allocated blocks bitmap
  *  	\
- *  	 -> inodes tree
+ *  	 -> inodes b-tree {obj_id -> block} 
  *  	           \
- *  	            ->inode0 -> data blocks tree
+ *  	            ->inode0 -> data blocks b-tree {vblock -> block}
  *  	            \	\
- *  	            |	  -> data blocks sha256 sums tree
+ *  	            |	  -> data blocks sha256 sums b-tree {vblock -> block}
  *  	            ...
  *  	            \
  *  	             ->inode2
