@@ -243,6 +243,8 @@ struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
 	if (inserted != hid) {
 		HOST_ID_DEREF(hid);
 		hid = inserted;
+	} else {
+		HOST_ID_DEREF(hid);
 	}
 
 	return hid;
