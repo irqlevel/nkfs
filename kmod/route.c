@@ -412,6 +412,10 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 	req->u.neigh_handshake.d_ip = neigh->s_ip;
 	req->u.neigh_handshake.d_port = neigh->s_port;
 
+	KLOG(KL_DBG, "send neigh %x:%d -> %x:%d", req->u.neigh_handshake.s_ip,
+		req->u.neigh_handshake.s_port, req->u.neigh_handshake.d_ip,
+		req->u.neigh_handshake.d_port);
+
 	err = ds_con_send_pkt(neigh->con, req);
 	if (err) {
 		KLOG(KL_ERR, "send err %d", err);
@@ -620,6 +624,9 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 {
 	struct ds_neigh *inserted;
 	int err = -EEXIST;
+
+	KLOG(KL_DBG, "adding neigh %x:%d -> %x:%d", neigh->s_ip, neigh->s_port,
+		neigh->d_ip, neigh->d_port);
 
 	write_lock_irq(&host->neighs_lock);
 	inserted = __ds_neighs_insert(host, neigh);
