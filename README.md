@@ -1,4 +1,4 @@
-### Distributed decentralized persistent data storage system.
+### Distributed decentralized fault-tolerant data storage system.
 
 #### Build status:
 [![build status](https://travis-ci.org/irqlevel/ds.svg?branch=master)](https://travis-ci.org/irqlevel/ds)
@@ -17,7 +17,8 @@ to restore origin data.
 storage.
 6. Self-healing system. System should resurects in many cases of faults.
 7. Fast data searching by assigned unique id.
-8. Persistent - data is stored at persistent pool of linux devices like HDD/SSDs.
+8. Data is stored at pool of linux devices like HDD/SSDs.
+9. Integrity checks to detect data corruptions by SHA256 everywhere.
 
 #### Implementation:
 Main core written as linux kernel module for perfomance reasons - fastest path
