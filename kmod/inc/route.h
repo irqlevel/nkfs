@@ -69,11 +69,17 @@ void ds_neigh_deref(struct ds_neigh *neigh);
 void ds_host_id_ref(struct ds_host_id *host_id);
 void ds_host_id_deref(struct ds_host_id *host_id);
 
-#define HOST_ID_REF(hid)	\
-	ds_host_id_ref((hid));
+#define HOST_ID_REF(hid)							\
+	do {									\
+		ds_host_id_ref((hid));						\
+		KLOG(KL_DBG, "hid %p ref %d", (hid), atomic_read(&(hid)->ref));	\
+	} while (0);
 
-#define HOST_ID_DEREF(hid)	\
-	ds_host_id_deref((hid));
+#define HOST_ID_DEREF(hid)							\
+	do {									\
+		KLOG(KL_DBG, "hid %p ref %d", (hid), atomic_read(&(hid)->ref));	\
+		ds_host_id_deref((hid));					\
+	} while (0);
 
 int ds_route_init(void);
 void ds_route_finit(void);

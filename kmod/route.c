@@ -136,10 +136,12 @@ void ds_host_id_free(struct ds_host_id *host_id)
 
 static void ds_host_id_release(struct ds_host_id *host_id)
 {
-	if (host_id->host) {
-		write_lock(&host_id->host->host_ids_lock);
-		__ds_host_ids_remove(host_id->host, host_id);
-		write_unlock(&host_id->host->host_ids_lock);
+	struct ds_host *host = host_id->host;
+	KLOG(KL_DBG, "hid %p, host %p", host_id, host);
+	if (host) {
+		write_lock_irq(&host->host_ids_lock);
+		__ds_host_ids_remove(host, host_id);
+		write_unlock_irq(&host->host_ids_lock);
 	}
 	ds_host_id_free(host_id);
 }
@@ -216,9 +218,11 @@ struct ds_host_id *__ds_host_id_insert(struct ds_host *host,
 			break;
 		}
 	}
+
 	if (!inserted) {
 		rb_link_node(&host_id->host_ids_link, parent, p);
 		rb_insert_color(&host_id->host_ids_link, &host->host_ids);
+		host_id->host = host;
 		host->host_ids_active++;
 		inserted = host_id;
 	}
@@ -235,8 +239,6 @@ struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
 		return NULL;
 	
 	ds_obj_id_copy(&hid->host_id, host_id);
-	hid->host = host;
-
 	write_lock_irq(&host->host_ids_lock);
 	inserted = __ds_host_id_insert(host, hid);
 	write_unlock_irq(&host->host_ids_lock);
@@ -564,8 +566,8 @@ static void ds_host_release(struct ds_host *host)
 		list_del_init(&neigh->neigh_list);
 		NEIGH_DEREF(neigh);
 	}
-	BUG_ON(host->neighs_active);
-	BUG_ON(host->host_ids_active);
+	DS_BUG_ON(host->neighs_active);
+	DS_BUG_ON(host->host_ids_active);
 	ds_host_free(host);
 }
 
