@@ -5,4 +5,5 @@ echo "start"
 bin/ds_ctl dev_add -d /dev/loop0 -f
 bin/ds_ctl dev_add -d /dev/loop1 -f
 bin/ds_ctl dev_add -d /dev/loop2 -f
-bin/ds_ctl srv_start -s 0.0.0.0
+bin/ds_ctl srv_start -s 0.0.0.0 9111
+bin/ds_ctl srv_start -s 0.0.0.0 9112
