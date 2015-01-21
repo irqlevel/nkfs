@@ -161,7 +161,7 @@ void ds_host_id_deref(struct ds_host_id *host_id)
 
 struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct ds_obj_id *host_id)
 {
-	struct rb_node *n = host->neighs.rb_node;
+	struct rb_node *n = host->host_ids.rb_node;
 	struct ds_host_id *found = NULL;
 
 	while (n) {
@@ -170,6 +170,7 @@ struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct ds_obj_id *
 
 		hid = rb_entry(n, struct ds_host_id, host_ids_link);
 		cmp = ds_obj_id_cmp(host_id, &hid->host_id);
+		KLOG(KL_DBG, "host_id %p, hid %p, cmp=%d", host_id, hid, cmp);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
@@ -188,6 +189,7 @@ void __ds_host_ids_remove(struct ds_host *host,
 	struct ds_host_id *found;
 
 	found = __ds_host_ids_lookup(host, &host_id->host_id);
+	KLOG(KL_DBG, "found %p", found);
 	if (found) {
 		BUG_ON(found != host_id);
 		rb_erase(&found->host_ids_link, &host->host_ids);
@@ -611,6 +613,7 @@ void ds_route_finit(void)
 {
 	ds_host_release(ds_host);
 	kmem_cache_destroy(ds_neigh_cachep);
+	kmem_cache_destroy(ds_host_id_cachep);
 }
 
 int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
