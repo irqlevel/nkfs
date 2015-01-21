@@ -315,6 +315,7 @@ static struct ds_neigh *__ds_neighs_insert(struct ds_host *host,
 	if (!inserted) {
 		rb_link_node(&neigh->neighs_link, parent, p);
 		rb_insert_color(&neigh->neighs_link, &host->neighs);
+		neigh->host = host;
 		host->neighs_active++;
 		inserted = neigh;
 	}
@@ -618,7 +619,6 @@ int ds_host_add_neigh(struct ds_host *host, struct ds_neigh *neigh)
 	int err = -EEXIST;
 
 	write_lock_irq(&host->neighs_lock);
-	neigh->host = host;	
 	inserted = __ds_neighs_insert(host, neigh);
 	BUG_ON(!inserted);
 	if (inserted == neigh) {
@@ -676,7 +676,7 @@ int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	neigh->state = DS_NEIGH_INIT;
 	err = ds_host_add_neigh(ds_host, neigh); 
 	if (err) {
-		KLOG(KL_ERR, "cant add neigh");
+		KLOG(KL_ERR, "cant add neigh err %d", err);
 		NEIGH_DEREF(neigh);
 	}
 
