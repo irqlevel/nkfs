@@ -40,8 +40,8 @@ static int output_dev_info(struct ds_dev_info *info)
 	printf("bsize : %u\n", info->bsize);
 	printf("blocks : %llu\n", (unsigned long long)info->blocks);
 	printf("used_blocks : %llu\n", (unsigned long long)info->used_blocks);
-	printf("obj_tree_block : %llu\n",
-		(unsigned long long)info->obj_tree_block);
+	printf("inodes_tree_block : %llu\n",
+		(unsigned long long)info->inodes_tree_block);
 	printf("bm_block : %llu\n", (unsigned long long)info->bm_block);
 	printf("bm_blocks : %llu\n", (unsigned long long)info->bm_blocks);
 	crt_free(hex_sb_id);

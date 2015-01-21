@@ -3,6 +3,22 @@
 #include <crt/include/sha256.h>
 #include <crt/include/obj_id.h>
 
+/*
+ * Ds image on disk structure:
+ *  header-> allocated blocks bitmap
+ *  	\
+ *  	 -> inodes tree
+ *  	           \
+ *  	            ->inode0 -> data blocks tree
+ *  	            \	\
+ *  	            |	  -> data blocks sha256 sums tree
+ *  	            ...
+ *  	            \
+ *  	             ->inode2
+ *  	             \
+ *  	              ....
+ */
+
 #define DS_BLOCK_SIZE 4096
 
 #define DS_IMAGE_MAGIC	0x3EFFBDAE
@@ -51,7 +67,7 @@ struct ds_image_header {
 	__be64			size; /*size of image in bytes includes header*/
 	__be64			bm_block; /*first blocks bitmap's block */
 	__be64			bm_blocks; /* number of bitmap blocks */
-	__be64			obj_tree_block; /* inodes tree */
+	__be64			inodes_tree_block; /* inodes tree */
 	__be64			used_blocks; /*number of allocated blocks */
 	__be32			bsize; /* block size in bytes=DS_BLOCK_SIZE */
 	struct sha256_sum	sum; /* sha256 sum of [sig1 ... bsize ] */

@@ -10,12 +10,12 @@ static int ds_sb_sync(struct ds_sb *sb);
 
 static void ds_sb_release(struct ds_sb *sb)
 {
-	KLOG(KL_DBG, "sb %p obj tree %p", sb, sb->obj_tree);
-	if (sb->obj_tree)
-		btree_deref(sb->obj_tree);
+	KLOG(KL_DBG, "sb %p inodes tree %p", sb, sb->inodes_tree);
+	if (sb->inodes_tree)
+		btree_deref(sb->inodes_tree);
 
-	KLOG(KL_DBG, "sb %p released, obj tree %p",
-		sb, sb->obj_tree);
+	KLOG(KL_DBG, "sb %p released, inodes tree %p",
+		sb, sb->inodes_tree);
 }
 
 static void ds_sb_delete(struct ds_sb *sb)
@@ -34,8 +34,8 @@ void ds_sb_stop(struct ds_sb *sb)
 	list_del_init(&sb->list);
 	up_write(&sb_list_lock);
 
-	if (sb->obj_tree)
-		btree_stop(sb->obj_tree);
+	if (sb->inodes_tree)
+		btree_stop(sb->inodes_tree);
 
 	BUG_ON(sb->inodes_active);
 	ds_sb_sync(sb);
@@ -150,7 +150,7 @@ static int ds_sb_list_by_obj(struct ds_obj_id *obj_id,
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
-		err = btree_find_key(sb->obj_tree, obj_id,
+		err = btree_find_key(sb->inodes_tree, obj_id,
 				&block);
 		if (err)
 			continue;
@@ -259,7 +259,7 @@ static int ds_sb_parse_header(struct ds_sb *sb,
 	sb->bsize = be32_to_cpu(header->bsize);
 	sb->bm_block = be64_to_cpu(header->bm_block);
 	sb->bm_blocks = be64_to_cpu(header->bm_blocks);
-	sb->obj_tree_block = be64_to_cpu(header->obj_tree_block);
+	sb->inodes_tree_block = be64_to_cpu(header->inodes_tree_block);
 	sb->used_blocks = be64_to_cpu(header->used_blocks);
 
 	memcpy(&sb->id, &header->id, sizeof(header->id));	
@@ -279,7 +279,7 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	header->bsize = cpu_to_be32(sb->bsize);
 	header->bm_block = cpu_to_be64(sb->bm_block);
 	header->bm_blocks = cpu_to_be64(sb->bm_blocks);
-	header->obj_tree_block = cpu_to_be64(sb->obj_tree_block);
+	header->inodes_tree_block = cpu_to_be64(sb->inodes_tree_block);
 	header->sig = cpu_to_be32(DS_IMAGE_SIG);
 	memcpy(&header->id, &sb->id, sizeof(sb->id));
 	ds_image_header_sum(header, &header->sum);
@@ -409,8 +409,8 @@ free_sb:
 
 void ds_sb_log(struct ds_sb *sb)
 {
-	KLOG(KL_DBG, "sb %p blocks %llu obj tree %llu bm %llu bm_blocks %llu",
-		sb, sb->nr_blocks, sb->obj_tree_block, sb->bm_block,
+	KLOG(KL_DBG, "sb %p blocks %llu inodes tree %llu bm %llu bm_blocks %llu",
+		sb, sb->nr_blocks, sb->inodes_tree_block, sb->bm_block,
 		sb->bm_blocks);
 }
 
@@ -449,13 +449,13 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		}
 	}
 	
-	sb->obj_tree = btree_create(sb, 0);
-	if (!sb->obj_tree) {
+	sb->inodes_tree = btree_create(sb, 0);
+	if (!sb->inodes_tree) {
 		KLOG(KL_ERR, "cant create obj btree");
 		goto del_sb;
 	}
 
-	sb->obj_tree_block = btree_root_block(sb->obj_tree);
+	sb->inodes_tree_block = btree_root_block(sb->inodes_tree);
 	memset(bh->b_data, 0, dev->bsize);
 	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
 
@@ -506,16 +506,16 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 		goto free_sb;
 	}
 
-	if (sb->obj_tree_block >= sb->nr_blocks) {
+	if (sb->inodes_tree_block >= sb->nr_blocks) {
 		KLOG(KL_ERR, "sb %p obj tree %llu nr_blocks %llud",
-			sb, sb->obj_tree_block, sb->nr_blocks);
+			sb, sb->inodes_tree_block, sb->nr_blocks);
 		err = -EINVAL;
 		goto free_sb;
 	}
-	sb->obj_tree = btree_create(sb, sb->obj_tree_block);
-	if (!sb->obj_tree) {
+	sb->inodes_tree = btree_create(sb, sb->inodes_tree_block);
+	if (!sb->inodes_tree) {
 		KLOG(KL_ERR, "sb %p cant load obj tree %llu",
-			sb, sb->obj_tree_block);
+			sb, sb->inodes_tree_block);
 		err = -EINVAL;
 		goto free_sb;
 	}
@@ -568,7 +568,7 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, id, &iblock);
+	err = btree_find_key(sb->inodes_tree, id, &iblock);
 	if (err) {
 		KLOG(KL_ERR, "obj not found");
 		return err;
@@ -617,10 +617,10 @@ static int ds_sb_create_obj(struct ds_sb *sb,
 		return -ENOMEM;
 	}
 
-	err = btree_insert_key(sb->obj_tree, &inode->ino,
+	err = btree_insert_key(sb->inodes_tree, &inode->ino,
 			inode->block, 0);
 	if (err) {
-		KLOG(KL_ERR, "cant insert ino in obj_tree err %d",
+		KLOG(KL_ERR, "cant insert ino in inodes_tree err %d",
 				err);
 		ds_inode_delete(inode);
 		goto out;
@@ -645,7 +645,7 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
 	if (err)
 		return err;
 
@@ -674,13 +674,13 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 	u64 iblock;
 	struct ds_inode *inode;
 
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	BUG_ON(!sb->inodes_tree);
+	BUG_ON(sb->inodes_tree->sig1 != BTREE_SIG1);
 	
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
 	if (err)
 		return err;
 
@@ -690,7 +690,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 		return -EIO;
 	}
 
-	btree_delete_key(sb->obj_tree, &inode->ino);
+	btree_delete_key(sb->inodes_tree, &inode->ino);
 	ds_inode_delete(inode);
 	INODE_DEREF(inode);
 	return err;
@@ -794,13 +794,13 @@ static int ds_sb_query_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	u64 iblock;
 	struct ds_inode *inode;
 
-	BUG_ON(!sb->obj_tree);
-	BUG_ON(sb->obj_tree->sig1 != BTREE_SIG1);
+	BUG_ON(!sb->inodes_tree);
+	BUG_ON(sb->inodes_tree->sig1 != BTREE_SIG1);
 	
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->obj_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
 	if (err)
 		return err;
 

@@ -12,7 +12,7 @@ struct ds_dev_info {
 	u64			free_size;
 	u64			blocks;
 	u64			used_blocks;
-	u64			obj_tree_block;
+	u64			inodes_tree_block;
 	u64			bm_block;
 	u64			bm_blocks;
 	u32			bsize;

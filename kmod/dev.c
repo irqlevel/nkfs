@@ -98,7 +98,7 @@ int ds_dev_query(char *dev_name, struct ds_dev_info *info)
 		info->size = sb->size;
 		info->blocks = sb->nr_blocks;
 		info->used_blocks = sb->used_blocks;
-		info->obj_tree_block = sb->obj_tree_block;
+		info->inodes_tree_block = sb->inodes_tree_block;
 		info->bm_block = sb->bm_block;
 	 	info->bm_blocks = sb->bm_blocks;
 		info->bsize = sb->bsize;

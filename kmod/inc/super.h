@@ -7,7 +7,7 @@ struct ds_sb {
 	atomic_t		refs;
 	struct ds_obj_id	id;	
 	struct rw_semaphore	rw_lock;
-	struct btree		*obj_tree;
+	struct btree		*inodes_tree;
 	struct rb_root		inodes;
 	rwlock_t		inodes_lock;
 	int			inodes_active;
@@ -17,7 +17,7 @@ struct ds_sb {
 	u64			size;
 	u64			bm_block;
 	u64			bm_blocks;
-	u64			obj_tree_block;
+	u64			inodes_tree_block;
 	u64			used_blocks;
 	u32			bsize;
 	int			stopping;
