@@ -525,8 +525,7 @@ static struct ds_host *ds_host_create(void)
 
 	INIT_LIST_HEAD(&host->neigh_list);
 
-	host->wq = alloc_workqueue("ds_route_wq",
-			WQ_MEM_RECLAIM|WQ_UNBOUND, 1);
+	host->wq = alloc_workqueue("ds_route_wq", WQ_UNBOUND, 1);
 	if (!host->wq) {
 		KLOG(KL_ERR, "cant create wq");
 		goto free_host;
