@@ -76,7 +76,7 @@ free_size : 104845312
 bsize : 4096
 blocks : 25600
 used_blocks : 8
-obj_tree_block : 2
+inodes_tree_block : 2
 bm_block : 1
 bm_blocks : 1
 
