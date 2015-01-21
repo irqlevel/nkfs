@@ -585,7 +585,18 @@ int ds_route_init(void)
 		goto rel_host;
 	}
 
+	ds_host_id_cachep = kmem_cache_create("ds_host_id_cache",
+		sizeof(struct ds_host_id), 0, SLAB_MEM_SPREAD, NULL);
+	if (!ds_host_id_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_neigh_cache;
+	}	
+
 	return 0;
+
+del_neigh_cache:
+	kmem_cache_destroy(ds_neigh_cachep);
 rel_host:
 	ds_host_release(ds_host);
 	return err;
