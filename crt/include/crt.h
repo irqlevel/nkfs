@@ -37,9 +37,7 @@ void crt_file_close(void *file);
 #include <crt/kernel/crt.h>
 #else
 #include <crt/user/crt.h>
-#define EXPORT_SYMBOL(s)
 #endif
-
 
 #define CLOG_BUF_SUM(buf, len)	do {				\
 		struct sha256_sum bsum;				\

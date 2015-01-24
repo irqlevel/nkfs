@@ -27,8 +27,39 @@ int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
 			return 0;	
 	}
 }
-
 EXPORT_SYMBOL(ds_obj_id_cmp);
+
+static void ds_obj_id_minus(struct ds_obj_id *id1, struct ds_obj_id *id2,
+	struct ds_obj_id *result)
+{
+	if (id1->high > id2->high) {
+		if (id1->low >= id2->low) {
+			result->high = id1->high - id2->high;
+			result->low = id1->low - id2->low;
+			return;
+		} else {
+			result->high = id1->high - id2->high - 1;
+			result->low = (U64_MAX - id2->low) + id1->low + 1;
+			return;
+		}
+	} else if (id1->high == id2->high) {
+		CRT_BUG_ON(id1->low < id2->low);
+		result->high = 0;
+		result->low = id1->low - id2->low;
+		return;
+	} else
+		CRT_BUG();
+	return;
+}
+
+void ds_obj_id_dist(struct ds_obj_id *id1, struct ds_obj_id *id2,
+	struct ds_obj_id *result)
+{
+	return (ds_obj_id_cmp(id1, id2) >= 0) ? 
+		ds_obj_id_minus(id1, id2, result) :
+		ds_obj_id_minus(id2, id1, result);
+}
+EXPORT_SYMBOL(ds_obj_id_dist);
 
 void ds_obj_id_copy(struct ds_obj_id *dst, struct ds_obj_id *src)
 {

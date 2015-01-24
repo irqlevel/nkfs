@@ -36,4 +36,10 @@
 #include "klog.h"
 #include "vfile.h"
 
+#define CRT_BUG_ON(cond)	\
+	BUG_ON(cond)
+
+#define CRT_BUG()		\
+	BUG()
+
 int crt_queue_work(work_func_t func);

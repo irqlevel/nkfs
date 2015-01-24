@@ -19,6 +19,10 @@
 #define PAGE_SIZE 4096
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#define EXPORT_SYMBOL(s)
+#define CRT_BUG_ON(cond)
+#define CRT_BUG()
+
 void crt_log_set_path(char *log_path, char *log_name);
 void crt_log_set_level(int level);
 void crt_log_enable_printf(int enable);
