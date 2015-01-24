@@ -1,9 +1,17 @@
 #pragma once
 
-#define DS_OBJ_ID_BYTES	16	/* 128 bits */
+#include <include/ds_types.h>
 
 #pragma pack(push, 1)
 struct ds_obj_id {
-	char	__bytes[DS_OBJ_ID_BYTES];
+	union {
+		char	__bytes[16];
+		struct {
+			u64 high;
+			u64 low;
+		};
+	};
 };
 #pragma pack(pop)
+
+_Static_assert(sizeof(struct ds_obj_id) == 16, "size incorrect");

@@ -14,8 +14,20 @@ EXPORT_SYMBOL(ds_obj_id_gen);
 
 int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
 {
-	return crt_memcmp(id1, id2, sizeof(*id2));
+	if (id1->high > id2->high)
+		return 1;
+	else if (id1->high < id2->high)
+		return -1;
+	else {
+		if (id1->low > id2->low)
+			return 1;
+		else if (id1->low < id2->low)
+			return -1;
+		else
+			return 0;	
+	}
 }
+
 EXPORT_SYMBOL(ds_obj_id_cmp);
 
 void ds_obj_id_copy(struct ds_obj_id *dst, struct ds_obj_id *src)
