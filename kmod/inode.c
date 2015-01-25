@@ -468,10 +468,14 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	int sum_block_inserted = 0;
 
 	ds_inode_block_zero(&ib);
+	ds_inode_block_zero(pib);
+
 	ib.vblock = vblock;
 
 	err = __ds_inode_block_alloc(inode, &ib.block);
 	if (err) {
+		KLOG(KL_ERR, "inode %llu balloc err %d",
+			inode->block, err);
 		return err;
 	}
 
@@ -482,30 +486,42 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	err = btree_find_key(inode->blocks_sum_tree, &key, &ib.sum_block);
 	if (err) {
 		err = __ds_inode_block_alloc(inode, &ib.sum_block);
-		if (err)
+		if (err) {
+			KLOG(KL_ERR, "balloc sum block inode %llu err %d",
+				inode->block, err);
 			goto fail;
+		}
 
 		sum_block_allocated = 1;
 
 		btree_key_by_u64(ib.vsum_block, &key);
 		err = btree_insert_key(inode->blocks_sum_tree, &key,
 			ib.sum_block, 0);
-		if (err)
+		if (err) {
+			KLOG(KL_ERR, "cant inode %llu insert key %llu",
+				inode->block, ib.vsum_block);
 			goto fail;
+		}
 
 		sum_block_inserted = 1;
 	}
 
 	err = ds_inode_block_open_bhs(inode, &ib);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "inode %llu err %d",
+			inode->block, err);
 		goto fail;
+	}
 
 
 	btree_key_by_u64(ib.vblock, &key);	
 	err = btree_insert_key(inode->blocks_tree, &key,
 		ib.block, 0);
-	if (err)
+	if (err) {
+		KLOG(KL_ERR, "cant insert key inode %llu err %d",
+			inode->block, err);
 		goto fail;
+	}
 
 	memcpy(pib, &ib, sizeof(ib));
 	return 0;
@@ -561,6 +577,8 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	struct inode_block ib;
 	
 	ds_inode_block_zero(&ib);
+	ds_inode_block_zero(pib);
+
 	ib.vblock = vblock;
 	btree_key_by_u64(ib.vblock, &key);	
 	err = btree_find_key(inode->blocks_tree, &key, &ib.block);
@@ -597,23 +615,29 @@ ds_inode_block_read_create(struct ds_inode *inode, u64 vblock,
 	struct inode_block ib;
 	
 	ds_inode_block_zero(&ib);
+	ds_inode_block_zero(pib);
+
 	err = ds_inode_block_read(inode, vblock, &ib);
 	if (err) {
 		err = ds_inode_block_alloc(inode, vblock, &ib);		
-		if (err)
+		if (err) {
+			KLOG(KL_ERR, "cant alloc block vblock %llu inode %llu",
+				vblock, inode->block);
 			goto fail;
+		}
 		err = ds_inode_block_write(inode, &ib);
 		if (err) {
+			KLOG(KL_ERR, "inode %llu ib.block %llu err %d",
+				inode->block, ib.block, err);
 			ds_inode_block_erase(inode, &ib);
-			goto fail;		
+			goto fail;
 		}
-		goto success;
+	} else {
+		err = ds_inode_block_check_sum(inode, &ib);
+		if (err)
+			goto fail;
 	}
-	err = ds_inode_block_check_sum(inode, &ib);
-	if (err)
-		goto fail;
 
-success:
 	memcpy(pib, &ib, sizeof(ib));
 	return 0;
 fail:
