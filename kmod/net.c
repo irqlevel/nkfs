@@ -115,10 +115,14 @@ int ds_con_recv_pkt(struct ds_con *con,
 	int err;
 	err = ds_con_recv(con, pkt, sizeof(*pkt));
 	if (err) {
-		KLOG(KL_ERR, "recv err %d", err);
+		if (err == -ECONNRESET) {
+			KLOG(KL_DBG, "recv err %d", err);
+		} else {
+			KLOG(KL_ERR, "recv err %d", err);
+		}
 		return err;
 	}
-	
+
 	err = net_pkt_check(pkt);
 	if (err) {	
 		KLOG(KL_ERR, "pkt check err %d", err);
@@ -422,7 +426,11 @@ static int ds_con_thread_routine(void *data)
 		}
 		err = ds_con_recv_pkt(con, pkt);	
 		if (err) {
-			KLOG(KL_ERR, "pkt recv err %d", err);
+			if (err == -ECONNRESET) {
+				KLOG(KL_DBG, "pkt recv err %d", err);
+			} else { 
+				KLOG(KL_ERR, "pkt recv err %d", err);
+			}
 			crt_free(pkt);
 			break;
 		}
@@ -567,7 +575,7 @@ static int ds_server_thread_routine(void *data)
 			err = ksock_accept(&con_sock, server->sock);
 			if (err) {
 				if (err == -EAGAIN) {
-					KLOG(KL_WRN, "accept err=%d", err);
+					KLOG(KL_DBG, "accept err=%d", err);
 				} else {
 					KLOG(KL_ERR, "accept err=%d", err);
 				}

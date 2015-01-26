@@ -405,7 +405,7 @@ int ksock_accept(struct socket **newsockp, struct socket *sock)
 	add_wait_queue(sk_sleep(sock->sk), &wait);
 	error = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	if (error == -EAGAIN) {
-		KLOG(KL_WRN, "accept returned %d", error);
+		KLOG(KL_DBG, "accept returned %d", error);
 		schedule();
 		error = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	}
@@ -413,7 +413,7 @@ int ksock_accept(struct socket **newsockp, struct socket *sock)
 	set_current_state(TASK_RUNNING);
 	if (error) {
 		if (error == -EAGAIN) {
-			KLOG(KL_WRN, "accept error=%d", error);
+			KLOG(KL_DBG, "accept error=%d", error);
 		} else {
 			KLOG(KL_ERR, "accept error=%d", error);
 		}
