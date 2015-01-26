@@ -142,7 +142,7 @@ if __name__ == "__main__":
 	res = check_file_hash()
 
 	if len(res) != 0:
-		log.error("FAILED: broken files: %d" % res)
+		log.error("FAILED: broken files: %s" % res)
 	else:
 		log.info("PASSED: there are not broken files!")
 
