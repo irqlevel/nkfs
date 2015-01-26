@@ -13,3 +13,4 @@ Module.symvers
 *.pyc
 *.log
 tags
+tests/logs/
