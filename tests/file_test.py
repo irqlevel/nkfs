@@ -1,16 +1,16 @@
-from tests_pkg import cmd
+from tests_lib import cmd
+from tests_lib import settings
 import tempfile
 import os
 import inspect
 import hashlib
 import random
 import shutil
+import logging
 from multiprocessing import Process
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
-PROJ_DIR = os.path.dirname(CURR_DIR)
-CLIENT_PATH = os.path.join(PROJ_DIR, "bin/ds_client")
 
 GEN_FILE_COUNT = 10
 PROC_NUM = 3
@@ -21,8 +21,9 @@ TMP_FILE_MAX_SIZE = 10485760 #bytes in 10MB
 IN_TMP_DIR = ""
 OUT_TMP_DIR = ""
 
-DS_CLIENT_PUT_CMD = CLIENT_PATH + " put -s 0.0.0.0 -p 9111 -f "
-DS_CLIENT_GET_CMD = CLIENT_PATH + " get -s 0.0.0.0 -p 9111 -i " 
+DS_CLIENT_PUT_CMD = settings.CLIENT_PATH + " put -s 0.0.0.0 -p 9111 -f "
+DS_CLIENT_GET_CMD = settings.CLIENT_PATH + " get -s 0.0.0.0 -p 9111 -i " 
+log = logging.getLogger('main')
 
 def prepare():
 	
@@ -32,7 +33,7 @@ def prepare():
 	IN_TMP_DIR = tempfile.mkdtemp(dir=CURR_DIR) + "/"
 	OUT_TMP_DIR = tempfile.mkdtemp(dir=CURR_DIR) + "/"
 	
-	cmd.exec_cmd2("cd "+PROJ_DIR+" && ./start.sh")
+	cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./start.sh", throw = True)
 
 def cleanup():
 	
@@ -41,7 +42,7 @@ def cleanup():
 	
 	shutil.rmtree(IN_TMP_DIR)
 	shutil.rmtree(OUT_TMP_DIR)
-	cmd.exec_cmd2("cd "+PROJ_DIR+" && ./stop.sh")
+	cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./stop.sh", throw = True)
 
 def gen_tmp_files(file_count):
 	
@@ -60,14 +61,14 @@ def gen_tmp_files(file_count):
 
 def put_file(file_name):
 	
-	obj_id = cmd.exec_cmd2(DS_CLIENT_PUT_CMD + file_name)
+	obj_id = cmd.exec_cmd2(DS_CLIENT_PUT_CMD + file_name, throw = True)
 	
 	return obj_id[1][0]
 
 
 def get_file(out_file_name):
 	
-	cmd.exec_cmd2(DS_CLIENT_GET_CMD + out_file_name)
+	cmd.exec_cmd2(DS_CLIENT_GET_CMD + out_file_name, throw = True)
 
 
 def proc_routine(file_count):
@@ -136,20 +137,13 @@ if __name__ == "__main__":
 		p.join()
 	
 	for p in proc_list:
-		print "process %s exit with code: %d" % (p.name,p.exitcode)
+		log.info("process %s exit with code: %d" % (p.name,p.exitcode))
 	
 	res = check_file_hash()
-	
-	if len(res)!=0:
-		print "\nbroken files:",res
-	else:
-		print "\nthere are not broken files!\n"
-		
-	cleanup()
-	
-	
-	
-	
-	
-	
 
+	if len(res) != 0:
+		log.error("FAILED: broken files: %d" % res)
+	else:
+		log.info("PASSED: there are not broken files!")
+
+	cleanup()

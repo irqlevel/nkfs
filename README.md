@@ -39,9 +39,11 @@ $ make
 Note, that you can build ds for particular kernel by
 setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 
-#### Test:
+#### Tests:
 ```sh
-$ sudo ./test.sh
+$ sudo yum install python-pip
+$ sudo pip install ConcurrentLogHandler
+$ cd ds && sudo python tests/file_test.py
 ```
 
 #### Usage:
