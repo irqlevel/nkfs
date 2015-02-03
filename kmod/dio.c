@@ -151,6 +151,7 @@ static void dio_dev_init(struct dio_dev *dev,
 
 	dev->nr_clus = 0;
 	dev->nr_max_clus = nr_max_clus;
+	dev->clu_size = clu_size;
 
 	mutex_lock(&dio_dev_list_lock);
 	list_add_tail(&dev->list, &dio_dev_list);
@@ -158,7 +159,7 @@ static void dio_dev_init(struct dio_dev *dev,
 }
 
 struct dio_dev *dio_dev_create(struct block_device *bdev,
-	u32 clu_size, u32 nr_max_clus)
+	int clu_size, int nr_max_clus)
 {
 	struct dio_dev *dev;
 
@@ -207,6 +208,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 	atomic_set(&cluster->ref, 1);
 	init_completion(&cluster->read_comp);
 	cluster->dev = dev;
+	cluster->clu_size = dev->clu_size;
 
 	return cluster;
 }
@@ -509,7 +511,13 @@ static void dio_io_deref(struct dio_io *io)
 static void dio_io_end_bio(struct bio *bio, int err)
 {
 	struct dio_io *io = bio->bi_private;
+
+	BUG_ON(io->bio != bio);
  
+	KLOG(KL_INF, "err %d rw %x io %p bio %p sec %llx size %x",
+			err, io->rw, io, io->bio, bio->bi_iter.bi_sector,
+			io->bio->bi_iter.bi_size);
+
 	io->err = err;
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
@@ -585,9 +593,13 @@ struct dio_io *dio_io_alloc(struct dio_cluster *cluster)
 	return io;
 }
 
-static void dio_submit(int rw, struct dio_io *io)
+static void dio_submit(unsigned long rw, struct dio_io *io)
 {
 	io->rw |= rw;
+
+	KLOG(KL_INF, "rw %x io %p bio %p sec %llx size %x",
+			io->rw, io, io->bio, io->bio->bi_iter.bi_sector,
+			io->bio->bi_iter.bi_size);
 	submit_bio(io->rw, io->bio);
 }
 
@@ -621,7 +633,7 @@ read_comp:
 }
 
 int dio_clu_read(struct dio_cluster *cluster,
-	void *buf, u32 off, u32 len)
+	void *buf, u32 len, u32 off)
 {
 	int err;
 
@@ -640,7 +652,7 @@ out:
 }
 
 int dio_clu_write(struct dio_cluster *cluster,
-	void *buf, u32 off, u32 len)
+	void *buf, u32 len, u32 off)
 {
 	int err;
 
@@ -661,6 +673,33 @@ int dio_clu_write(struct dio_cluster *cluster,
 out:
 	up_read(&cluster->rw_lock);
 
+	return err;
+}
+
+int dio_clu_zero(struct dio_cluster *cluster)
+{
+	int err;
+	struct page *page;
+	int i;
+	u32 off;
+
+	page = alloc_page(GFP_NOIO);
+	if (!page)
+		return -ENOMEM;
+
+	memset(page_address(page), 0, PAGE_SIZE);
+	off = 0;
+	for (i = 0; i < cluster->pages.nr_pages; i++) {
+		err = dio_clu_write(cluster, page_address(page),
+			PAGE_SIZE, off);
+		if (err)
+			goto out;
+		off+= PAGE_SIZE;
+	}
+	err = 0;
+
+out:
+	put_page(page);
 	return err;
 }
 

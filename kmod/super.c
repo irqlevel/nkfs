@@ -398,6 +398,7 @@ static int ds_sb_create(struct ds_dev *dev,
 	sb->nr_blocks = ds_div(sb->size, sb->bsize);
 	sb->dev = dev;
 	sb->bdev = dev->bdev;
+	sb->ddev = dev->ddev;
 
 	*psb = sb;
 	return 0;
@@ -416,13 +417,14 @@ void ds_sb_log(struct ds_sb *sb)
 
 int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	int err;
 	struct ds_sb *sb = NULL;
+	struct ds_image_header header;
 	u64 i;
 
-	bh = __bread(dev->bdev, 0, dev->bsize);
-	if (!bh) {
+	clu = dio_clu_get(dev->ddev, 0);
+	if (!clu) {
 		KLOG(KL_ERR, "cant read 0block");
 		err = -EIO;
 		goto out;	
@@ -431,7 +433,7 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 	err = ds_sb_create(dev, NULL, &sb);
 	if (err) {
 		KLOG(KL_ERR, "cant create sb");
-		goto out;
+		goto free_clu;
 	}
 
 	err = ds_balloc_bm_clear(sb);
@@ -456,47 +458,60 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 	}
 
 	sb->inodes_tree_block = btree_root_block(sb->inodes_tree);
-	memset(bh->b_data, 0, dev->bsize);
-	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
 
-	mark_buffer_dirty(bh);
-	err = sync_dirty_buffer(bh);
+	dio_clu_zero(clu);
+	ds_sb_fill_header(sb, &header);
+
+	err = dio_clu_write(clu, &header, sizeof(header), 0);
 	if (err) {
-		KLOG(KL_ERR, "sync 0block err %d", err);
+		KLOG(KL_ERR, "write err %d", err);
+		goto del_sb;
+	}
+
+	err = dio_clu_sync(clu);
+	if (err) {
+		KLOG(KL_ERR, "sync err %d", err);
 		goto del_sb;
 	}
 
 	ds_sb_log(sb);
 	*psb = sb;
 	err = 0;
-	goto free_bh;
+	goto free_clu;
 
 del_sb:
 	ds_sb_delete(sb);
-free_bh:
-	brelse(bh);
+free_clu:
+	dio_clu_put(clu);
 out:
 	return err;
 }
 
 int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	struct ds_sb *sb = NULL;
+	struct ds_image_header header;
 	int err;
 	
-	bh = __bread(dev->bdev, 0, dev->bsize);
-	if (!bh) {
+	clu = dio_clu_get(dev->ddev, 0);
+	if (!clu) {
 		KLOG(KL_ERR, "cant read 0block");
 		err = -EIO;
 		goto out;	
 	}
 
-	err = ds_sb_create(dev, (struct ds_image_header *)bh->b_data,
+	err = dio_clu_read(clu, &header, sizeof(header), 0);
+	if (err) {
+		KLOG(KL_ERR, "read err %d", err);
+		goto free_clu;
+	}
+
+	err = ds_sb_create(dev, &header,
 		&sb);
 	if (err) {
 		KLOG(KL_ERR, "cant create sb");
-		goto free_bh;
+		goto free_clu;
 	}
 
 	if (sb->size > i_size_read(dev->bdev->bd_inode)) {
@@ -523,12 +538,12 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 	ds_sb_log(sb);
 	*psb = sb;
 	err = 0;
-	goto free_bh;
+	goto free_clu;
 
 free_sb:
 	ds_sb_delete(sb);
-free_bh:
-	brelse(bh);
+free_clu:
+	dio_clu_put(clu);
 out:
 	return err;
 }

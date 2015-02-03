@@ -3,6 +3,7 @@
 struct ds_sb {
 	struct list_head	list;
 	struct ds_dev 		*dev;
+	struct dio_dev		*ddev;
 	struct block_device 	*bdev;	
 	atomic_t		refs;
 	struct ds_obj_id	id;	

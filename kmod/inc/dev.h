@@ -4,13 +4,11 @@ struct ds_dev {
 	atomic_t		ref;
 	struct list_head 	dev_list;
 	struct block_device 	*bdev;
-	struct task_struct  	*thread;
-	struct list_head	io_list;
-	spinlock_t		io_lock;
 	int			fmode;
 	int			stopping;
 	int			bsize;
 	struct	ds_sb		*sb;
+	struct	dio_dev		*ddev;
 	char			dev_name[DS_NAME_MAX_SZ]; 
 };
 

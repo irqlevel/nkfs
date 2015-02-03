@@ -5,9 +5,9 @@ struct dio_dev {
 	spinlock_t		clus_lock;
 	struct radix_tree_root	clus_root;	/* Set of map nodes */
 
-	u32			clu_size;
-	u32			nr_clus;	/* Count of map nodes */
-	u32			nr_max_clus;	/* Limit of map nodes */
+	int			clu_size;
+	int			nr_clus;	/* Count of map nodes */
+	int			nr_max_clus;	/* Limit of map nodes */
 
 	/* Link to global list of different disk maps */
 	struct list_head	list;
@@ -38,7 +38,7 @@ struct dio_cluster {
 	u64			index;
 	unsigned long		flags;
 	struct dio_pages	pages;
-	u32			clu_size;
+	int			clu_size;
 	struct rw_semaphore	rw_lock;
 	u64			age;
 	struct completion	read_comp;
@@ -66,15 +66,21 @@ int dio_init(void);
 void dio_finit(void);
 
 struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index);
+
 void dio_clu_put(struct dio_cluster *cluster);
 
 int dio_clu_read(struct dio_cluster *cluster,
-	void *buf, u32 off, u32 len);
+	void *buf, u32 len, u32 off);
 
 int dio_clu_write(struct dio_cluster *cluster,
-	void *buf, u32 off, u32 len);
+	void *buf, u32 len, u32 off);
+
+int dio_clu_zero(struct dio_cluster *cluster);
 
 int dio_clu_sync(struct dio_cluster *cluster);
 
 void dio_dev_ref(struct dio_dev *dev);
 void dio_dev_deref(struct dio_dev *dev);
+
+struct dio_dev *dio_dev_create(struct block_device *bdev,
+	int clu_size, int nr_max_clus);

@@ -53,6 +53,9 @@ static void ds_dev_release(struct ds_dev *dev)
 {
 	KLOG(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
 
+	if (dev->ddev)
+		dio_dev_deref(dev->ddev);
+
 	if (dev->bdev)
 		blkdev_put(dev->bdev, dev->fmode);
 	KLOG(KL_INF, "released dev %s",
@@ -158,9 +161,6 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 
 	snprintf(dev->dev_name, sizeof(dev->dev_name), "%s", dev_name);
 
-	spin_lock_init(&dev->io_lock);
-	INIT_LIST_HEAD(&dev->io_list);
-
 	dev->bdev = blkdev_get_by_path(dev->dev_name,
 		fmode, dev);
 	if ((err = IS_ERR(dev->bdev))) {
@@ -172,30 +172,16 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	dev->fmode = fmode;
 	dev->bsize = DS_BLOCK_SIZE;
 
-	return dev;
-}
-
-static int ds_dev_thread_routine(void *data)
-{
-	struct ds_dev *dev = (struct ds_dev *)data;
-	int err = 0;
-
-	KLOG(KL_DBG, "dev %p thread starting", dev);
-
-	if (dev->thread != current)
-		BUG_ON(1);
-
-	KLOG(KL_DBG, "going to run main loop dev=%p", dev);
-	while (!kthread_should_stop()) {
-		msleep_interruptible(100);
-		if (dev->stopping)
-			break;
+	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 4);
+	if (!dev->ddev) {
+		KLOG(KL_ERR, "cant create ddev");	
+		blkdev_put(dev->bdev, dev->fmode);
+		dev->bdev = NULL;
+		ds_dev_deref(dev);
+		return NULL;
 	}
 
-	if (dev->sb)
-		ds_sb_stop(dev->sb);
-	KLOG(KL_DBG, "dev %p exiting", dev);
-	return err;
+	return dev;
 }
 
 static int ds_dev_start(struct ds_dev *dev, int format)
@@ -214,40 +200,20 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 		return err;
 	}
 
-	dev->thread = kthread_create(ds_dev_thread_routine, dev, "ds_dev_th");
-	if (IS_ERR(dev->thread)) {
-		err = PTR_ERR(dev->thread);
-		dev->thread = NULL;
-		ds_sb_deref(sb);
-		KLOG(KL_ERR, "kthread_create err=%d", err);
-		return err;
-	}
-
 	err = ds_sb_insert(sb);
 	if (err) {
 		ds_sb_deref(sb);
-		put_task_struct(dev->thread);
-		dev->thread = NULL;
 		KLOG(KL_ERR, "sb insert err=%d", err);
 		return err;
 	}
 
 	dev->sb = sb;
-	get_task_struct(dev->thread);
-	wake_up_process(dev->thread);
 	return 0;
 }
 
 static void ds_dev_stop(struct ds_dev *dev)
 {
 	dev->stopping = 1;
-	if (dev->thread) {
-		kthread_stop(dev->thread);
-		put_task_struct(dev->thread);
-	}
-	while (!list_empty(&dev->io_list)) {
-		msleep_interruptible(50);	
-	}
 }
 
 int ds_dev_add(char *dev_name, int format)
