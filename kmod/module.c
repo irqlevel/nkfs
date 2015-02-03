@@ -104,36 +104,42 @@ static int __init ds_init(void)
 	
 	KLOG(KL_INF, "initing");
 	
-	err = amap_sys_init();
+	err = dio_init();
 	if (err) {
-		KLOG(KL_ERR, "amap_sys_init err %d", err);
+		KLOG(KL_ERR, "dio_init err %d", err);
 		goto out;
 	}
+
 	err = misc_register(&ds_misc);
 	if (err) {
 		KLOG(KL_ERR, "misc_register err=%d", err);
-		goto out_amap_release; 
+		goto out_dio_release; 
 	}
+
 	err = btree_init();
 	if (err) {
 		KLOG(KL_ERR, "btree_init err %d", err);
 		goto out_misc_release;
 	}
+
 	err = ds_inode_init();
 	if (err) {
 		KLOG(KL_ERR, "inode_init err %d", err);
 		goto out_btree_release;
 	}
+
 	err = ds_sb_init();
 	if (err) {
 		KLOG(KL_ERR, "ds_sb_init err %d", err);
 		goto out_inode_release;
 	}
+
 	err = ds_dev_init();
 	if (err) {
 		KLOG(KL_ERR, "ds_dev_init err %d", err);
 		goto out_sb_release;
 	}
+
 	err = ds_server_init();
 	if (err) {
 		KLOG(KL_ERR, "ds_server_init err %d", err);
@@ -162,8 +168,8 @@ out_btree_release:
 	btree_finit();
 out_misc_release:
 	misc_deregister(&ds_misc);
-out_amap_release:
-	amap_sys_release();
+out_dio_release:
+	dio_finit();
 out:
 	return err;
 }
@@ -179,7 +185,8 @@ static void __exit ds_exit(void)
 	ds_sb_finit();
 	btree_finit();
 	ds_inode_finit();
-	amap_sys_release();
+	dio_finit();
+
 	KLOG(KL_INF, "exited");
 }
 
