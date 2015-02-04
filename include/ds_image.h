@@ -19,7 +19,7 @@
  *  	              ....
  */
 
-#define DS_BLOCK_SIZE 4096
+#define DS_BLOCK_SIZE 8192
 
 #define DS_IMAGE_MAGIC	0x3EFFBDAE
 #define DS_IMAGE_SIG	0xBEDABEDA
@@ -27,7 +27,7 @@
 
 #define DS_IMAGE_BM_BLOCK 1
 
-#define BTREE_T 63
+#define BTREE_T 127
 #define BTREE_SIG1 ((u32)0xCBACBADA)
 #define BTREE_SIG2 ((u32)0x3EFFEEFE)
 #define BTREE_NODE_PAD 40
@@ -55,7 +55,7 @@ struct ds_inode_disk {
 	__be64			size; /* size of data in bytes */
 	__be64			blocks_tree_block; /* data blocks tree */
 	__be64			blocks_sum_tree_block; /* sha256 data sums */
-	u8			pad[4016];
+	u8			pad[8112];
 	struct sha256_sum	sum; /* sha256 sum of [sig1 ...pad] */
 	__be32			sig2; /* = DS_INODE_SIG2 */
 };

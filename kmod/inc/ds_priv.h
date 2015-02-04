@@ -57,9 +57,6 @@
 		BUG();				\
 	} while (0);				\
 
-_Static_assert(DS_BLOCK_SIZE == PAGE_SIZE,
-	"size is not correct");
-
 #include <inc/helpers.h>
 #include <inc/ksocket.h>
 #include <inc/btree.h>
