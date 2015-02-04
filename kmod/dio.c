@@ -300,8 +300,6 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 		cluster = NULL;
 
 	spin_unlock_irq(&dev->clus_lock);
-	if (cluster)
-		dio_clu_deref(cluster);
 
 	return cluster;
 }
@@ -332,8 +330,9 @@ static void dio_clus_release(struct dio_dev *dev)
 			removed = dio_clu_remove(dev, cluster->index);
 			BUG_ON(removed != cluster);
 			dio_clu_sync(cluster);
-			dio_clu_deref(cluster);
-			dio_clu_deref(cluster);
+			dio_clu_deref(cluster); /* was in tree */
+			dio_clu_deref(cluster); /* by alloc */
+			dio_clu_deref(cluster); /* by batch */
 		}
 	}
 
@@ -364,7 +363,7 @@ static void dio_clus_dump(struct dio_dev *dev)
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
-			KLOG(KL_INF, "n=%p i=%lu age=%lx ref=%d",
+			KLOG(KL_DBG3, "n=%p i=%lu age=%lx ref=%d",
 				node, node->index,
 				node->age, atomic_read(&node->ref));
 			dio_clu_deref(node);
@@ -449,16 +448,9 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
-			if (!dio_clu_pinned(node)) {
-				if (nr_nodes < nodes_limit) {
-					nodes[nr_nodes++] = node;
-				} else {
-					KLOG(KL_INF, "nr_nodes=%d\
-							vs. nodes_limit=%d",
-						nr_nodes, nodes_limit);
-					break;
-				}
-			} else
+			if (!dio_clu_pinned(node) && (nr_nodes < nodes_limit))
+				nodes[nr_nodes++] = node;
+			else
 				dio_clu_deref(node);
 		}
 	}
@@ -475,8 +467,10 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 			if (removed) {
 				BUG_ON(removed != node);
 				dio_clu_sync(node);
-				KLOG(KL_DBG3, "evicted c=%p a=%lx i=%lu",
-					node, node->age, node->index);
+				KLOG(KL_DBG3, "evicted c=%p a=%lx i=%lu r=%lu",
+					node, node->age, node->index,
+					atomic_read(&node->ref));
+				dio_clu_deref(node);
 				dio_clu_deref(node);
 			}
 		}
