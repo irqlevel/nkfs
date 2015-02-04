@@ -152,6 +152,7 @@ static void dio_dev_init(struct dio_dev *dev,
 	dev->nr_clus = 0;
 	dev->nr_max_clus = nr_max_clus;
 	dev->clu_size = clu_size;
+	dev->bdev = bdev;
 
 	mutex_lock(&dio_dev_list_lock);
 	list_add_tail(&dev->list, &dio_dev_list);
@@ -239,8 +240,12 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 		if (radix_tree_insert(&dev->clus_root, new->index, new)) {
 			cluster = radix_tree_lookup(&dev->clus_root, index);
 		} else {
+			dio_clu_ref(new);
 			cluster = new;
 			dev->nr_clus++;
+		}
+
+		if (cluster) {
 			dio_clu_ref(cluster);
 			dio_clu_pin(cluster);
 		}
@@ -249,12 +254,11 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 		radix_tree_preload_end();
 	
 		if (cluster != new)
-			dio_clu_deref(cluster);
+			dio_clu_deref(new);
 	}
 
-	if (cluster) {
+	if (cluster)
 		cluster->age |= (1ull << 63);
-	}
 
 	return cluster;
 }
@@ -751,22 +755,26 @@ static void dio_clu_release(struct dio_cluster *cluster)
 
 static void dio_clu_ref(struct dio_cluster *cluster)
 {
+	BUG_ON(atomic_read(&cluster->ref) <= 0);
 	atomic_inc(&cluster->ref);
 }
 
 static void dio_clu_deref(struct dio_cluster *cluster)
 {
+	BUG_ON(atomic_read(&cluster->ref) <= 0);
 	if (atomic_dec_and_test(&cluster->ref))
 		dio_clu_release(cluster);
 }
 
 void dio_dev_ref(struct dio_dev *dev)
 {
+	BUG_ON(atomic_read(&dev->ref) <= 0);
 	atomic_inc(&dev->ref);
 }
 
 void dio_dev_deref(struct dio_dev *dev)
 {
+	BUG_ON(atomic_read(&dev->ref) <= 0);
 	if (atomic_dec_and_test(&dev->ref))
 		dio_dev_release(dev);
 }
