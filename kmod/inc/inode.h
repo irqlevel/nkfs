@@ -25,8 +25,8 @@ struct inode_block {
 	u64			block;
 	u64			vsum_block;
 	u64			sum_block;
-	struct buffer_head 	*bh;
-	struct buffer_head 	*sum_bh;
+	struct dio_cluster 	*clu;
+	struct dio_cluster 	*sum_clu;
 	u32			sum_off;
 };
 

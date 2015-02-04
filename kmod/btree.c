@@ -5,6 +5,7 @@
 static struct kmem_cache *btree_node_cachep;
 static struct kmem_cache *btree_cachep;
 static struct kmem_cache *btree_key_cachep;
+static struct kmem_cache *btree_node_disk_cachep;
 
 static struct btree_node *btree_node_alloc(void) 
 {
@@ -215,67 +216,88 @@ static int btree_node_check_sigs(struct btree_node *node)
 static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 {
 	struct btree_node *node, *inserted;
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	struct sha256_sum sum;
 	struct btree_node_disk *on_disk;
+	int err;
 
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
 	BUG_ON(block == 0 || block >= tree->sb->nr_blocks);
 
 	node = btree_nodes_lookup(tree, block);
-	if (!node) {
-		node = btree_node_alloc();
-		if (!node)
-			return NULL;
-		node->tree = tree;
-		node->block = block;
+	if (node)
+		return node;
+
+	node = btree_node_alloc();
+	if (!node)
+		return NULL;
+
+	node->tree = tree;
+	node->block = block;
 	
-		bh = __bread(tree->sb->bdev, node->block, tree->sb->bsize);
-		if (!bh) {
-			KLOG(KL_ERR, "cant read block at %llu", block);
-			__btree_node_free(node);
-			return NULL;
-		}
+	clu = dio_clu_get(tree->sb->ddev, node->block);
+	if (!clu) {
+		KLOG(KL_ERR, "cant read block at %llu", block);
+		goto free_node;
+	}
 
-		on_disk = (struct btree_node_disk *)bh->b_data;
-		if (be32_to_cpu(on_disk->sig1) != BTREE_SIG1
-			|| be32_to_cpu(on_disk->sig2) != BTREE_SIG2) {
-			KLOG(KL_ERR, "invalid sig of node %p block %llu",
+	on_disk = kmem_cache_alloc(btree_node_disk_cachep, GFP_NOIO);
+	if (!on_disk) {
+		KLOG(KL_ERR, "cant alloc on disk");
+		goto put_clu;
+	}
+		
+	err = dio_clu_read(clu, on_disk, sizeof(*on_disk), 0);
+	if (err) {
+		KLOG(KL_ERR, "cant read on_disk err %d", err);
+		goto free_ondisk;
+	}
+
+	if (be32_to_cpu(on_disk->sig1) != BTREE_SIG1
+		|| be32_to_cpu(on_disk->sig2) != BTREE_SIG2) {
+		KLOG(KL_ERR, "invalid sig of node %p block %llu",
+		node, node->block);
+		goto free_ondisk;
+	}
+
+	btree_node_on_disk_sum(on_disk, &sum);
+	if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
+		KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
 			node, node->block);
-			__btree_node_free(node);		
-			brelse(bh);
-			return NULL;
-		}
+		goto free_ondisk;
+	}
 
-		btree_node_on_disk_sum(on_disk, &sum);
-		if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
-			KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
-				node, node->block);
-			__btree_node_free(node);		
-			brelse(bh);
-			return NULL;
-		}
+	btree_node_by_ondisk(node,
+		on_disk);
 
-		btree_node_by_ondisk(node,
-			on_disk);
-		brelse(bh);
-		BUG_ON(btree_node_check_sigs(node));
+	kmem_cache_free(btree_node_disk_cachep, on_disk);
+	dio_clu_put(clu);
 
-		inserted = btree_nodes_insert(tree, node);
-		if (node != inserted) {
-			__btree_node_free(node);
-			node = inserted;
-		} else {
-			BTREE_NODE_DEREF(inserted);
-		}
+	BUG_ON(btree_node_check_sigs(node));
+
+	inserted = btree_nodes_insert(tree, node);
+	if (node != inserted) {
+		__btree_node_free(node);
+		node = inserted;
+	} else {
+		BTREE_NODE_DEREF(inserted);
 	}
 
 	return node;
+
+free_ondisk:
+	kmem_cache_free(btree_node_disk_cachep, on_disk);
+put_clu:
+	dio_clu_put(clu);
+free_node:
+	__btree_node_free(node);
+
+	return NULL;	
 }
 
 static int btree_node_write(struct btree_node *node)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	int err;
 	struct btree_node_disk *on_disk;
 
@@ -286,25 +308,37 @@ static int btree_node_write(struct btree_node *node)
 
 	KLOG(KL_DBG1, "node %p block %llu", node, node->block);
 
-	bh = __bread(node->tree->sb->bdev,
-			node->block,
-			node->tree->sb->bsize);
-	if (!bh) {
-		KLOG(KL_ERR, "__getlbk for block %llu", node->block);
+	clu = dio_clu_get(node->tree->sb->ddev, node->block);
+	if (!clu) {
+		KLOG(KL_ERR, "cant get clu for block %llu", node->block);
 		return -EIO;
 	}
 
-	on_disk = (struct btree_node_disk *)bh->b_data;
+	on_disk = kmem_cache_alloc(btree_node_disk_cachep, GFP_NOIO);
+	if (!on_disk) {
+		err = -ENOMEM;
+		goto clu_put;
+	}
+
 	btree_node_to_ondisk(node, on_disk);
 	btree_node_on_disk_sum(on_disk, &on_disk->sum);
 
-	mark_buffer_dirty(bh);
-	err = sync_dirty_buffer(bh);
+	err = dio_clu_write(clu, on_disk, sizeof(*on_disk), 0);
 	if (err) {
-		KLOG(KL_ERR, "sync err %d", err);
+		KLOG(KL_ERR, "cant write err %d", err);
+		goto free_on_disk;
 	}
 
-	brelse(bh);
+	err = dio_clu_sync(clu);
+	if (err) {
+		KLOG(KL_ERR, "sync err %d", err);
+		goto free_on_disk;
+	}
+
+free_on_disk:
+	kmem_cache_free(btree_node_disk_cachep, on_disk);
+clu_put:
+	dio_clu_put(clu);
 
 	return err;
 }
@@ -1591,9 +1625,20 @@ int btree_init(void)
 		err = -ENOMEM;
 		goto del_key_cache;
 	}
+	
+	btree_node_disk_cachep = kmem_cache_create("btree_node_disk_cache",
+			sizeof(struct btree_node_disk), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btree_node_disk_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_btree_cache;
+	}
 
 	return 0;
 
+del_btree_cache:
+	kmem_cache_destroy(btree_cachep);
 del_key_cache:
 	kmem_cache_destroy(btree_key_cachep);
 del_node_cache:
@@ -1604,6 +1649,7 @@ out:
 
 void btree_finit(void)
 {
+	kmem_cache_destroy(btree_node_disk_cachep);
 	kmem_cache_destroy(btree_node_cachep);
 	kmem_cache_destroy(btree_key_cachep);
 	kmem_cache_destroy(btree_cachep);

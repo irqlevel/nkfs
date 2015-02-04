@@ -3,6 +3,7 @@
 #define __SUBCOMPONENT__ "inode"
 
 struct kmem_cache *ds_inode_cachep;
+struct kmem_cache *ds_inode_disk_cachep;
 
 static void ds_inodes_remove(struct ds_sb *sb, struct ds_inode *inode);
 
@@ -200,69 +201,88 @@ static int ds_inode_parse_on_disk(struct ds_inode *inode,
 struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 {
 	struct ds_inode *inode, *inserted;
+	struct dio_cluster *clu;
+	struct ds_inode_disk *inode_disk;
 	int err;
 
 	inode =	ds_inodes_lookup(sb, block);
 	if (inode) {
 		return inode;	
-	} else {
-		struct buffer_head *bh;
-		inode = ds_inode_alloc();
-		if (!inode) {
-			KLOG(KL_ERR, "no memory");
-			return NULL;
-		}
-		inode->block = block;
-		inode->sb = sb;
-		bh = __bread(sb->bdev, block, sb->bsize);
-		if (!bh) {
-			KLOG(KL_ERR, "cant read block %llu",
-				inode->block);
-			ds_inode_free(inode);
-			return NULL;
-		}
-
-		err = ds_inode_parse_on_disk(inode,
-			(struct ds_inode_disk *)bh->b_data);
-		if (err) {
-			KLOG(KL_ERR, "parse inode %llu err %d",
-				inode->block, err);
-			ds_inode_free(inode);
-			brelse(bh);
-			return NULL;
-		}
-		inode->blocks_tree = btree_create(sb,
-			inode->blocks_tree_block);
-		if (!inode->blocks_tree) {
-			KLOG(KL_ERR, "cant create blocks tree inode %llu",
-				inode->block);
-			ds_inode_free(inode);
-			brelse(bh);
-			return NULL;
-		}
-
-		inode->blocks_sum_tree = btree_create(sb,
-			inode->blocks_sum_tree_block);
-		if (!inode->blocks_sum_tree) {
-			KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
-				inode->block);
-			ds_inode_free(inode);
-			brelse(bh);
-			return NULL;
-		}
-
-		inode->block = block;
-		inserted = ds_inodes_insert(sb, inode);
-		if (inserted != inode) {
-			ds_inode_free(inode);
-			brelse(bh);
-			return inserted;
-		} else {
-			INODE_DEREF(inserted);
-		}
-		brelse(bh);
-		return inode;
 	}
+	
+	inode = ds_inode_alloc();
+	if (!inode) {
+		KLOG(KL_ERR, "no memory");
+		return NULL;
+	}
+	
+	inode->block = block;
+	inode->sb = sb;
+
+	clu = dio_clu_get(sb->ddev, block);
+	if (!clu) {
+		KLOG(KL_ERR, "cant read block %llu",
+			inode->block);
+		goto free_inode;
+	}
+
+	inode_disk = kmem_cache_alloc(ds_inode_disk_cachep, GFP_NOIO);
+	if (!inode_disk) {
+		KLOG(KL_ERR, "no mem");
+		goto put_clu;
+	}
+
+	err = dio_clu_read(clu, inode_disk, sizeof(*inode_disk), 0);
+	if (err) {
+		KLOG(KL_ERR, "cant read %llu", inode->block);
+		goto free_idisk;
+	}
+
+	err = ds_inode_parse_on_disk(inode, inode_disk);
+	if (err) {
+		KLOG(KL_ERR, "parse inode %llu err %d",
+			inode->block, err);
+		goto free_idisk;
+	}
+
+	inode->blocks_tree = btree_create(sb,
+			inode->blocks_tree_block);
+	if (!inode->blocks_tree) {
+		KLOG(KL_ERR, "cant create blocks tree inode %llu",
+			inode->block);
+		goto free_idisk;
+	}
+
+	inode->blocks_sum_tree = btree_create(sb,
+		inode->blocks_sum_tree_block);
+	if (!inode->blocks_sum_tree) {
+		KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
+			inode->block);
+		goto free_idisk;
+	}
+
+	inode->block = block;
+	inserted = ds_inodes_insert(sb, inode);
+	if (inserted != inode) {
+		kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+		dio_clu_put(clu);
+		ds_inode_free(inode);
+		return inserted;
+	} else {
+		INODE_DEREF(inserted);
+	}
+
+	kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+	dio_clu_put(clu);
+	return inode;
+
+free_idisk:
+	kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+put_clu:
+	dio_clu_put(clu);
+free_inode:
+	ds_inode_free(inode);
+	return NULL;
 }
 
 static void inode_block_erase(struct ds_obj_id *key,
@@ -292,26 +312,45 @@ void ds_inode_delete(struct ds_inode *inode)
 
 static int ds_inode_write(struct ds_inode *inode)
 {
-	struct buffer_head *bh = NULL;
+	struct dio_cluster *clu;	
+	struct ds_inode_disk *idisk;
 	int err;
 
 	BUG_ON(!inode->block);
 	BUG_ON(!inode->sb);
 
-	bh = __bread(inode->sb->bdev, inode->block, inode->sb->bsize);
-	if (!bh) {
+	clu = dio_clu_get(inode->sb->ddev, inode->block);
+	if (!clu) {
 		KLOG(KL_ERR, "cant read inode %llu",
 			inode->block);
 		return -EIO;
 	}
-	ds_inode_to_on_disk(inode, (struct ds_inode_disk *)bh->b_data);
-	mark_buffer_dirty(bh);
-	err = sync_dirty_buffer(bh);
+	idisk = kmem_cache_alloc(ds_inode_disk_cachep, GFP_NOIO);
+	if (!idisk) {
+		KLOG(KL_ERR, "no memory");
+		dio_clu_put(clu);
+		return -ENOMEM;
+	}
+
+	ds_inode_to_on_disk(inode, idisk);
+
+	err = dio_clu_write(clu, idisk, sizeof(*idisk), 0);
+	if (err) {
+		KLOG(KL_ERR, "cant write inode %llu",
+			inode->block);
+		goto cleanup;	
+	}
+
+	err = dio_clu_sync(clu);
 	if (err) {
 		KLOG(KL_ERR, "cant sync inode %llu",
 			inode->block);
 	}
-	brelse(bh);
+
+cleanup:
+	kmem_cache_free(ds_inode_disk_cachep, idisk);
+	dio_clu_put(clu);
+
 	return err;
 }
 
@@ -345,6 +384,8 @@ struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
 		KLOG(KL_ERR, "cant alloc block");
 		goto ifree;
 	}
+	BUG_ON(!inode->block);
+
 	ds_obj_id_copy(&inode->ino, ino);
 
 	inode->blocks_tree = btree_create(sb, 0);
@@ -403,18 +444,18 @@ static void ds_inode_block_to_sum_block(u64 block, u32 bsize,
 	*poff = ds_mod(nbytes, bsize);
 }
 
-static int ds_inode_block_open_bhs(struct ds_inode *inode,
+static int ds_inode_block_open_clus(struct ds_inode *inode,
 	struct inode_block *ib)
 {
-	BUG_ON(ib->bh || ib->sum_bh);
+	BUG_ON(ib->clu || ib->sum_clu);
 
-	ib->bh = __bread(inode->sb->bdev, ib->block, inode->sb->bsize);
-	if (!ib->bh) {
+	ib->clu = dio_clu_get(inode->sb->ddev, ib->block);
+	if (!ib->clu) {
 		return -EIO;
 	}
 
-	ib->sum_bh = __bread(inode->sb->bdev, ib->sum_block, inode->sb->bsize);
-	if (!ib->sum_bh) {
+	ib->sum_clu = dio_clu_get(inode->sb->ddev, ib->sum_block);
+	if (!ib->sum_clu) {
 		return -EIO;
 	}
 
@@ -423,10 +464,10 @@ static int ds_inode_block_open_bhs(struct ds_inode *inode,
 
 static void ds_inode_block_relse(struct inode_block *ib)
 {
-	if (ib->bh)
-		brelse(ib->bh);
-	if (ib->sum_bh)
-		brelse(ib->sum_bh);
+	if (ib->clu)
+		dio_clu_put(ib->clu);
+	if (ib->sum_clu)
+		dio_clu_put(ib->sum_clu);
 }
 
 static void ds_inode_block_zero(struct inode_block *ib)
@@ -434,25 +475,22 @@ static void ds_inode_block_zero(struct inode_block *ib)
 	memset(ib, 0, sizeof(*ib));
 }
 
-static void ds_inode_buf_sum(void *buf, u32 len, struct sha256_sum *sum)
-{
-	sha256(buf, len, sum, 0);
-}
-
 static int ds_inode_block_write(struct ds_inode *inode,
 		struct inode_block *ib)
 {
 	int err;
 
-	BUG_ON(!ib->bh || !ib->sum_bh);
+	BUG_ON(!ib->clu || !ib->sum_clu);
 
-	ds_inode_buf_sum(ib->bh->b_data, inode->sb->bsize,
-		(struct sha256_sum *)(ib->sum_bh->b_data + ib->sum_off));
-	mark_buffer_dirty(ib->bh);
-	mark_buffer_dirty(ib->sum_bh);
-	err = sync_dirty_buffer(ib->bh);
+	dio_clu_sum(ib->clu,
+		(struct sha256_sum *)dio_clu_map(ib->sum_clu, ib->sum_off));
+
+	dio_clu_set_dirty(ib->clu);
+	dio_clu_set_dirty(ib->sum_clu);
+
+	err = dio_clu_sync(ib->clu);
 	if (!err)
-		err = sync_dirty_buffer(ib->sum_bh);
+		err = dio_clu_sync(ib->sum_clu);
 
 	return err;
 }
@@ -506,7 +544,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 		sum_block_inserted = 1;
 	}
 
-	err = ds_inode_block_open_bhs(inode, &ib);
+	err = ds_inode_block_open_clus(inode, &ib);
 	if (err) {
 		KLOG(KL_ERR, "inode %llu err %d",
 			inode->block, err);
@@ -557,14 +595,15 @@ ds_inode_block_check_sum(struct ds_inode *inode,
 	struct inode_block *ib)
 {
 	struct sha256_sum sum;
-	BUG_ON(!ib->bh || !ib->sum_bh);
+	BUG_ON(!ib->clu || !ib->sum_clu);
 
-	ds_inode_buf_sum(ib->bh->b_data, inode->sb->bsize, &sum);
-	if (0 != memcmp(ib->sum_bh->b_data + ib->sum_off, &sum, sizeof(sum))) {
+	dio_clu_sum(ib->clu, &sum);
+	if (0 != memcmp(dio_clu_map(ib->sum_clu, ib->sum_off), &sum, sizeof(sum))) {
 		KLOG(KL_ERR, "invalid sum i[%llu] vb%llu b%llu",
 			inode->block, ib->vblock, ib->block);
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -596,7 +635,7 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 		goto fail;
 	}
 
-	err = ds_inode_block_open_bhs(inode, &ib);
+	err = ds_inode_block_open_clus(inode, &ib);
 	if (err)
 		goto fail;
 
@@ -696,7 +735,12 @@ ds_inode_read_block_buf(struct ds_inode *inode, u64 vblock,
 	}
 	up_read(&inode->rw_sem);
 
-	memcpy(buf, ib.bh->b_data + off, llen);
+	err = dio_clu_read(ib.clu, buf, llen, off);
+	if (err) {
+		KLOG(KL_ERR, "cant read clu err %d", err);
+		goto out;
+	}
+
 	*pio_count = llen;
 	err = 0;
 out:
@@ -726,7 +770,18 @@ ds_inode_write_block_buf(struct ds_inode *inode, u64 vblock,
 	KLOG(KL_DBG1, "vb %llu off %u len %u b %llu",
 		vblock, off, len, ib.block);
 
-	memcpy(ib.bh->b_data + off, buf, len);
+	err = dio_clu_write(ib.clu, buf, len, off);
+	if (err) {
+		KLOG(KL_ERR, "cant write clu err %d", err);
+		goto out;
+	}
+
+	err = dio_clu_sync(ib.clu);
+	if (err) {
+		KLOG(KL_ERR, "cant sync clu err %d", err);
+		goto out;
+	}
+
 	err = ds_inode_block_write(inode, &ib);
 	if (err) {
 		KLOG(KL_ERR, "cant write to b %llu vb %llu",
@@ -843,6 +898,7 @@ fail:
 
 int ds_inode_init(void)
 {
+	int err;
 	ds_inode_cachep = kmem_cache_create("ds_inode_cache",
 		sizeof(struct ds_inode), 0, SLAB_MEM_SPREAD, NULL);
 	if (!ds_inode_cachep) {
@@ -850,10 +906,22 @@ int ds_inode_init(void)
 		return -ENOMEM;
 	}
 
+	ds_inode_disk_cachep = kmem_cache_create("ds_inode_disk_cache",
+		sizeof(struct ds_inode_disk), 0, SLAB_MEM_SPREAD, NULL);
+	if (!ds_inode_disk_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_inode_cache;
+	}
+
 	return 0;
+del_inode_cache:
+	kmem_cache_destroy(ds_inode_cachep);
+	return err;
 }
 
 void ds_inode_finit(void)
 {
+	kmem_cache_destroy(ds_inode_disk_cachep);
 	kmem_cache_destroy(ds_inode_cachep);
 }

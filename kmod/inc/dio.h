@@ -12,7 +12,7 @@ struct dio_dev {
 	/* Link to global list of different disk maps */
 	struct list_head	list;
 	/* Mutex to protect nodes ages update */
-	struct mutex		age_mutex;
+	struct rw_semaphore	age_rw_lock;
 	struct block_device	*bdev;
 };
 
@@ -67,8 +67,6 @@ void dio_finit(void);
 
 struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index);
 
-struct dio_cluster * dio_clu_get_read(struct dio_dev *dev, u64 index);
-
 void dio_clu_put(struct dio_cluster *cluster);
 
 int dio_clu_read(struct dio_cluster *cluster,
@@ -85,6 +83,10 @@ int dio_clu_sync(struct dio_cluster *cluster);
 
 void dio_dev_ref(struct dio_dev *dev);
 void dio_dev_deref(struct dio_dev *dev);
+
+void dio_clu_set_dirty(struct dio_cluster *cluster);
+
+void dio_clu_sum(struct dio_cluster *cluster, struct sha256_sum *sum);
 
 struct dio_dev *dio_dev_create(struct block_device *bdev,
 	int clu_size, int nr_max_clus);

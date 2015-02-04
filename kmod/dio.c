@@ -17,9 +17,24 @@ static struct workqueue_struct *dio_wq;
 static void dio_clu_ref(struct dio_cluster *cluster);
 static void dio_clu_deref(struct dio_cluster *cluster);
 
-static void dio_pages_zero(struct dio_pages *buf)
+static void dio_pages_zero(struct dio_pages *pages)
 {
-	memset(buf, 0, sizeof(*buf));
+	memset(pages, 0, sizeof(*pages));
+}
+
+static void dio_pages_sum(struct dio_pages *pages, struct sha256_sum *sum)
+{
+	struct sha256_context ctx;
+	u32 i;
+
+	sha256_init(&ctx);
+	sha256_starts(&ctx, 0);
+
+	for (i = 0; i < pages->nr_pages; i++)
+		sha256_update(&ctx, page_address(pages->pages[i]), PAGE_SIZE);
+
+	sha256_finish(&ctx, sum);
+	sha256_free(&ctx);
 }
 
 static void
@@ -145,7 +160,7 @@ static void dio_dev_init(struct dio_dev *dev,
 	memset(dev, 0, sizeof(*dev));
 	atomic_set(&dev->ref, 1);
 	spin_lock_init(&dev->clus_lock);
-	mutex_init(&dev->age_mutex);
+	init_rwsem(&dev->age_rw_lock);
 
 	INIT_RADIX_TREE(&dev->clus_root, GFP_NOIO);
 
@@ -204,7 +219,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 		kmem_cache_free(dio_clu_cachep, cluster);
 		return NULL;
 	}
-
+	
 	atomic_set(&cluster->pin_count, 0);
 	atomic_set(&cluster->ref, 1);
 	init_completion(&cluster->read_comp);
@@ -232,10 +247,11 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 		if (!new)
 			return NULL;
 		new->index = index;
-
-		if (radix_tree_preload(GFP_NOIO))
+		if (radix_tree_preload(GFP_NOIO)) {
+			dio_clu_deref(new);	
 			return NULL;
-	
+		}
+
 		spin_lock_irq(&dev->clus_lock);
 		if (radix_tree_insert(&dev->clus_root, new->index, new)) {
 			cluster = radix_tree_lookup(&dev->clus_root, index);
@@ -257,8 +273,11 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 			dio_clu_deref(new);
 	}
 
-	if (cluster)
+	if (cluster) {
+		down_read(&dev->age_rw_lock);
 		cluster->age |= (1ull << 63);
+		up_read(&dev->age_rw_lock);
+	}
 
 	return cluster;
 }
@@ -269,11 +288,17 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 	struct dio_cluster *cluster;
 
 	spin_lock_irq(&dev->clus_lock);
-	cluster = radix_tree_delete(&dev->clus_root, index);
-	if (cluster) {
-		BUG_ON(cluster->index != index);
-		dev->nr_clus--;
-	}
+
+	cluster = radix_tree_lookup(&dev->clus_root, index);
+	if (cluster && !dio_clu_pinned(cluster)) {
+		cluster = radix_tree_delete(&dev->clus_root, index);
+		if (cluster) {
+			BUG_ON(cluster->index != index);
+			dev->nr_clus--;
+		}
+	} else 
+		cluster = NULL;
+
 	spin_unlock_irq(&dev->clus_lock);
 	if (cluster)
 		dio_clu_deref(cluster);
@@ -303,6 +328,7 @@ static void dio_clus_release(struct dio_dev *dev)
 
 		for (index = 0; index < nr_found; index++) {
 			cluster = batch[index];
+			atomic_set(&cluster->pin_count, 0);
 			removed = dio_clu_remove(dev, cluster->index);
 			BUG_ON(removed != cluster);
 			dio_clu_sync(cluster);
@@ -387,7 +413,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 	struct dio_cluster *batch[16];
 	int nr_found;
 	unsigned long index, first_index = 0;
-	struct dio_cluster *node, *removed, *prev;
+	struct dio_cluster *node, *removed;
 	struct dio_cluster **nodes;
 	struct page *page;
 	int nr_nodes = 0;
@@ -404,12 +430,12 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 
 	nodes = page_address(page);
 
-	mutex_lock(&dev->age_mutex);
 	while (nr_nodes < nodes_limit) {
 
 		spin_lock_irq(&dev->clus_lock);
-		nr_found = radix_tree_gang_lookup(&dev->clus_root, (void **)batch,
-				first_index, ARRAY_SIZE(batch));
+		nr_found = radix_tree_gang_lookup(&dev->clus_root,
+				(void **)batch, first_index,
+				ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
 			dio_clu_ref(node);
@@ -437,33 +463,26 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 		}
 	}
 
+	/* Lock clus->age modification */
+	down_write(&dev->age_rw_lock);
 	sort(nodes, nr_nodes, sizeof(struct dio_cluster *),
 			dio_clu_age_cmp, dio_clu_ptr_swap);
-	prev = NULL;
+
 	for (index = 0; index < nr_nodes; index++) {
 		node = nodes[index];
-		if (prev && (prev->age > node->age)) {
-			int i;
-			struct dio_cluster *n;
-			for (i = 0; i < nr_nodes; i++) {
-				n = nodes[i];
-				KLOG(KL_ERR, "node=%p, age=%lx, index=%lu",
-						n, n->age, n->index);
-			}
-			BUG();
-		}
-		prev = node;
-		if ((dev->nr_clus > dev->nr_max_clus) && !dio_clu_pinned(node)) {
+		if ((dev->nr_clus > dev->nr_max_clus)) {
 			removed = dio_clu_remove(dev, node->index);
-			BUG_ON(removed != node);
-			dio_clu_sync(node);
-			KLOG(KL_INF, "evict clu=%p, age=%lx, index=%lu",
-				node, node->age, node->index);
-			dio_clu_deref(node);
+			if (removed) {
+				BUG_ON(removed != node);
+				dio_clu_sync(node);
+				KLOG(KL_DBG3, "evicted c=%p a=%lx i=%lu",
+					node, node->age, node->index);
+				dio_clu_deref(node);
+			}
 		}
 	}
+	up_write(&dev->age_rw_lock);
 
-	mutex_unlock(&dev->age_mutex);
 	for (index = 0; index < nr_nodes; index++) {
 		node = nodes[index];
 		dio_clu_deref(node);
@@ -483,7 +502,7 @@ static void dio_clus_shrink(struct dio_dev *dev)
 	}
 }
 
-struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index)
+static struct dio_cluster * __dio_clu_get(struct dio_dev *dev, u64 index)
 {
 	return dio_clu_lookup_create(dev, index);
 }
@@ -520,11 +539,17 @@ static void dio_io_end_bio(struct bio *bio, int err)
 
 	BUG_ON(io->bio != bio);
  
-	KLOG(KL_INF, "err %d rw %x io %p bio %p sec %llx size %x",
+	io->err = err;
+	if (err) {
+		KLOG(KL_ERR, "err %d rw %x io %p bio %p sec %llx size %x",
 			err, io->rw, io, io->bio, bio->bi_iter.bi_sector,
 			io->bio->bi_iter.bi_size);
+	} else {
+		KLOG(KL_DBG3, "err %d rw %x io %p bio %p sec %llx size %x",
+			err, io->rw, io, io->bio, bio->bi_iter.bi_sector,
+			io->bio->bi_iter.bi_size);
+	}
 
-	io->err = err;
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
 			BUG_ON(test_bit(DIO_CLU_READ, &io->cluster->flags));
@@ -603,7 +628,7 @@ static void dio_submit(unsigned long rw, struct dio_io *io)
 {
 	io->rw |= rw;
 
-	KLOG(KL_INF, "rw %x io %p bio %p sec %llx size %x",
+	KLOG(KL_DBG3, "rw %x io %p bio %p sec %llx size %x",
 			io->rw, io, io->bio, io->bio->bi_iter.bi_sector,
 			io->bio->bi_iter.bi_size);
 	submit_bio(io->rw, io->bio);
@@ -657,11 +682,11 @@ out:
 	return err;
 }
 
-struct dio_cluster * dio_clu_get_read(struct dio_dev *dev, u64 index)
+struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index)
 {
 	struct dio_cluster *clu;
 
-	clu  = dio_clu_get(dev, index);
+	clu  = __dio_clu_get(dev, index);
 	if (!clu)
 		return NULL;
 
@@ -741,11 +766,21 @@ out:
 	return err;
 }
 
+void dio_clu_set_dirty(struct dio_cluster *cluster)
+{
+	down_read(&cluster->rw_lock);
+	set_bit(DIO_CLU_DIRTY, &cluster->flags);
+	up_read(&cluster->rw_lock);
+}
+
 int dio_clu_sync(struct dio_cluster *cluster)
 {
 	int err;
 	struct dio_io *io;
 
+	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags))
+		return 0;
+	
 	down_write(&cluster->rw_lock);
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags)) {
 		err = 0;
@@ -759,7 +794,7 @@ int dio_clu_sync(struct dio_cluster *cluster)
 	}
 
 	set_bit(DIO_IO_WAIT, &io->flags); 
-	dio_submit(WRITE_FLUSH_FUA, io);
+	dio_submit(WRITE, io);
 	wait_for_completion(&io->comp);
 
 	err = io->err;
@@ -815,7 +850,14 @@ void dio_dev_deref(struct dio_dev *dev)
 
 static void dio_clu_age(struct dio_cluster *cluster)
 {
+	down_read(&cluster->dev->age_rw_lock);
 	cluster->age = cluster->age >> 1;
+	up_read(&cluster->dev->age_rw_lock);
+}
+
+void dio_clu_sum(struct dio_cluster *cluster, struct sha256_sum *sum)
+{
+	dio_pages_sum(&cluster->pages, sum);
 }
 
 static void dio_clus_age(struct dio_dev *dev)
@@ -825,7 +867,6 @@ static void dio_clus_age(struct dio_dev *dev)
 	unsigned long index, first_index = 0;
 	struct dio_cluster *node;
 
-	mutex_lock(&dev->age_mutex);
 	for (;;) {
 		spin_lock(&dev->clus_lock);
 		nr_found = radix_tree_gang_lookup(&dev->clus_root, (void **)batch,
@@ -847,7 +888,6 @@ static void dio_clus_age(struct dio_dev *dev)
 			dio_clu_deref(node);
 		}
 	}
-	mutex_unlock(&dev->age_mutex);
 }
 
 static void dio_clus_age_work(struct work_struct *work)

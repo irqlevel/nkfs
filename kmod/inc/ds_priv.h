@@ -52,10 +52,8 @@
 
 #define DS_BUG()				\
 	do {					\
-		if (cond) {			\
-			KLOG(KL_ERR, "BUG()");	\
-			klog_sync();		\
-		}				\
+		KLOG(KL_ERR, "BUG()");		\
+		klog_sync();			\
 		BUG();				\
 	} while (0);				\
 

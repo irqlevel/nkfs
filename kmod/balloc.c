@@ -73,7 +73,7 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 		return err;
 
 	down_write(&sb->rw_lock);
-	clu = dio_clu_get_read(sb->ddev, bm_block);
+	clu = dio_clu_get(sb->ddev, bm_block);
 	if (!clu) {
 		KLOG(KL_ERR, "cant read bm block %llu", bm_block);
 		err = -EIO;
@@ -90,6 +90,7 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 		sb->used_blocks--;
 	}
 
+	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
 	if (err) {
 		KLOG(KL_ERR, "cant sync block %llu", bm_block);
@@ -120,8 +121,16 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 	for (pos = 0; pos < sb->bsize; pos++) {
 		for (bit = 0; bit < 8; bit++) {
 			if (!test_bit_le(bit, dio_clu_map(clu, pos))) {
+				if (clu->index == 1 && pos == 0 && bit == 0) {
+					KLOG(KL_INF, "clu %p i %llu\n",
+						clu, clu->index);
+					DS_BUG();
+				}
+
 				set_bit_le(bit, dio_clu_map(clu, pos));
 				sb->used_blocks++;
+
+				dio_clu_set_dirty(clu);
 				err = dio_clu_sync(clu);
 				if (err) {
 					KLOG(KL_ERR, "cant sync clu %llu err %d",
@@ -147,12 +156,12 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 	int err;
 	u32 byte, bit;
 
+	*pblock = 0;
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
-		clu = dio_clu_get_read(sb->ddev, i);
+		clu = dio_clu_get(sb->ddev, i);
 		if (!clu) {
 			KLOG(KL_ERR, "cant read block %llu", i);
-			err = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		err = ds_balloc_block_find_set_free_bit(sb, clu,
@@ -165,11 +174,9 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 			*pblock = block;
 			dio_clu_put(clu);
 			return 0;
-		}			
+		}
 		dio_clu_put(clu);
 	}
 
-	err = -ENOSPC;
-out:
-	return err;
+	return -ENOSPC;
 }

@@ -172,7 +172,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	dev->fmode = fmode;
 	dev->bsize = DS_BLOCK_SIZE;
 
-	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 4);
+	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 64);
 	if (!dev->ddev) {
 		KLOG(KL_ERR, "cant create ddev");	
 		blkdev_put(dev->bdev, dev->fmode);
