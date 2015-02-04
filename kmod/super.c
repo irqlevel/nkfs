@@ -287,24 +287,32 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 
 static int ds_sb_sync(struct ds_sb *sb)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
+	struct ds_image_header header;
 	int err;
 
-	bh = __bread(sb->bdev, 0, sb->bsize);
-	if (!bh) {
-		KLOG(KL_ERR, "cant read 0block");
+	clu = dio_clu_get(sb->ddev, 0);
+	if (!clu) {
+		KLOG(KL_ERR, "cant get 0block");
 		return -EIO;
 	}
-	ds_sb_fill_header(sb, (struct ds_image_header *)bh->b_data);
-	mark_buffer_dirty(bh);
-	err = sync_dirty_buffer(bh);
+
+	ds_sb_fill_header(sb, &header);
+
+	err = dio_clu_write(clu, &header, sizeof(header), 0);
 	if (err) {
-		KLOG(KL_ERR, "cant sync 0block");
+		KLOG(KL_ERR, "cant write header err %d", err);
+		goto out;
+	}
+
+	err = dio_clu_sync(clu);
+	if (err) {
+		KLOG(KL_ERR, "cant sync 0block err %d", err);
 		goto out;
 	}
 
 out:
-	brelse(bh);
+	dio_clu_put(clu);
 	return err;
 }
 
