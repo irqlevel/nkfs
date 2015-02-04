@@ -457,6 +457,8 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 			removed = dio_clu_remove(dev, node->index);
 			BUG_ON(removed != node);
 			dio_clu_sync(node);
+			KLOG(KL_INF, "evict clu=%p, age=%lx, index=%lu",
+				node, node->age, node->index);
 			dio_clu_deref(node);
 		}
 	}
