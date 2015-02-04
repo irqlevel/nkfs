@@ -4,28 +4,34 @@
 
 int ds_balloc_bm_clear(struct ds_sb *sb)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	u64 i;
 	int err;
 
 	down_write(&sb->rw_lock);
 	sb->used_blocks = 0;
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
-		bh = __bread(sb->bdev, i, sb->bsize);
-		if (!bh) {
+		clu = dio_clu_get(sb->ddev, i);
+		if (!clu) {
 			KLOG(KL_ERR, "cant read block %llu", i);
 			err = -EIO;
 			goto out;
 		}
-		memset(bh->b_data, 0, sb->bsize);
-		mark_buffer_dirty(bh);
-		err = sync_dirty_buffer(bh);
+
+		err = dio_clu_zero(clu);
 		if (err) {
-			KLOG(KL_ERR, "sync 0block err %d", err);
-			brelse(bh);
+			KLOG(KL_ERR, "cant zero clu %llu err %d", i, err);
+			dio_clu_put(clu);
 			goto out;
 		}
-		brelse(bh);
+
+		err = dio_clu_sync(clu);
+		if (err) {
+			KLOG(KL_ERR, "sync 0block err %d", err);
+			dio_clu_put(clu);
+			goto out;
+		}
+		dio_clu_put(clu);
 	}
 
 	err = 0;
@@ -60,32 +66,31 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	int err;
 	u32 byte_off, bit;
 	u64 bm_block;
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	
 	err = ds_balloc_block_bm_bit(sb, block, &bm_block, &byte_off, &bit);
 	if (err)
 		return err;
 
 	down_write(&sb->rw_lock);
-	bh = __bread(sb->bdev, bm_block, sb->bsize);	
-	if (!bh) {
+	clu = dio_clu_get_read(sb->ddev, bm_block);
+	if (!clu) {
 		KLOG(KL_ERR, "cant read bm block %llu", bm_block);
 		err = -EIO;
 		goto out;
 	}
 
 	if (use) {
-		BUG_ON(test_bit_le(bit, bh->b_data + byte_off));
-		set_bit_le(bit, bh->b_data + byte_off);
+		BUG_ON(test_bit_le(bit, dio_clu_map(clu, byte_off)));
+		set_bit_le(bit, dio_clu_map(clu, byte_off));
 		sb->used_blocks++;
 	} else {
-		BUG_ON(!test_bit_le(bit, bh->b_data + byte_off));
-		clear_bit_le(bit, bh->b_data + byte_off);
+		BUG_ON(!test_bit_le(bit, dio_clu_map(clu, byte_off)));
+		clear_bit_le(bit, dio_clu_map(clu, byte_off));
 		sb->used_blocks--;
 	}
 
-	mark_buffer_dirty(bh);
-	err = sync_dirty_buffer(bh);
+	err = dio_clu_sync(clu);
 	if (err) {
 		KLOG(KL_ERR, "cant sync block %llu", bm_block);
 		goto cleanup;		
@@ -94,7 +99,7 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	err = 0;
 
 cleanup:
-	brelse(bh);
+	dio_clu_put(clu);
 out:
 	up_write(&sb->rw_lock);
 	return err;
@@ -106,7 +111,7 @@ int ds_balloc_block_free(struct ds_sb *sb, u64 block)
 }
 
 static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
-	struct buffer_head *bh, u32 *pbyte, u32 *pbit)
+	struct dio_cluster *clu, u32 *pbyte, u32 *pbit)
 {
 	u32 pos, bit;
 	int err;
@@ -114,14 +119,13 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 	down_write(&sb->rw_lock);
 	for (pos = 0; pos < sb->bsize; pos++) {
 		for (bit = 0; bit < 8; bit++) {
-			if (!test_bit_le(bit, bh->b_data + pos)) {
-				set_bit_le(bit, bh->b_data + pos);
+			if (!test_bit_le(bit, dio_clu_map(clu, pos))) {
+				set_bit_le(bit, dio_clu_map(clu, pos));
 				sb->used_blocks++;
-				mark_buffer_dirty(bh);
-				err = sync_dirty_buffer(bh);
+				err = dio_clu_sync(clu);
 				if (err) {
-					KLOG(KL_ERR, "cant sync bh err %d",
-						err);
+					KLOG(KL_ERR, "cant sync clu %llu err %d",
+						clu->index, err);
 				} else {
 					*pbyte = pos;
 					*pbit = bit;
@@ -138,20 +142,20 @@ out:
 
 int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 {
-	struct buffer_head *bh;
+	struct dio_cluster *clu;
 	u64 i;
 	int err;
 	u32 byte, bit;
 
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
-		bh = __bread(sb->bdev, i, sb->bsize);
-		if (!bh) {
+		clu = dio_clu_get_read(sb->ddev, i);
+		if (!clu) {
 			KLOG(KL_ERR, "cant read block %llu", i);
 			err = -EIO;
 			goto out;
 		}
 
-		err = ds_balloc_block_find_set_free_bit(sb, bh,
+		err = ds_balloc_block_find_set_free_bit(sb, clu,
 			&byte, &bit);
 		if (!err) {
 			u64 block = ((i - sb->bm_block)*sb->bsize + byte)*8
@@ -159,10 +163,10 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 			KLOG(KL_DBG3, "alloc byte %u bit %u i %llu block %llu",
 				byte, bit , i, block);
 			*pblock = block;
-			brelse(bh);
+			dio_clu_put(clu);
 			return 0;
 		}			
-		brelse(bh);
+		dio_clu_put(clu);
 	}
 
 	err = -ENOSPC;

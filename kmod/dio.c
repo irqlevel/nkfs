@@ -657,6 +657,38 @@ out:
 	return err;
 }
 
+struct dio_cluster * dio_clu_get_read(struct dio_dev *dev, u64 index)
+{
+	struct dio_cluster *clu;
+
+	clu  = dio_clu_get(dev, index);
+	if (!clu)
+		return NULL;
+
+	if (!test_bit(DIO_CLU_READ, &clu->flags)) {
+		int err;
+		err = dio_clu_wait_read(clu);
+		if (err) {
+			dio_clu_put(clu);
+			clu = NULL;
+		}
+	}
+
+	return clu;
+}
+
+char *dio_clu_map(struct dio_cluster *cluster, u32 off)
+{
+	u32 pg_idx;
+	u32 pg_off;
+
+	BUG_ON(off > cluster->clu_size);
+	pg_idx = off >> PAGE_SHIFT;
+	pg_off = off & (PAGE_SIZE - 1);
+	BUG_ON(pg_idx >= cluster->pages.nr_pages);
+	return ((char *)page_address(cluster->pages.pages[pg_idx]) + pg_off);
+}
+
 int dio_clu_write(struct dio_cluster *cluster,
 	void *buf, u32 len, u32 off)
 {

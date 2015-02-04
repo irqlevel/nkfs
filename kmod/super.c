@@ -502,7 +502,7 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 	struct ds_image_header header;
 	int err;
 	
-	clu = dio_clu_get(dev->ddev, 0);
+	clu = dio_clu_get_read(dev->ddev, 0);
 	if (!clu) {
 		KLOG(KL_ERR, "cant read 0block");
 		err = -EIO;

@@ -67,6 +67,8 @@ void dio_finit(void);
 
 struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index);
 
+struct dio_cluster * dio_clu_get_read(struct dio_dev *dev, u64 index);
+
 void dio_clu_put(struct dio_cluster *cluster);
 
 int dio_clu_read(struct dio_cluster *cluster,
@@ -74,6 +76,8 @@ int dio_clu_read(struct dio_cluster *cluster,
 
 int dio_clu_write(struct dio_cluster *cluster,
 	void *buf, u32 len, u32 off);
+
+char *dio_clu_map(struct dio_cluster *cluster, u32 off);
 
 int dio_clu_zero(struct dio_cluster *cluster);
 
