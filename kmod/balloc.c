@@ -115,12 +115,22 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 	u32 pos, bit;
 	int err;
 
-	dio_clu_write_lock(clu);
+rescan:
+	dio_clu_read_lock(clu);
 	for (pos = 0; pos < sb->bsize; pos++) {
 		for (bit = 0; bit < 8; bit++) {
 			if (!test_bit_le(bit, dio_clu_map(clu, pos))) {
-				if (clu->index == 1 && pos == 0 && bit == 0) {
-					KLOG(KL_INF, "clu %p i %llu\n",
+				dio_clu_read_unlock(clu);
+				dio_clu_write_lock(clu);
+				if (test_bit_le(bit, dio_clu_map(clu, pos))) {
+					dio_clu_write_unlock(clu);
+					goto rescan;
+				}
+
+				/* BUG() on alloc of 0block */
+				if (clu->index == 1 &&
+					pos == 0 && bit == 0) {
+					KLOG(KL_INF, "clu %p i %llu",
 						clu, clu->index);
 					DS_BUG();
 				}
@@ -128,23 +138,22 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 				atomic64_inc(&sb->used_blocks);
 				set_bit_le(bit, dio_clu_map(clu, pos));
 				dio_clu_write_unlock(clu);
+
 				dio_clu_set_dirty(clu);
 				err = dio_clu_sync(clu);
 				if (err) {
-					KLOG(KL_ERR, "cant sync clu %llu err %d",
+					KLOG(KL_ERR, "sync clu %llu err %d",
 						clu->index, err);
-				} else {
-					*pbyte = pos;
-					*pbit = bit;
+					return err;
 				}
-				goto out;
+				*pbyte = pos;
+				*pbit = bit;
+				return 0;
 			}
 		}
 	}
-	err = -ENOENT;
-	dio_clu_write_unlock(clu);
-out:
-	return err;
+	dio_clu_read_unlock(clu);
+	return -ENOENT;
 }
 
 int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
