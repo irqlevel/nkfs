@@ -39,9 +39,10 @@ out:
 }
 
 static int ds_balloc_block_bm_bit(struct ds_sb *sb, u64 block,
-	u64 *pblock, u32 *pbyte_off, u32 *pbit)
+	u64 *pblock, unsigned long *plong, long *pbit)
 {
-	u64 byte_off;
+	u64 long_num;
+	u32 bits_per_long = 8*sizeof(unsigned long);
 
 	if (block >= sb->nr_blocks) {
 		KLOG(KL_ERR, "block %llu out of sb blocks %llu",
@@ -49,11 +50,12 @@ static int ds_balloc_block_bm_bit(struct ds_sb *sb, u64 block,
 		return -EINVAL;
 	}
 
-	byte_off = ds_div(block, 8);
+	long_num = ds_div(block, bits_per_long);
 
-	*pbit = ds_mod(block, 8);
-	*pblock = sb->bm_block + ds_div(byte_off, sb->bsize);
-	*pbyte_off = ds_mod(byte_off, sb->bsize);
+	*pbit = ds_mod(block, bits_per_long);
+	*pblock = sb->bm_block + ds_div(long_num*sizeof(unsigned long),
+					sb->bsize);
+	*plong = ds_mod(long_num*sizeof(unsigned long), sb->bsize);
 
 	return 0;
 }
@@ -61,11 +63,12 @@ static int ds_balloc_block_bm_bit(struct ds_sb *sb, u64 block,
 int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 {
 	int err;
-	u32 byte_off, bit;
+	long bit;
+	unsigned long long_off;
 	u64 bm_block;
 	struct dio_cluster *clu;
-	
-	err = ds_balloc_block_bm_bit(sb, block, &bm_block, &byte_off, &bit);
+
+	err = ds_balloc_block_bm_bit(sb, block, &bm_block, &long_off, &bit);
 	if (err)
 		return err;
 
@@ -76,17 +79,17 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 		goto out;
 	}
 
-	dio_clu_write_lock(clu);
+	dio_clu_read_lock(clu);
 	if (use) {
-		BUG_ON(test_bit_le(bit, dio_clu_map(clu, byte_off)));
+		BUG_ON(test_bit_le(bit, dio_clu_map(clu, long_off)));
+		set_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_inc(&sb->used_blocks);
-		set_bit_le(bit, dio_clu_map(clu, byte_off));
 	} else {
-		BUG_ON(!test_bit_le(bit, dio_clu_map(clu, byte_off)));
-		clear_bit_le(bit, dio_clu_map(clu, byte_off));
+		BUG_ON(!test_bit_le(bit, dio_clu_map(clu, long_off)));
+		clear_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_dec(&sb->used_blocks);
 	}
-	dio_clu_write_unlock(clu);
+	dio_clu_read_unlock(clu);
 
 	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
@@ -110,49 +113,47 @@ int ds_balloc_block_free(struct ds_sb *sb, u64 block)
 }
 
 static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
-	struct dio_cluster *clu, u32 *pbyte, u32 *pbit)
+	struct dio_cluster *clu, unsigned long *plong, long *pbit)
 {
-	u32 pos, bit;
+	int i, j;
+	long bit;
+	int pg_idx;
 	int err;
+	char *page;
 
-rescan:
+	BUG_ON((clu->clu_size & (PAGE_SIZE - 1)));
+
 	dio_clu_read_lock(clu);
-	for (pos = 0; pos < sb->bsize; pos++) {
-		for (bit = 0; bit < 8; bit++) {
-			if (!test_bit_le(bit, dio_clu_map(clu, pos))) {
-				dio_clu_read_unlock(clu);
-				dio_clu_write_lock(clu);
-				if (test_bit_le(bit, dio_clu_map(clu, pos))) {
-					dio_clu_write_unlock(clu);
-					goto rescan;
-				}
+	i = 0;
+	for (pg_idx = 0; pg_idx < (clu->clu_size/PAGE_SIZE); pg_idx++) {
+		page = dio_clu_map(clu, i);
+		for (j = 0; j < PAGE_SIZE; j+= sizeof(unsigned long),
+			i+= sizeof(unsigned long)) {
+			unsigned long *addr = (unsigned long *)(page + j);
+			if (*addr == (~((unsigned long)0)))
+				continue;
 
-				/* BUG() on alloc of 0block */
-				if (clu->index == 1 &&
-					pos == 0 && bit == 0) {
-					KLOG(KL_INF, "clu %p i %llu",
-						clu, clu->index);
-					DS_BUG();
-				}
+			for (bit = 0; bit < (8*sizeof(unsigned long)); bit++) {
+				if (!test_bit_le(bit, addr) &&
+					!test_and_set_bit_le(bit, addr)) {
 
-				atomic64_inc(&sb->used_blocks);
-				set_bit_le(bit, dio_clu_map(clu, pos));
-				dio_clu_write_unlock(clu);
-
-				dio_clu_set_dirty(clu);
-				err = dio_clu_sync(clu);
-				if (err) {
-					KLOG(KL_ERR, "sync clu %llu err %d",
-						clu->index, err);
-					return err;
+					atomic64_inc(&sb->used_blocks);
+					dio_clu_set_dirty(clu);
+					err = dio_clu_sync(clu);
+					if (err) {
+						KLOG(KL_ERR, "sync clu %llu err %d",
+							clu->index, err);
+						return err;
+					}
+					*plong = i;
+					*pbit = bit;
+					return 0;
 				}
-				*pbyte = pos;
-				*pbit = bit;
-				return 0;
 			}
 		}
 	}
 	dio_clu_read_unlock(clu);
+
 	return -ENOENT;
 }
 
@@ -161,7 +162,8 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 	struct dio_cluster *clu;
 	u64 i;
 	int err;
-	u32 byte, bit;
+	long bit;
+	unsigned long long_off;
 
 	*pblock = 0;
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
@@ -172,12 +174,13 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 		}
 
 		err = ds_balloc_block_find_set_free_bit(sb, clu,
-			&byte, &bit);
+			&long_off, &bit);
 		if (!err) {
-			u64 block = ((i - sb->bm_block)*sb->bsize + byte)*8
-				+ bit;
-			KLOG(KL_DBG3, "alloc byte %u bit %u i %llu block %llu",
-				byte, bit , i, block);
+			u64 block = ((i - sb->bm_block)*sb->bsize + long_off)*
+				sizeof(unsigned long) + bit;
+
+			KLOG(KL_DBG3, "alloc long_off %lu bit %u i %llu block %llu",
+				long_off, bit , i, block);
 			*pblock = block;
 			dio_clu_put(clu);
 			return 0;
