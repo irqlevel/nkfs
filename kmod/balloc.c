@@ -176,8 +176,8 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 		err = ds_balloc_block_find_set_free_bit(sb, clu,
 			&long_off, &bit);
 		if (!err) {
-			u64 block = ((i - sb->bm_block)*sb->bsize + long_off)*
-				sizeof(unsigned long) + bit;
+			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off
+					+ bit;
 
 			KLOG(KL_DBG3, "alloc long_off %lu bit %u i %llu block %llu",
 				long_off, bit , i, block);
