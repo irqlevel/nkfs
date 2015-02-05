@@ -214,6 +214,7 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 static void ds_dev_stop(struct ds_dev *dev)
 {
 	dev->stopping = 1;
+	ds_sb_stop(dev->sb);
 }
 
 int ds_dev_add(char *dev_name, int format)
