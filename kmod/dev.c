@@ -100,12 +100,12 @@ int ds_dev_query(char *dev_name, struct ds_dev_info *info)
 		ds_obj_id_copy(&info->sb_id, &sb->id);
 		info->size = sb->size;
 		info->blocks = sb->nr_blocks;
-		info->used_blocks = sb->used_blocks;
+		info->used_blocks = atomic64_read(&sb->used_blocks);
 		info->inodes_tree_block = sb->inodes_tree_block;
 		info->bm_block = sb->bm_block;
 	 	info->bm_blocks = sb->bm_blocks;
 		info->bsize = sb->bsize;
-		info->used_size = sb->bsize*sb->used_blocks;
+		info->used_size = sb->bsize*atomic64_read(&sb->used_blocks);
 		info->free_size = info->size - info->used_size;
 	}
 

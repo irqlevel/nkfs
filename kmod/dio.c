@@ -211,6 +211,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 		return NULL;
 
 	memset(cluster, 0, sizeof(*cluster));
+	init_rwsem(&cluster->sync_rw_lock);
 	init_rwsem(&cluster->rw_lock);
 
 	set_bit(DIO_CLU_INV, &cluster->flags);
@@ -657,6 +658,26 @@ read_comp:
 	return err;
 }
 
+void dio_clu_write_lock(struct dio_cluster *cluster)
+{
+	down_write(&cluster->rw_lock);
+}
+
+void dio_clu_write_unlock(struct dio_cluster *cluster)
+{
+	up_write(&cluster->rw_lock);
+}
+
+void dio_clu_read_lock(struct dio_cluster *cluster)
+{
+	down_read(&cluster->rw_lock);
+}
+
+void dio_clu_read_unlock(struct dio_cluster *cluster)
+{
+	up_read(&cluster->rw_lock);
+}
+
 int dio_clu_read(struct dio_cluster *cluster,
 	void *buf, u32 len, u32 off)
 {
@@ -670,7 +691,10 @@ int dio_clu_read(struct dio_cluster *cluster,
 			goto out;
 	}
 
+	down_read(&cluster->rw_lock);
 	dio_pages_io(&cluster->pages, buf, off, len, 0);
+	up_read(&cluster->rw_lock);
+
 	err = 0;
 out:	
 	return err;
@@ -713,7 +737,7 @@ int dio_clu_write(struct dio_cluster *cluster,
 {
 	int err;
 
-	down_read(&cluster->rw_lock);
+	down_read(&cluster->sync_rw_lock);
 
 	BUG_ON((off + len) > cluster->clu_size);
 	if (!test_bit(DIO_CLU_READ, &cluster->flags)) {
@@ -723,12 +747,16 @@ int dio_clu_write(struct dio_cluster *cluster,
 	}
 
 	BUG_ON(!test_bit(DIO_CLU_READ, &cluster->flags));
+	
+	down_write(&cluster->rw_lock);
 	set_bit(DIO_CLU_DIRTY, &cluster->flags);
 	dio_pages_io(&cluster->pages, buf, off, len, 1);
+	up_write(&cluster->rw_lock);
+
 	err = 0;
 
 out:
-	up_read(&cluster->rw_lock);
+	up_read(&cluster->sync_rw_lock);
 
 	return err;
 }
@@ -762,9 +790,9 @@ out:
 
 void dio_clu_set_dirty(struct dio_cluster *cluster)
 {
-	down_read(&cluster->rw_lock);
+	down_read(&cluster->sync_rw_lock);
 	set_bit(DIO_CLU_DIRTY, &cluster->flags);
-	up_read(&cluster->rw_lock);
+	up_read(&cluster->sync_rw_lock);
 }
 
 int dio_clu_sync(struct dio_cluster *cluster)
@@ -775,7 +803,7 @@ int dio_clu_sync(struct dio_cluster *cluster)
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags))
 		return 0;
 	
-	down_write(&cluster->rw_lock);
+	down_write(&cluster->sync_rw_lock);
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags)) {
 		err = 0;
 		goto out;
@@ -797,7 +825,7 @@ int dio_clu_sync(struct dio_cluster *cluster)
 
 	dio_io_deref(io);
 out:
-	up_write(&cluster->rw_lock);
+	up_write(&cluster->sync_rw_lock);
 
 	return err;
 }

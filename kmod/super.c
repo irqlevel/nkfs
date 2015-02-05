@@ -39,7 +39,8 @@ void ds_sb_stop(struct ds_sb *sb)
 
 	BUG_ON(sb->inodes_active);
 	ds_sb_sync(sb);
-	KLOG(KL_INF, "sb %p used_blocks %llu", sb, sb->used_blocks);
+	KLOG(KL_INF, "sb %p used_blocks %llu",
+		sb, atomic64_read(&sb->used_blocks));
 }
 
 void ds_sb_ref(struct ds_sb *sb)
@@ -73,8 +74,8 @@ struct ds_sb *ds_sb_lookup(struct ds_obj_id *id)
 
 static u64 ds_sb_free_blocks(struct ds_sb *sb)
 {
-	BUG_ON(sb->nr_blocks < sb->used_blocks);
-	return sb->nr_blocks - sb->used_blocks;	
+	BUG_ON(sb->nr_blocks < atomic64_read(&sb->used_blocks));
+	return sb->nr_blocks - atomic64_read(&sb->used_blocks);	
 }
 
 static struct ds_sb *ds_sb_select_most_free(void)
@@ -260,7 +261,7 @@ static int ds_sb_parse_header(struct ds_sb *sb,
 	sb->bm_block = be64_to_cpu(header->bm_block);
 	sb->bm_blocks = be64_to_cpu(header->bm_blocks);
 	sb->inodes_tree_block = be64_to_cpu(header->inodes_tree_block);
-	sb->used_blocks = be64_to_cpu(header->used_blocks);
+	atomic64_set(&sb->used_blocks, be64_to_cpu(header->used_blocks));
 
 	memcpy(&sb->id, &header->id, sizeof(header->id));	
 
@@ -274,7 +275,7 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 
 	header->magic = cpu_to_be32(sb->magic);
 	header->version = cpu_to_be32(sb->version);
-	header->used_blocks = cpu_to_be64(sb->used_blocks);
+	header->used_blocks = cpu_to_be64(atomic64_read(&sb->used_blocks));
 	header->size = cpu_to_be64(sb->size);
 	header->bsize = cpu_to_be32(sb->bsize);
 	header->bm_block = cpu_to_be64(sb->bm_block);

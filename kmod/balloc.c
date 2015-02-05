@@ -8,8 +8,6 @@ int ds_balloc_bm_clear(struct ds_sb *sb)
 	u64 i;
 	int err;
 
-	down_write(&sb->rw_lock);
-	sb->used_blocks = 0;
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
 		clu = dio_clu_get(sb->ddev, i);
 		if (!clu) {
@@ -33,11 +31,10 @@ int ds_balloc_bm_clear(struct ds_sb *sb)
 		}
 		dio_clu_put(clu);
 	}
+	atomic64_set(&sb->used_blocks, 0);
 
 	err = 0;
 out:
-	up_write(&sb->rw_lock);
-
 	return err;
 }
 
@@ -72,7 +69,6 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	if (err)
 		return err;
 
-	down_write(&sb->rw_lock);
 	clu = dio_clu_get(sb->ddev, bm_block);
 	if (!clu) {
 		KLOG(KL_ERR, "cant read bm block %llu", bm_block);
@@ -80,15 +76,17 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 		goto out;
 	}
 
+	dio_clu_write_lock(clu);
 	if (use) {
 		BUG_ON(test_bit_le(bit, dio_clu_map(clu, byte_off)));
+		atomic64_inc(&sb->used_blocks);
 		set_bit_le(bit, dio_clu_map(clu, byte_off));
-		sb->used_blocks++;
 	} else {
 		BUG_ON(!test_bit_le(bit, dio_clu_map(clu, byte_off)));
 		clear_bit_le(bit, dio_clu_map(clu, byte_off));
-		sb->used_blocks--;
+		atomic64_dec(&sb->used_blocks);
 	}
+	dio_clu_write_unlock(clu);
 
 	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
@@ -117,7 +115,7 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 	u32 pos, bit;
 	int err;
 
-	down_write(&sb->rw_lock);
+	dio_clu_write_lock(clu);
 	for (pos = 0; pos < sb->bsize; pos++) {
 		for (bit = 0; bit < 8; bit++) {
 			if (!test_bit_le(bit, dio_clu_map(clu, pos))) {
@@ -127,9 +125,9 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 					DS_BUG();
 				}
 
+				atomic64_inc(&sb->used_blocks);
 				set_bit_le(bit, dio_clu_map(clu, pos));
-				sb->used_blocks++;
-
+				dio_clu_write_unlock(clu);
 				dio_clu_set_dirty(clu);
 				err = dio_clu_sync(clu);
 				if (err) {
@@ -144,8 +142,8 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 		}
 	}
 	err = -ENOENT;
+	dio_clu_write_unlock(clu);
 out:
-	up_write(&sb->rw_lock);
 	return err;
 }
 

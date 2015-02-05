@@ -19,7 +19,7 @@ struct ds_sb {
 	u64			bm_block;
 	u64			bm_blocks;
 	u64			inodes_tree_block;
-	u64			used_blocks;
+	atomic64_t		used_blocks;
 	u32			bsize;
 	int			stopping;
 };

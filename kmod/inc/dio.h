@@ -39,6 +39,7 @@ struct dio_cluster {
 	unsigned long		flags;
 	struct dio_pages	pages;
 	int			clu_size;
+	struct rw_semaphore	sync_rw_lock;
 	struct rw_semaphore	rw_lock;
 	u64			age;
 	struct completion	read_comp;
@@ -80,6 +81,14 @@ char *dio_clu_map(struct dio_cluster *cluster, u32 off);
 int dio_clu_zero(struct dio_cluster *cluster);
 
 int dio_clu_sync(struct dio_cluster *cluster);
+
+void dio_clu_write_lock(struct dio_cluster *cluster);
+
+void dio_clu_write_unlock(struct dio_cluster *cluster);
+
+void dio_clu_read_lock(struct dio_cluster *cluster);
+
+void dio_clu_read_unlock(struct dio_cluster *cluster);
 
 void dio_dev_ref(struct dio_dev *dev);
 void dio_dev_deref(struct dio_dev *dev);
