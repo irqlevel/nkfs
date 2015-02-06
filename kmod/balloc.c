@@ -113,13 +113,15 @@ int ds_balloc_block_free(struct ds_sb *sb, u64 block)
 }
 
 static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
-	struct dio_cluster *clu, unsigned long *plong, long *pbit)
+	u64 bm_block, struct dio_cluster *clu, unsigned long *plong, long *pbit)
 {
 	int i, j;
+	u64 block;
 	long bit;
 	int pg_idx;
 	int err;
 	char *page;
+	unsigned long *addr;
 
 	BUG_ON((clu->clu_size & (PAGE_SIZE - 1)));
 
@@ -129,11 +131,18 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 		page = dio_clu_map(clu, i);
 		for (j = 0; j < PAGE_SIZE; j+= sizeof(unsigned long),
 			i+= sizeof(unsigned long)) {
-			unsigned long *addr = (unsigned long *)(page + j);
+			block = 8*(bm_block - sb->bm_block)*sb->bsize + 8*i;
+			if (block >= sb->nr_blocks)
+				goto nospace;
+
+			addr = (unsigned long *)(page + j);
 			if (*addr == (~((unsigned long)0)))
 				continue;
 
 			for (bit = 0; bit < (8*sizeof(unsigned long)); bit++) {
+				if ((block + bit) >= sb->nr_blocks)
+					goto nospace;
+
 				if (!test_bit_le(bit, addr) &&
 					!test_and_set_bit_le(bit, addr)) {
 
@@ -152,6 +161,8 @@ static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
 			}
 		}
 	}
+
+nospace:
 	dio_clu_read_unlock(clu);
 
 	return -ENOENT;
@@ -173,7 +184,7 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 			return -EIO;
 		}
 
-		err = ds_balloc_block_find_set_free_bit(sb, clu,
+		err = ds_balloc_block_find_set_free_bit(sb, i, clu,
 			&long_off, &bit);
 		if (!err) {
 			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off
