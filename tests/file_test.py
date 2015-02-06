@@ -1,6 +1,7 @@
 from tests_lib import cmd
 from tests_lib import settings
-from client import DsClient
+from ds_env import DsLocalLoopEnv
+
 import tempfile
 import os
 import inspect
@@ -15,52 +16,13 @@ CURR_DIR = os.path.abspath(currentdir)
 
 log = logging.getLogger('main')
 
-DEVS = ["/dev/loop0", "/dev/loop1", "/dev/loop2"]
-SRVS = [("0.0.0.0", 9111), ("0.0.0.0", 9112)]
-
-def get_client():
-	return DsClient("0.0.0.0", 9111)
-
-def prepare():	
-	cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./load_mods.sh", throw = True)
-	cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./loop_dev_create.sh", throw = True)
-
-	c = get_client()
-	for ip, port in SRVS:
-		c.start_srv(ip, port)
-
-	for d in DEVS:
-		c.add_dev(d, True)
-
-def cleanup():
-	c = get_client()
-	for ip, port in SRVS:
-		try:
-			c.stop_srv(ip, port)
-		except:
-			pass
-
-	for d in DEVS:
-		try:
-			c.rem_dev(d)
-		except:
-			pass
-
-	try:
-		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./unload_mods.sh", throw = True)
-	except:
-		pass
-
-	try:
-		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./loop_dev_del.sh", throw = True)
-	except:
-		pass
 class PutGetTest:
-	def __init__(self, proc_num, file_count, file_min_size, file_max_size):
+	def __init__(self, env, proc_num, file_count, file_min_size, file_max_size):
 		self.proc_num = proc_num
 		self.file_count = file_count
 		self.file_min_size = file_min_size
 		self.file_max_size = file_max_size
+		self.env = env
 
 	def prepare(self):
 		self.in_dir = tempfile.mkdtemp(dir=CURR_DIR)
@@ -124,8 +86,8 @@ class PutGetTest:
 		return buf
 
 	def get_client(self):
-		return get_client()
-	
+		return self.env.get_client()
+
 	def check_file_hash(self):	
 		broken_files = []
 	
@@ -161,14 +123,17 @@ class PutGetTest:
 				pass
 
 if __name__ == "__main__":
+	env = None
 	try:
-		prepare()
-		t = PutGetTest(3, 10, 10, 10000000)
+		env = DsLocalLoopEnv()
+		env.prepare()
+		t = PutGetTest(env, 3, 10, 10, 10000000)
 		t.run()
 	except Exception as e:
 		log.error("EXCEPTION: %s" % e)
 	finally:
 		try:
-			cleanup()
+			if env:
+				env.cleanup()
 		except:
 			pass
