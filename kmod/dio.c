@@ -81,7 +81,7 @@ static int dio_pages_alloc(struct dio_pages *buf, int nr_pages)
 		return -EINVAL;
 
 	for (i = 0; i < nr_pages; i++) {
-		buf->pages[i] = alloc_page(GFP_NOIO);
+		buf->pages[i] = alloc_page(GFP_KERNEL);
 		if (!buf->pages[i]) {
 			int j;
 			for (j = 0; j < i; j++)
@@ -189,7 +189,7 @@ struct dio_dev *dio_dev_create(struct block_device *bdev,
 	dev = kmem_cache_alloc(dio_dev_cachep, GFP_NOIO);
 	if (!dev)
 		return NULL;
-	
+
 	dio_dev_init(dev, bdev, clu_size, nr_max_clus);
 
 	return dev;
@@ -422,7 +422,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 	if (dev->nr_clus <= dev->nr_max_clus)
 		return 0;
 
-	page = alloc_page(GFP_NOIO);
+	page = alloc_page(GFP_KERNEL);
 	if (!page) {
 		KLOG(KL_ERR, "no memory");
 		return -ENOMEM;
@@ -768,7 +768,7 @@ int dio_clu_zero(struct dio_cluster *cluster)
 	int i;
 	u32 off;
 
-	page = alloc_page(GFP_NOIO);
+	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
