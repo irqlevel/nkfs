@@ -10,8 +10,8 @@ static u8 gf_alog[0x100][0x100];
 static void gf_mult_matrix(u8** matrix1, u8** matrix2,
 		u8** result, u32 size);
 
-#define MAX_K 50
-#define MAX_N 200
+#define MAX_K 254
+#define MAX_N 255
 #define MIN_N 2
 #define MIN_K 2
 
@@ -718,27 +718,22 @@ cleanup:
 int nk8_init(void)
 {
 	int err;
+	int i;
 
 	gf_init();
 	inited = 1;
 
 	gf_test_matrix();
 
-	err = nk8_test(12123, 5, 3);
-	if (err)
-		goto out;
-
-	err = nk8_test(63203, 9, 7);
-	if (err)
-		goto out;
-	
-	err = nk8_test(45021, 43, 5);
-	if (err)
-		goto out;
-
-	err = nk8_test(4096, 6, 3);
-	if (err)
-		goto out;
+	for (i = 0; i < 5; i++) {
+		int n, k, size;
+		size = rand_u32_min_max(3000, 70000);
+		k = rand_u32_min_max(MIN_K, MAX_K);
+		n = rand_u32_min_max(k, MAX_N);
+		err = nk8_test(size, n, k);
+		if (err)
+			goto out;
+	}
 out:
 	return err;
 }
