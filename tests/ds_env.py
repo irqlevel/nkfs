@@ -33,6 +33,8 @@ class DsEnv:
 class DsLocalLoopEnv(DsEnv):
 	def __init__(self):
 		DsEnv.__init__(self)
+		self.devs = []
+		self.srvs = []
 
 	def get_client(self):
 		return DsClient("0.0.0.0", 9111)
@@ -44,19 +46,25 @@ class DsLocalLoopEnv(DsEnv):
 		c = self.get_client()
 		for ip, port in SRVS:
 			c.start_srv(ip, port)
-
+			self.srvs.append((ip, port))
 		for d in DEVS:
 			c.add_dev(d, True)
+			self.devs.append(d)
+
+	def query_devs(self):
+		c = self.get_client()
+		for d in self.devs:
+			c.query_dev(d)
 
 	def cleanup(self):
 		c = self.get_client()
-		for ip, port in SRVS:
+		for ip, port in self.srvs:
 			try:
 				c.stop_srv(ip, port)
 			except Exception as e:
 				log.error("EXCEPTION %s" % e)
 
-		for d in DEVS:
+		for d in self.devs:
 			try:
 				c.rem_dev(d)
 			except Exception as e:

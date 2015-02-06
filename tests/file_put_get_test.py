@@ -1,6 +1,7 @@
 from tests_lib import cmd
 from tests_lib import settings
 from ds_env import DsLocalLoopEnv
+from ds_test import DsTest
 
 import tempfile
 import os
@@ -16,14 +17,15 @@ CURR_DIR = os.path.abspath(currentdir)
 
 log = logging.getLogger('main')
 
-class PutGetTest:
+class FilePutGetTest(DsTest):
 	def __init__(self, env, proc_num, file_count, file_min_size, file_max_size):
+		DsTest.__init__(self, env)
 		self.proc_num = proc_num
 		self.file_count = file_count
 		self.file_min_size = file_min_size
 		self.file_max_size = file_max_size
-		self.env = env
-
+                log.info("%s parameters: file_count %d, proc_num %d, file_min_size %d, file_max_size %d" %
+                                (self.get_uid_name(), self.file_count, self.proc_num, self.file_min_size, self.file_max_size))
 	def prepare(self):
 		self.in_dir = tempfile.mkdtemp(dir=CURR_DIR)
 		self.out_dir = tempfile.mkdtemp(dir=CURR_DIR)
@@ -40,8 +42,9 @@ class PutGetTest:
 			i+= 1
 
 	def test(self):
-		proc_list = [Process(target=self.proc_routine,args=()) for p in xrange(self.proc_num)]
+		self.env.query_devs()
 
+		proc_list = [Process(target=self.proc_routine,args=()) for p in xrange(self.proc_num)]
 		for p in proc_list:
 			p.start()
 	
@@ -51,12 +54,15 @@ class PutGetTest:
 		for p in proc_list:
 			log.info("process %s exit with code: %d" % (p.name, p.exitcode))
 
+		self.env.query_devs()
+
 		res = self.check_file_hash()
 
 		if len(res) != 0:
 			log.error("FAILED: broken files: %s" % res)
 		else:
-			log.info("PASSED: there are not broken files!")
+			self.set_passed()
+
 	def gen_tmp_files(self):
 		tmp_filenames = []
 		for f in xrange(0, self.file_count):
@@ -85,9 +91,6 @@ class PutGetTest:
 				buf = afile.read(block_size)
 		return buf
 
-	def get_client(self):
-		return self.env.get_client()
-
 	def check_file_hash(self):	
 		broken_files = []
 	
@@ -109,25 +112,12 @@ class PutGetTest:
 		shutil.rmtree(self.in_dir)
 		shutil.rmtree(self.out_dir)
 
-	def run(self):
-		try:
-			self.prepare()
-			self.test()
-		except Exception as e:
-			log.error("EXCEPTION %s" % e)
-			raise
-		finally:
-			try:
-				self.cleanup()
-			except:
-				pass
-
 if __name__ == "__main__":
 	env = None
 	try:
 		env = DsLocalLoopEnv()
 		env.prepare()
-		t = PutGetTest(env, 3, 10, 10, 10000000)
+		t = FilePutGetTest(env, 3, 10, 10, 10000000)
 		t.run()
 	except Exception as e:
 		log.error("EXCEPTION: %s" % e)

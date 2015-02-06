@@ -43,7 +43,7 @@ setting up "export DS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 ```sh
 $ sudo yum install python-pip
 $ sudo pip install ConcurrentLogHandler
-$ cd ds && sudo python tests/file_test.py
+$ cd ds && sudo python tests/tests.py
 ```
 
 #### Usage:
