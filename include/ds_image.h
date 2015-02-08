@@ -27,7 +27,12 @@
 
 #define DS_IMAGE_BM_BLOCK 1
 
-#define BTREE_T 900
+/* Do not change if you do not know about B-tree */
+#define BTREE_T			896
+#define BTREE_KEY_PAGES		7
+#define BTREE_CHILD_PAGES	4
+#define BTREE_VALUE_PAGES	4
+
 #define BTREE_SIG1 ((u32)0xCBACBADA)
 #define BTREE_SIG2 ((u32)0x3EFFEEFE)
 
@@ -36,15 +41,62 @@
 
 #pragma pack(push, 1)
 
+struct btree_key {
+	u8	val[16];
+};
+
+struct btree_child {
+	union {
+		__be64 	val_be;
+		u64	val;
+	};
+};
+
+struct btree_value {
+	union {
+		__be64 	val_be;
+		u64	val;
+	};
+};
+
+struct btree_key_page {
+        struct btree_key keys[256];
+};
+
+struct btree_child_page {
+	struct btree_child childs[512];
+};
+
+struct btree_value_page {
+	struct btree_value values[512];
+};
+
+struct btree_header_page {
+	__be32			sig1;
+	__be32			leaf;
+	__be32			nr_keys;
+	char			pad[4048];
+	struct sha256_sum	sum;
+	__be32			sig2;
+};
+
+_Static_assert(sizeof(struct btree_key_page) == PAGE_SIZE,
+	"size is not correct");
+
+_Static_assert(sizeof(struct btree_child_page) == PAGE_SIZE,
+	"size is not correct");
+
+_Static_assert(sizeof(struct btree_value_page) == PAGE_SIZE,
+	"size is not correct");
+
+_Static_assert(sizeof(struct btree_header_page) == PAGE_SIZE,
+	"size is not correct");
+
 struct btree_node_disk {
-	__be32			sig1; /* = BTREE_SIG1 */
-	struct ds_obj_id	keys[2*BTREE_T-1];
-	__be64			values[2*BTREE_T-1];
-	__be64			childs[2*BTREE_T]; /* offsets in block units */
-	__be32			leaf; /* leaf or internal node */
-	__be32			nr_keys; /* number of valid keys */
-	struct sha256_sum	sum; /* sha256 check sum of [sig1 ... pad] */
-	__be32			sig2; /* = BTREE_SIG2 */
+	struct btree_header_page	header;
+	struct btree_key_page		keys[BTREE_VALUE_PAGES];
+	struct btree_child_page		childs[BTREE_CHILD_PAGES];
+	struct btree_value_page		values[BTREE_VALUE_PAGES];
 };
 
 struct ds_inode_disk {

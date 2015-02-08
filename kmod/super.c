@@ -151,8 +151,8 @@ static int ds_sb_list_by_obj(struct ds_obj_id *obj_id,
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
-		err = btree_find_key(sb->inodes_tree, obj_id,
-				&block);
+		err = btree_find_key(sb->inodes_tree, (struct btree_key *)obj_id,
+				(struct btree_value *)&block);
 		if (err)
 			continue;
 		link = ds_sb_link_create(sb);
@@ -592,7 +592,8 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->inodes_tree, id, &iblock);
+	err = btree_find_key(sb->inodes_tree, (struct btree_key *)id,
+			(struct btree_value *)&iblock);
 	if (err) {
 		KLOG(KL_ERR, "obj not found");
 		return err;
@@ -641,8 +642,8 @@ static int ds_sb_create_obj(struct ds_sb *sb,
 		return -ENOMEM;
 	}
 
-	err = btree_insert_key(sb->inodes_tree, &inode->ino,
-			inode->block, 0);
+	err = btree_insert_key(sb->inodes_tree, (struct btree_key *)&inode->ino,
+			(struct btree_value *)&inode->block, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant insert ino in inodes_tree err %d",
 				err);
@@ -669,14 +670,15 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, (struct btree_key *)obj_id,
+				(struct btree_value *)&iblock);
 	if (err)
 		return err;
 
 	inode = ds_inode_read(sb, iblock);
 	if (!inode) {
-		KLOG(KL_ERR, "cant read inode at %llu",
-			iblock);
+		KLOG(KL_ERR, "cant read inode at %llu off %llu",
+			iblock, off);
 		return -EIO;		
 	}
 	BUG_ON(inode->block != iblock);
@@ -704,7 +706,8 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, (struct btree_key *)obj_id,
+				(struct btree_value *)&iblock);
 	if (err)
 		return err;
 
@@ -714,7 +717,7 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct ds_obj_id *obj_id)
 		return -EIO;
 	}
 
-	btree_delete_key(sb->inodes_tree, &inode->ino);
+	btree_delete_key(sb->inodes_tree, (struct btree_key *)&inode->ino);
 	ds_inode_delete(inode);
 	INODE_DEREF(inode);
 	return err;
@@ -824,7 +827,8 @@ static int ds_sb_query_obj(struct ds_sb *sb, struct ds_obj_id *obj_id,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = btree_find_key(sb->inodes_tree, obj_id, &iblock);
+	err = btree_find_key(sb->inodes_tree, (struct btree_key *)obj_id,
+			(struct btree_value *)&iblock);
 	if (err)
 		return err;
 

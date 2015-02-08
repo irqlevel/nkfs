@@ -285,11 +285,11 @@ free_inode:
 	return NULL;
 }
 
-static void inode_block_erase(struct ds_obj_id *key,
-	u64 value, void *ctx)
+static void inode_block_erase(struct btree_key *key,
+	struct btree_value *value, void *ctx)
 {
 	struct ds_inode *inode = (struct ds_inode *)ctx;
-	u64 block = value;
+	u64 block = value->val;
 	__ds_inode_block_free(inode, block);
 }
 
@@ -501,7 +501,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 {
 	int err;
 	struct inode_block ib;
-	struct ds_obj_id key;
+	struct btree_key key;
 	int sum_block_allocated = 0;
 	int sum_block_inserted = 0;
 
@@ -521,7 +521,8 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 		&ib.vsum_block, &ib.sum_off);
 
 	btree_key_by_u64(ib.vsum_block, &key);
-	err = btree_find_key(inode->blocks_sum_tree, &key, &ib.sum_block);
+	err = btree_find_key(inode->blocks_sum_tree, &key,
+		(struct btree_value *)&ib.sum_block);
 	if (err) {
 		err = __ds_inode_block_alloc(inode, &ib.sum_block);
 		if (err) {
@@ -534,7 +535,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 
 		btree_key_by_u64(ib.vsum_block, &key);
 		err = btree_insert_key(inode->blocks_sum_tree, &key,
-			ib.sum_block, 0);
+			(struct btree_value *)&ib.sum_block, 0);
 		if (err) {
 			KLOG(KL_ERR, "cant inode %llu insert key %llu",
 				inode->block, ib.vsum_block);
@@ -554,7 +555,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 
 	btree_key_by_u64(ib.vblock, &key);	
 	err = btree_insert_key(inode->blocks_tree, &key,
-		ib.block, 0);
+		(struct btree_value *)&ib.block, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant insert key inode %llu err %d",
 			inode->block, err);
@@ -582,7 +583,7 @@ static void
 ds_inode_block_erase(struct ds_inode *inode,
 	struct inode_block *ib)
 {
-	struct ds_obj_id key;
+	struct btree_key key;
 
 	btree_key_by_u64(ib->vblock, &key);
 	btree_delete_key(inode->blocks_tree, &key);
@@ -612,7 +613,7 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	struct inode_block *pib)
 {
 	int err;
-	struct ds_obj_id key;
+	struct btree_key key;
 	struct inode_block ib;
 	
 	ds_inode_block_zero(&ib);
@@ -620,7 +621,8 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 
 	ib.vblock = vblock;
 	btree_key_by_u64(ib.vblock, &key);	
-	err = btree_find_key(inode->blocks_tree, &key, &ib.block);
+	err = btree_find_key(inode->blocks_tree, &key,
+		(struct btree_value *)&ib.block);
 	if (err) {
 		return err;
 	}
@@ -629,7 +631,8 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 		&ib.vsum_block, &ib.sum_off);
 
 	btree_key_by_u64(ib.vsum_block, &key);
-	err = btree_find_key(inode->blocks_sum_tree, &key, &ib.sum_block);
+	err = btree_find_key(inode->blocks_sum_tree, &key,
+		(struct btree_value *)&ib.sum_block);
 	if (err) {
 		KLOG(KL_ERR, "cant find vb %llu", ib.vsum_block);
 		goto fail;

@@ -24,6 +24,13 @@ struct ds_sb {
 	int			stopping;
 };
 
+_Static_assert(sizeof(struct btree_key) == sizeof(struct ds_obj_id),
+	"sizes error");
+
+_Static_assert(sizeof(struct btree_value) == sizeof(u64),
+	"sizes error");
+
+
 struct ds_sb_link {
 	struct list_head 	list;
 	struct ds_sb		*sb;

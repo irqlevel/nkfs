@@ -20,6 +20,24 @@ static inline u32 ds_mod(u64 x, u64 y)
 	return do_div(tmp, y);
 }
 
+#define KLOG_SHA256_SUM(sum)			\
+	do {					\
+		char *hsum;			\
+		hsum = sha256_sum_hex(sum);	\
+		KLOG(KL_DBG3, "sum %s", hsum);	\
+		if (hsum)			\
+			crt_free(hsum);		\
+	} while (0);
+
+#define KLOG_BTREE_KEY(key)							\
+	do {									\
+		char *hex;							\
+		hex = bytes_hex((void *)(key), sizeof(struct btree_key));	\
+		KLOG(KL_DBG3, "key %s", hex);					\
+		if (hex)							\
+			crt_free(hex);						\
+	} while (0);
+
 #define KLOG_BUF_SUM(buf, len)	do {				\
 		struct sha256_sum bsum;				\
 		char *hsum;					\
@@ -29,7 +47,7 @@ static inline u32 ds_mod(u64 x, u64 y)
 		hsum = sha256_sum_hex(&bsum);			\
 		be = bytes_hex(buf, llen);			\
 		en = bytes_hex((char *)buf + len - llen, llen);	\
-		KLOG(KL_INF, "b %p len %u sum %s be %s en %s",	\
+		KLOG(KL_DBG3, "b %p len %u sum %s be %s en %s",	\
 			buf, len, hsum, be, en);		\
 		if (hsum)					\
 			crt_free(hsum);				\
@@ -38,5 +56,3 @@ static inline u32 ds_mod(u64 x, u64 y)
 		if (en)						\
 			crt_free(en);				\
 	} while (0);
-
-

@@ -7,17 +7,18 @@
 struct btree;
 
 struct btree_node {
+	u32			sig1;
+	u32			t;
 	u64			block;
-	struct ds_obj_id	keys[2*BTREE_T-1];
-	u64			values[2*BTREE_T-1];
-	u64			childs[2*BTREE_T];
 	struct btree		*tree;
 	atomic_t		ref;
 	struct rb_node		nodes_link;
 	u32			leaf;
 	u32			nr_keys;
-	u32			t;
-	u32			sig1;
+	struct page		*header;
+	struct page		*keys[BTREE_KEY_PAGES];
+	struct page		*values[BTREE_VALUE_PAGES];
+	struct page		*childs[BTREE_CHILD_PAGES];
 	u32			sig2;
 };
 
@@ -47,33 +48,30 @@ u64 btree_root_block(struct btree *tree);
 void btree_ref(struct btree *tree);
 void btree_deref(struct btree *tree);
 
-int btree_insert_key(struct btree *tree, struct ds_obj_id *key,
-	u64 value, int replace);
+int btree_insert_key(struct btree *tree, struct btree_key *key,
+	struct btree_value *value, int replace);
 
 int btree_find_key(struct btree *tree,
-	struct ds_obj_id *key,
-	u64 *pvalue);
+	struct btree_key *key,
+	struct btree_value *pvalue);
 
 int btree_delete_key(struct btree *tree,
-	struct ds_obj_id *key);
+	struct btree_key *key);
 
 void btree_stop(struct btree *tree);
 
-typedef void (*btree_key_erase_clb_t)(struct ds_obj_id *key, u64 value,
+typedef void (*btree_key_erase_clb_t)(struct btree_key *key, struct btree_value *value,
 	void *ctx);
 
 void btree_erase(struct btree *tree,
 	btree_key_erase_clb_t key_erase_clb,
 	void *ctx);
 
-struct ds_obj_id *btree_gen_key(void);
-u64 btree_gen_value(void);
+void btree_key_by_u64(u64 val, struct btree_key *key);
+u64 btree_key_to_u64(struct btree_key *key);
 
-void btree_key_by_u64(u64 val, struct ds_obj_id *key);
-u64 btree_key_to_u64(struct ds_obj_id *key);
-
-char *btree_key_hex(struct ds_obj_id *key);
-char *btree_value_hex(u64 value);
+char *btree_key_hex(struct btree_key *key);
+char *btree_value_hex(struct btree_value *value);
 
 void btree_log(struct btree *tree, int llevel);
 
