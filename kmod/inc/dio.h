@@ -60,7 +60,6 @@ struct dio_io {
 	unsigned long		bio_flags;
 	struct completion	comp;
 	int			err;
-	struct dio_pages	pages;
 };
 
 int dio_init(void);

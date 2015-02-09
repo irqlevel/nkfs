@@ -102,40 +102,6 @@ static void dio_pages_free(struct dio_pages *buf)
 	dio_pages_zero(buf);
 }
 
-static void dio_pages_check(struct dio_pages *buf)
-{
-	int i;
-	BUG_ON(buf->nr_pages <= 0);
-	BUG_ON(buf->nr_pages > ARRAY_SIZE(buf->pages));
-	for (i = 0; i < buf->nr_pages; i++)
-		BUG_ON(!buf->pages[i]);
-}
-
-static void dio_pages_copy(struct dio_pages *dst, struct dio_pages *src)
-{
-	int i;
-
-	dio_pages_check(dst);
-	dio_pages_check(src);
-	BUG_ON(dst->nr_pages != src->nr_pages);
-	for (i = 0; i < src->nr_pages; i++)
-		memcpy(page_address(dst->pages[i]),
-			page_address(src->pages[i]), PAGE_SIZE);
-}
-
-static int dio_pages_snapshot(struct dio_pages *dst, struct dio_pages *src)
-{
-	int err;
-
-	dio_pages_check(src);
-	err = dio_pages_alloc(dst, src->nr_pages);
-	if (err)
-		return err;
-
-	dio_pages_copy(dst, src);
-	return 0;
-}
-
 static int dio_clu_pinned(struct dio_cluster *cluster)
 {
 	return (atomic_read(&cluster->pin_count)) ? 1 : 0;
@@ -508,8 +474,6 @@ void dio_clu_put(struct dio_cluster *cluster)
 
 static void dio_io_release(struct dio_io *io)
 {
-	dio_pages_free(&io->pages);
-
 	if (io->bio)
 		bio_put(io->bio);
 
@@ -546,7 +510,6 @@ static void dio_io_end_bio(struct bio *bio, int err)
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
 			BUG_ON(test_bit(DIO_CLU_READ, &io->cluster->flags));
-			dio_pages_copy(&io->cluster->pages, &io->pages);
 			set_bit(DIO_CLU_READ, &io->cluster->flags);
 		}
 	}
@@ -562,21 +525,21 @@ static struct bio *dio_io_alloc_bio(struct dio_io *io)
 	struct bio *bio;
 	int i;
 
-	bio = bio_alloc(GFP_NOIO, io->pages.nr_pages);
+	bio = bio_alloc(GFP_NOIO, io->cluster->pages.nr_pages);
 	if (!bio)
 		return NULL;
 
 	bio->bi_iter.bi_sector = io->cluster->index*(io->cluster->clu_size >> 9);
 	bio->bi_bdev = io->cluster->dev->bdev;
 
-	for (i = 0; i < io->pages.nr_pages; i++) {
-		bio->bi_io_vec[i].bv_page = io->pages.pages[i];
+	for (i = 0; i < io->cluster->pages.nr_pages; i++) {
+		bio->bi_io_vec[i].bv_page = io->cluster->pages.pages[i];
 		bio->bi_io_vec[i].bv_len = PAGE_SIZE;
 		bio->bi_io_vec[i].bv_offset = 0;
 	}
 
-	bio->bi_vcnt = io->pages.nr_pages;
-	bio->bi_iter.bi_size = io->pages.nr_pages*PAGE_SIZE;
+	bio->bi_vcnt = io->cluster->pages.nr_pages;
+	bio->bi_iter.bi_size = io->cluster->pages.nr_pages*PAGE_SIZE;
 
 	bio->bi_end_io = dio_io_end_bio;
 	bio->bi_private = io;
@@ -588,7 +551,6 @@ static struct bio *dio_io_alloc_bio(struct dio_io *io)
 struct dio_io *dio_io_alloc(struct dio_cluster *cluster)
 {
 	struct dio_io *io;
-	int err;
 
 	io = kmem_cache_alloc(dio_io_cachep, GFP_NOIO);
 	if (!io)
@@ -601,12 +563,6 @@ struct dio_io *dio_io_alloc(struct dio_cluster *cluster)
 
 	dio_clu_ref(cluster);
 	io->cluster = cluster;
-
-	err = dio_pages_snapshot(&io->pages, &cluster->pages);
-	if (err) {
-		dio_io_deref(io);
-		return NULL;
-	}
 
 	io->bio = dio_io_alloc_bio(io);
 	if (!io->bio) {
