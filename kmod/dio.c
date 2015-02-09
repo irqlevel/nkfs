@@ -87,7 +87,6 @@ static int dio_pages_alloc(struct dio_pages *buf, int nr_pages)
 			dio_pages_zero(buf);
 			return -ENOMEM;
 		}
-		//memset(page_address(buf->pages[i]), 0, PAGE_SIZE);
 	}
 	buf->nr_pages = nr_pages;
 	return 0;
