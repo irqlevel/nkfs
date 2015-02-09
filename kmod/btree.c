@@ -84,7 +84,23 @@ static struct btree_value *btree_node_value(struct btree_node *node, int index)
 			+ pg_off);
 }
 
-static struct btree_node *btree_node_alloc(void) 
+static void btree_node_zero_pages(struct btree_node *node)
+{
+	int i;
+
+	memset(page_address(node->header), 0, PAGE_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(node->keys); i++)
+		memset(page_address(node->keys[i]), 0, PAGE_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(node->childs); i++)
+		memset(page_address(node->childs[i]), 0, PAGE_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(node->values); i++)
+		memset(page_address(node->values[i]), 0, PAGE_SIZE);
+}
+
+static struct btree_node *btree_node_alloc(int zero_pages)
 {
 	struct btree_node *node;
 	int i;
@@ -100,28 +116,27 @@ static struct btree_node *btree_node_alloc(void)
 	node->header = alloc_page(GFP_KERNEL);
 	if (!node->header)
 		goto fail;
-	memset(page_address(node->header), 0, PAGE_SIZE);
 
 	for (i = 0; i < ARRAY_SIZE(node->keys); i++) {
 		node->keys[i] = alloc_page(GFP_KERNEL);
 		if (!node->keys[i])
 			goto fail;
-		memset(page_address(node->keys[i]), 0, PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->childs); i++) {
 		node->childs[i] = alloc_page(GFP_KERNEL);
 		if (!node->childs[i])
 			goto fail;
-		memset(page_address(node->childs[i]), 0, PAGE_SIZE);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(node->childs); i++) {
+	for (i = 0; i < ARRAY_SIZE(node->values); i++) {
 		node->values[i] = alloc_page(GFP_KERNEL);
 		if (!node->values[i])
 			goto fail;
-		memset(page_address(node->values[i]), 0, PAGE_SIZE);
 	}
+
+	if (zero_pages)
+		btree_node_zero_pages(node);
 
 	node->t = BTREE_T;
 	node->sig1 = BTREE_SIG1;
@@ -447,7 +462,7 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 	if (node)
 		return node;
 
-	node = btree_node_alloc();
+	node = btree_node_alloc(0);
 	if (!node)
 		return NULL;
 
@@ -575,10 +590,10 @@ static struct btree_node *btree_node_create(struct btree *tree)
 	struct btree_node *node, *inserted;
 	int err;
 
-	node = btree_node_alloc();
+	node = btree_node_alloc(1);
 	if (!node)
 		return NULL;
-		
+
 	err = ds_balloc_block_alloc(tree->sb, &node->block);
 	if (err) {
 		KLOG(KL_ERR, "cant alloc block, err=%d", err);
@@ -1073,7 +1088,7 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 			goto out;
 		}
 
-		new = btree_node_alloc();
+		new = btree_node_alloc(1);
 		if (new == NULL) {
 			btree_node_delete(clone);
 			BTREE_NODE_DEREF(clone);
