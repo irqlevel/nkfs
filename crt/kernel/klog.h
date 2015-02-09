@@ -58,3 +58,40 @@ void klog_release(void);
 
 #endif
 
+#define KLOG_SHA256_SUM(level, sum)		\
+	if ((level) >= KLOG_LEVEL) {		\
+		char *hsum;			\
+		hsum = sha256_sum_hex(sum);	\
+		KLOG((level), "sum %s", hsum);	\
+		if (hsum)			\
+			crt_free(hsum);		\
+	}
+
+#define KLOG_BTREE_KEY(level, key)						\
+	if ((level) >= KLOG_LEVEL) {						\
+		char *hex;							\
+		hex = bytes_hex((void *)(key), sizeof(struct btree_key));	\
+		KLOG((level), "key %s", hex);					\
+		if (hex)							\
+			crt_free(hex);						\
+	}
+
+#define KLOG_BUF_SUM(level, buf, len)				\
+	if ((level) >= KLOG_LEVEL) {				\
+		struct sha256_sum bsum;				\
+		char *hsum;					\
+		char *be = NULL, *en = NULL;			\
+		u32 llen = (len > 8) ? 8 : len;			\
+		sha256(buf, len, &bsum, 0);			\
+		hsum = sha256_sum_hex(&bsum);			\
+		be = bytes_hex(buf, llen);			\
+		en = bytes_hex((char *)buf + len - llen, llen);	\
+		KLOG(KL_DBG3, "b %p len %u sum %s be %s en %s",	\
+			buf, len, hsum, be, en);		\
+		if (hsum)					\
+			crt_free(hsum);				\
+		if (be)						\
+			crt_free(be);				\
+		if (en)						\
+			crt_free(en);				\
+	}

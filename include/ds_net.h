@@ -3,7 +3,7 @@
 #include <include/ds_types.h>
 #include <include/ds_obj_info.h>
 #include <include/ds_const.h>
-#include <crt/include/sha256.h>
+#include <crt/include/csum.h>
 
 enum {
 	DS_NET_PKT_ECHO = 1,
@@ -53,8 +53,8 @@ struct ds_net_pkt {
 			struct ds_obj_id	reply_host_id;
 		} neigh_handshake;
 	} u;
-	struct sha256_sum	dsum;
-	struct sha256_sum	sum;	
+	struct csum		dsum;
+	struct csum		sum;	
 	u32			sign2;
 };
 #pragma pack(pop)

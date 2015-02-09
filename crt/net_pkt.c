@@ -1,15 +1,18 @@
 #include <crt/include/crt.h>
 
-void net_pkt_sum(struct ds_net_pkt *pkt, struct sha256_sum *sum)
+void net_pkt_sum(struct ds_net_pkt *pkt, struct csum *sum)
 {
-	sha256(pkt, offsetof(struct ds_net_pkt, sum),
-			sum, 0);
+	struct csum_ctx ctx;
+
+	csum_reset(&ctx);
+	csum_update(&ctx, pkt, offsetof(struct ds_net_pkt, sum));
+	csum_digest(&ctx, sum);
 }
 EXPORT_SYMBOL(net_pkt_sum);
 
 int net_pkt_check(struct ds_net_pkt *pkt)
 {
-	struct sha256_sum sum;
+	struct csum sum;
 	if (pkt->dsize && pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
 		CLOG(CL_ERR, "invalid pkt dsize %llu", pkt->dsize);
 		return -EINVAL;
@@ -57,7 +60,7 @@ struct ds_net_pkt *net_pkt_alloc(void)
 }
 EXPORT_SYMBOL(net_pkt_alloc);
 
-int net_pkt_check_dsum(struct ds_net_pkt *pkt, struct sha256_sum *dsum)
+int net_pkt_check_dsum(struct ds_net_pkt *pkt, struct csum *dsum)
 {
 	if (0 != crt_memcmp(&pkt->dsum, dsum, sizeof(*dsum))) {
 		CLOG(CL_ERR, "invalid pkt dsum");

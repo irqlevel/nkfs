@@ -95,7 +95,7 @@ void dio_dev_deref(struct dio_dev *dev);
 
 void dio_clu_set_dirty(struct dio_cluster *cluster);
 
-void dio_clu_sum(struct dio_cluster *cluster, struct sha256_sum *sum);
+void dio_clu_sum(struct dio_cluster *cluster, struct csum *sum);
 
 struct dio_dev *dio_dev_create(struct block_device *bdev,
 	int clu_size, int nr_max_clus);

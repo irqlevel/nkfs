@@ -1,7 +1,7 @@
 #pragma once
 
-#include <crt/include/sha256.h>
 #include <crt/include/obj_id.h>
+#include <crt/include/csum.h>
 
 /*
  * Ds image on disk structure:
@@ -75,8 +75,8 @@ struct btree_header_page {
 	__be32			sig1;
 	__be32			leaf;
 	__be32			nr_keys;
-	char			pad[4048];
-	struct sha256_sum	sum;
+	char			pad[4072];
+	struct csum		sum;
 	__be32			sig2;
 };
 
@@ -105,7 +105,7 @@ struct ds_inode_disk {
 	__be64			size; /* size of data in bytes */
 	__be64			blocks_tree_block; /* data blocks tree */
 	__be64			blocks_sum_tree_block; /* sha256 data sums */
-	struct sha256_sum	sum; /* sha256 sum of [sig1 ...pad] */
+	struct csum		sum; /* sha256 sum of [sig1 ...pad] */
 	__be32			sig2; /* = DS_INODE_SIG2 */
 };
 
@@ -119,7 +119,7 @@ struct ds_image_header {
 	__be64			inodes_tree_block; /* inodes tree */
 	__be64			used_blocks; /*number of allocated blocks */
 	__be32			bsize; /* block size in bytes=DS_BLOCK_SIZE */
-	struct sha256_sum	sum; /* sha256 sum of [sig1 ... bsize ] */
+	struct csum		sum; /* sum of [sig1 ... bsize ] */
 	__be32			sig; /* = DS_IMAGE_SIG */ 
 };
 

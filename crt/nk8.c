@@ -600,7 +600,8 @@ cleanup:
 
 static int nk8_test(u32 block_size, int n, int k)
 {
-	struct sha256_sum in_sum, out_sum;
+	struct csum in_sum, out_sum;
+	struct csum_ctx ctx;
 	u8 *block = NULL;
 	u8 *result = NULL;
 	int err;
@@ -650,7 +651,10 @@ static int nk8_test(u32 block_size, int n, int k)
 		goto cleanup;
 	}	
 
-	sha256(block, block_size, &in_sum, 0);
+	csum_reset(&ctx);
+	csum_update(&ctx, block, block_size);
+	csum_digest(&ctx, &in_sum);
+
 	err = nk8_split_block(block, block_size, n, k, &parts, &ids);
 	if (err) {
 		CLOG(CL_ERR, "cant split block err %d", err);
@@ -685,7 +689,10 @@ static int nk8_test(u32 block_size, int n, int k)
 		goto cleanup;
 	}
 
-	sha256(result, block_size, &out_sum, 0);
+	csum_reset(&ctx);
+	csum_update(&ctx, result, block_size);
+	csum_digest(&ctx, &out_sum);
+
 	if (0 != crt_memcmp(&in_sum, &out_sum, sizeof(out_sum))) {
 		CLOG(CL_ERR, "blocks diff found");
 		CLOG_BUF_SUM(block, block_size);

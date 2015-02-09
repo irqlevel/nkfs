@@ -231,16 +231,18 @@ static int ds_sb_gen_header(struct ds_sb *sb,
 }
 
 static void ds_image_header_sum(struct ds_image_header *header,
-	struct sha256_sum *sum)
+	struct csum *sum)
 {
-	sha256(header,
-		offsetof(struct ds_image_header, sum), sum, 0); 
+	struct csum_ctx ctx;
+	csum_reset(&ctx);
+	csum_update(&ctx, header, offsetof(struct ds_image_header, sum));
+       	csum_digest(&ctx, sum);
 }
 
 static int ds_sb_parse_header(struct ds_sb *sb,
 	struct ds_image_header *header)
 {
-	struct sha256_sum sum;
+	struct csum sum;
 
 	if (be32_to_cpu(header->sig) != DS_IMAGE_SIG) {
 		KLOG(KL_ERR, "invalid header sig");
@@ -248,7 +250,6 @@ static int ds_sb_parse_header(struct ds_sb *sb,
 	}
 
 	ds_image_header_sum(header, &sum);
-
 	if (0 != memcmp(&header->sum, &sum, sizeof(sum))) {
 		KLOG(KL_ERR, "invalid header sum");
 		return -EINVAL;
@@ -272,7 +273,6 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	struct ds_image_header *header)
 {
 	memset(header, 0, sizeof(*header));
-
 	header->magic = cpu_to_be32(sb->magic);
 	header->version = cpu_to_be32(sb->version);
 	header->used_blocks = cpu_to_be64(atomic64_read(&sb->used_blocks));

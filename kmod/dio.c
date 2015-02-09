@@ -22,19 +22,17 @@ static void dio_pages_zero(struct dio_pages *pages)
 	memset(pages, 0, sizeof(*pages));
 }
 
-static void dio_pages_sum(struct dio_pages *pages, struct sha256_sum *sum)
+static void dio_pages_sum(struct dio_pages *pages, struct csum *sum)
 {
-	struct sha256_context ctx;
-	u32 i;
+	struct csum_ctx ctx;
+	int i;
 
-	sha256_init(&ctx);
-	sha256_starts(&ctx, 0);
+	csum_reset(&ctx);
 
 	for (i = 0; i < pages->nr_pages; i++)
-		sha256_update(&ctx, page_address(pages->pages[i]), PAGE_SIZE);
+		csum_update(&ctx, page_address(pages->pages[i]), PAGE_SIZE);
 
-	sha256_finish(&ctx, sum);
-	sha256_free(&ctx);
+	csum_digest(&ctx, sum);
 }
 
 static void
@@ -878,7 +876,7 @@ static void dio_clu_age(struct dio_cluster *cluster)
 	up_read(&cluster->dev->age_rw_lock);
 }
 
-void dio_clu_sum(struct dio_cluster *cluster, struct sha256_sum *sum)
+void dio_clu_sum(struct dio_cluster *cluster, struct csum *sum)
 {
 	dio_pages_sum(&cluster->pages, sum);
 }

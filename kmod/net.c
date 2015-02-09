@@ -134,7 +134,7 @@ int ds_con_recv_pkt(struct ds_con *con,
 static int ds_con_recv_pages(struct ds_con *con,
 	struct ds_net_pkt *pkt, struct ds_pages *ppages)
 {
-	struct sha256_sum dsum;
+	struct csum dsum;
 	struct ds_pages pages;
 	int err;
 	u32 read, llen;
@@ -226,7 +226,7 @@ static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 {
 	int err;
 	struct ds_pages pages;
-	struct sha256_sum dsum;
+	struct csum dsum;
 	u32 read;
 
 	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {

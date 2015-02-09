@@ -133,7 +133,7 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
 		u64 off, void *data, u32 data_size)
 {
 	struct ds_net_pkt cmd, reply;
-	struct sha256_sum sum;
+	struct csum_ctx ctx;
 	int err;
 
 	net_pkt_zero(&cmd);
@@ -142,8 +142,9 @@ int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
 	cmd.type = DS_NET_PKT_PUT_OBJ;
 	ds_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
 	
-	sha256(data, data_size, &sum, 0);
-	memcpy(&cmd.dsum, &sum, sizeof(sum));
+	csum_reset(&ctx);
+	csum_update(&ctx, data, data_size);
+	csum_digest(&ctx, &cmd.dsum);
 
 	net_pkt_sign(&cmd);
 
@@ -182,7 +183,7 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
 		u64 off, void *data, u32 data_size, u32 *pread)
 {
 	struct ds_net_pkt cmd, reply;
-	struct sha256_sum dsum;
+	struct csum dsum;
 	int err;
 
 	net_pkt_zero(&cmd);
@@ -217,13 +218,16 @@ int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
 	}
 
 	if (reply.dsize) {
+		struct csum_ctx ctx;
 		err = con_recv(con, data, reply.dsize);
 		if (err) {
 			CLOG(CL_ERR, "obj get err %d", err);
 			goto out;
 		}
 
-		sha256(data, reply.dsize, &dsum, 0);
+		csum_reset(&ctx);
+		csum_update(&ctx, data, reply.dsize);
+		csum_digest(&ctx, &dsum);
 		if ((err = net_pkt_check_dsum(&reply, &dsum))) {
 			CLOG(CL_ERR, "obj inv dsum %d", err);
 			goto out;

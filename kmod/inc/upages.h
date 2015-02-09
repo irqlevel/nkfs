@@ -21,5 +21,5 @@ void ds_pages_region(unsigned long buf, u32 len,
 	unsigned long *ppg_addr, u32 *ppg_off, u32 *pnr_pages);
 
 int ds_pages_create(u32 len, struct ds_pages *ppages);
-int ds_pages_dsum(struct ds_pages *pages, struct sha256_sum *dsum, u32 len);
+int ds_pages_dsum(struct ds_pages *pages, struct csum *dsum, u32 len);
 void ds_pages_release(struct ds_pages *pages);

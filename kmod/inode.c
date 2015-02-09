@@ -141,10 +141,13 @@ static struct ds_inode *ds_inodes_insert(struct ds_sb *sb,
 }
 
 static void ds_inode_on_disk_sum(struct ds_inode_disk *on_disk,
-		struct sha256_sum *sum)
+		struct csum *sum)
 {
-	sha256(on_disk,
-		offsetof(struct ds_inode_disk, sum), sum, 0); 
+	struct csum_ctx ctx;
+
+	csum_reset(&ctx);
+	csum_update(&ctx, on_disk, offsetof(struct ds_inode_disk, sum));
+	csum_digest(&ctx, sum);
 }
 
 static void ds_inode_set_size(struct ds_inode *inode,
@@ -172,7 +175,7 @@ static void ds_inode_to_on_disk(struct ds_inode *inode,
 static int ds_inode_parse_on_disk(struct ds_inode *inode,
 	struct ds_inode_disk *on_disk)
 {
-	struct sha256_sum sum;
+	struct csum sum;
 	if (be32_to_cpu(on_disk->sig1) != DS_INODE_SIG1 ||
 		be32_to_cpu(on_disk->sig2) != DS_INODE_SIG2) {
 		KLOG(KL_ERR, "invalid inode %llu sig",
@@ -439,7 +442,7 @@ ifree:
 static void ds_inode_block_to_sum_block(u64 block, u32 bsize,
 		u64 *pblock, u32 *poff)
 {
-	u64 nbytes = block*sizeof(struct sha256_sum);
+	u64 nbytes = block*sizeof(struct csum);
 	*pblock = ds_div(nbytes, bsize);
 	*poff = ds_mod(nbytes, bsize);
 }
@@ -483,7 +486,7 @@ static int ds_inode_block_write(struct ds_inode *inode,
 	BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu,
-		(struct sha256_sum *)dio_clu_map(ib->sum_clu, ib->sum_off));
+		(struct csum *)dio_clu_map(ib->sum_clu, ib->sum_off));
 
 	dio_clu_set_dirty(ib->clu);
 	dio_clu_set_dirty(ib->sum_clu);
@@ -595,7 +598,7 @@ static int
 ds_inode_block_check_sum(struct ds_inode *inode,
 	struct inode_block *ib)
 {
-	struct sha256_sum sum;
+	struct csum sum;
 	BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu, &sum);

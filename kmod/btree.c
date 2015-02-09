@@ -385,7 +385,7 @@ static void btree_node_to_ondisk(struct btree_node *node,
 	}
 }
 
-static struct sha256_sum *btree_node_map_sum(struct btree_node *node)
+static struct csum *btree_node_map_sum(struct btree_node *node)
 {
 	struct btree_header_page *header;
 	header = page_address(node->header);
@@ -393,9 +393,9 @@ static struct sha256_sum *btree_node_map_sum(struct btree_node *node)
 }
 
 static void btree_node_calc_sum(struct btree_node *node,
-	struct sha256_sum *sum)
+	struct csum *sum, int write)
 {
-	struct sha256_context ctx;
+	struct csum_ctx ctx;
 	struct btree_header_page *header;
 	int i;
 
@@ -403,40 +403,41 @@ static void btree_node_calc_sum(struct btree_node *node,
 	KLOG(KL_DBG3, "node %llu leaf %d nr_keys %d sig1 %x sig2 %x",
 		node->block, header->leaf, header->nr_keys,
 		header->sig1, header->sig2);
+	
+	csum_reset(&ctx);
 
-	sha256_init(&ctx);
-	sha256_starts(&ctx, 0);
-
-	KLOG_BUF_SUM(page_address(node->header),
+	KLOG_BUF_SUM(KL_DBG3, page_address(node->header),
 		offsetof(struct btree_header_page, sum));
 
-	sha256_update(&ctx, page_address(node->header),
+	csum_update(&ctx, page_address(node->header),
 		offsetof(struct btree_header_page, sum));
 
 	for (i = 0; i < ARRAY_SIZE(node->keys); i++) {
-		sha256_update(&ctx, page_address(node->keys[i]), PAGE_SIZE);
-		KLOG_BUF_SUM(page_address(node->keys[i]), PAGE_SIZE);
+		csum_update(&ctx, page_address(node->keys[i]), PAGE_SIZE);
+		KLOG_BUF_SUM(KL_DBG3, page_address(node->keys[i]), PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->childs); i++) {
-		sha256_update(&ctx, page_address(node->childs[i]), PAGE_SIZE);
-		KLOG_BUF_SUM(page_address(node->childs[i]), PAGE_SIZE);
+		csum_update(&ctx, page_address(node->childs[i]), PAGE_SIZE);
+		KLOG_BUF_SUM(KL_DBG3, page_address(node->childs[i]), PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->values); i++) {
-		sha256_update(&ctx, page_address(node->values[i]), PAGE_SIZE);
-		KLOG_BUF_SUM(page_address(node->values[i]), PAGE_SIZE);
+		csum_update(&ctx, page_address(node->values[i]), PAGE_SIZE);
+		KLOG_BUF_SUM(KL_DBG3, page_address(node->values[i]), PAGE_SIZE);
 	}
 
-	sha256_finish(&ctx, sum);
-	sha256_free(&ctx);
+	csum_digest(&ctx, sum);
+	KLOG(KL_DBG3, "node block %llu sum %llx write %d nr_keys %d leaf %d",
+			node->block, csum_u64(sum), write,
+			node->nr_keys, node->leaf);
 }
 
 static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 {
 	struct btree_node *node, *inserted;
 	struct dio_cluster *clu;
-	struct sha256_sum sum;
+	struct csum sum;
 	struct btree_header_page *header;
 
 	BUG_ON(sizeof(struct btree_node_disk) > tree->sb->bsize);
@@ -475,12 +476,11 @@ static struct btree_node *btree_node_read(struct btree *tree, u64 block)
 		goto put_clu;
 	}
 
-	btree_node_calc_sum(node, &sum);
+	btree_node_calc_sum(node, &sum, 0);
 	if (0 != memcmp(&sum, btree_node_map_sum(node), sizeof(sum))) {
-		KLOG(KL_ERR, "invalid sha256 sum of node %p block %llu",
-			node, node->block);
-		KLOG_SHA256_SUM(&sum);
-		KLOG_SHA256_SUM(btree_node_map_sum(node));
+		KLOG(KL_ERR, "node %p block %llu csum %llx vs. sum %llx",
+			node, node->block, csum_u64(&sum),
+			csum_u64(btree_node_map_sum(node)));
 		goto put_clu;
 	}
 
@@ -529,13 +529,12 @@ static int btree_node_write(struct btree_node *node)
 	header->leaf = node->leaf;
 	header->nr_keys = node->nr_keys;
 
-	btree_node_calc_sum(node, btree_node_map_sum(node));
+	btree_node_calc_sum(node, btree_node_map_sum(node), 1);
 	KLOG(KL_DBG3, "node block %llu nr_keys %d", node->block, node->nr_keys);
-	KLOG_SHA256_SUM(btree_node_map_sum(node));
 	btree_node_to_ondisk(node, clu);
 
-	KLOG_BTREE_KEY(dio_clu_map(clu, PAGE_SIZE));
-	KLOG_BTREE_KEY(page_address(node->keys[0]));
+	KLOG_BTREE_KEY(KL_DBG3, dio_clu_map(clu, PAGE_SIZE));
+	KLOG_BTREE_KEY(KL_DBG3, page_address(node->keys[0]));
 
 	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
@@ -1064,7 +1063,7 @@ int btree_insert_key(struct btree *tree, struct btree_key *key,
 		return -EAGAIN;
 	}
 
-	KLOG_BTREE_KEY(key);
+	KLOG_BTREE_KEY(KL_DBG3, key);
 	if (btree_node_is_full(tree->root)) {
 		struct btree_node *new, *new2, *root = tree->root, *clone;
 

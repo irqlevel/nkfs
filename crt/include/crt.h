@@ -32,6 +32,8 @@ void crt_file_close(void *file);
 #include <crt/include/net_pkt.h>
 #include <crt/include/random.h>
 #include <crt/include/nk8.h>
+#include <crt/include/xxhash.h>
+#include <crt/include/csum.h>
 
 #ifdef __KERNEL__
 #include <crt/kernel/crt.h>
