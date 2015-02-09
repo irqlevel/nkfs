@@ -329,27 +329,27 @@ static void btree_node_by_ondisk(struct btree_node *node,
 	btree_node_header_page_by_ondisk(
 		page_address(node->header),
 		(struct btree_header_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->header));
+			(unsigned long)&((struct btree_node_disk *)0)->header));
 
 	for (i = 0; i < ARRAY_SIZE(node->keys); i++) {
 		btree_node_key_page_copy(
 		(struct btree_key_page *)page_address(node->keys[i]),
 		(struct btree_key_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->keys[i]));
+			(unsigned long)&((struct btree_node_disk *)0)->keys[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->childs); i++) {
 		btree_node_child_page_by_ondisk(
 		(struct btree_child_page *)page_address(node->childs[i]),
 		(struct btree_child_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->childs[i]));
+			(unsigned long)&((struct btree_node_disk *)0)->childs[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->values); i++) {
 		btree_node_value_page_by_ondisk(
 		(struct btree_value_page *)page_address(node->values[i]),
 		(struct btree_value_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->values[i]));
+			(unsigned long)&((struct btree_node_disk *)0)->values[i]));
 	}
 }
 
@@ -360,27 +360,27 @@ static void btree_node_to_ondisk(struct btree_node *node,
 
 	btree_node_header_page_to_ondisk(
 		(struct btree_header_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->header),
+			(unsigned long)&((struct btree_node_disk *)0)->header),
 		(struct btree_header_page *)page_address(node->header));
 
 	for (i = 0; i < ARRAY_SIZE(node->keys); i++) {
 		btree_node_key_page_copy(
 		(struct btree_key_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->keys[i]),
+			(unsigned long)&((struct btree_node_disk *)0)->keys[i]),
 		(struct btree_key_page *)page_address(node->keys[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->childs); i++) {
 		btree_node_child_page_to_ondisk(
 		(struct btree_child_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->childs[i]),
+			(unsigned long)&((struct btree_node_disk *)0)->childs[i]),
 		(struct btree_child_page *)page_address(node->childs[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(node->values); i++) {
 		btree_node_value_page_to_ondisk(
 		(struct btree_value_page *)dio_clu_map(clu,
-			(u32)&((struct btree_node_disk *)0)->values[i]),
+			(unsigned long)&((struct btree_node_disk *)0)->values[i]),
 		(struct btree_value_page *)page_address(node->values[i]));
 	}
 }

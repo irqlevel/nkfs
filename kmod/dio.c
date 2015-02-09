@@ -39,11 +39,11 @@ static void dio_pages_sum(struct dio_pages *pages, struct sha256_sum *sum)
 
 static void
 dio_pages_io(struct dio_pages *pages, void *buf,
-		u32 off, u32 len, int write)
+		unsigned long off, unsigned long len, int write)
 {
-	u32 read = 0, step;
-	u32 pg_off;
-	u32 pg_idx;
+	unsigned long read = 0, step;
+	unsigned long pg_off;
+	unsigned long pg_idx;
 
 	BUG_ON((off + len) > (pages->nr_pages*PAGE_SIZE));
 
@@ -155,7 +155,8 @@ static void dio_clu_unpin(struct dio_cluster *cluster)
 }
 
 static void dio_dev_init(struct dio_dev *dev,
-	struct block_device *bdev, u32 clu_size, u32 nr_max_clus)
+	struct block_device *bdev, unsigned long clu_size,
+	unsigned long nr_max_clus)
 {
 	memset(dev, 0, sizeof(*dev));
 	atomic_set(&dev->ref, 1);
@@ -679,7 +680,7 @@ void dio_clu_read_unlock(struct dio_cluster *cluster)
 }
 
 int dio_clu_read(struct dio_cluster *cluster,
-	void *buf, u32 len, u32 off)
+	void *buf, unsigned long len, unsigned long off)
 {
 	int err;
 
@@ -720,10 +721,10 @@ struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index)
 	return clu;
 }
 
-char *dio_clu_map(struct dio_cluster *cluster, u32 off)
+char *dio_clu_map(struct dio_cluster *cluster, unsigned long off)
 {
-	u32 pg_idx;
-	u32 pg_off;
+	unsigned long pg_idx;
+	unsigned long pg_off;
 
 	BUG_ON(off > cluster->clu_size);
 	pg_idx = off >> PAGE_SHIFT;
@@ -733,7 +734,7 @@ char *dio_clu_map(struct dio_cluster *cluster, u32 off)
 }
 
 int dio_clu_write(struct dio_cluster *cluster,
-	void *buf, u32 len, u32 off)
+	void *buf, unsigned long len, unsigned long off)
 {
 	int err;
 
