@@ -121,11 +121,17 @@ static int __init ds_init(void)
 		KLOG(KL_ERR, "btree_init err %d", err);
 		goto out_misc_release;
 	}
+	
+	err = ext_tree_init();
+	if (err) {
+		KLOG(KL_ERR, "ext_tree_init err %d", err);
+		goto out_btree_release;
+	}
 
 	err = ds_inode_init();
 	if (err) {
 		KLOG(KL_ERR, "inode_init err %d", err);
-		goto out_btree_release;
+		goto out_ext_tree_release;
 	}
 
 	err = ds_sb_init();
@@ -164,6 +170,8 @@ out_sb_release:
 	ds_sb_finit();
 out_inode_release:
 	ds_inode_finit();
+out_ext_tree_release:
+	ext_tree_finit();
 out_btree_release:
 	btree_finit();
 out_misc_release:
@@ -183,6 +191,7 @@ static void __exit ds_exit(void)
 	ds_server_finit();
 	ds_dev_finit();
 	ds_sb_finit();
+	ext_tree_finit();
 	btree_finit();
 	ds_inode_finit();
 	dio_finit();

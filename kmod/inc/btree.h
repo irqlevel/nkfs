@@ -60,6 +60,12 @@ int btree_delete_key(struct btree *tree,
 
 void btree_stop(struct btree *tree);
 
+void btree_read_lock(struct btree *tree);
+void btree_read_unlock(struct btree *tree);
+
+void btree_write_lock(struct btree *tree);
+void btree_write_unlock(struct btree *tree);
+
 typedef void (*btree_key_erase_clb_t)(struct btree_key *key, struct btree_value *value,
 	void *ctx);
 
@@ -83,3 +89,18 @@ int btree_test(int num_keys);
 
 int btree_init(void);
 void btree_finit(void);
+
+struct btree_node *
+btree_node_find_left_most(struct btree_node *node, int *pindex);
+
+#define BTREE_NODE_REF(n)						\
+{									\
+	btree_node_ref((n));						\
+	KLOG(KL_DBG3, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
+}
+
+#define BTREE_NODE_DEREF(n)						\
+{									\
+	KLOG(KL_DBG3, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
+	btree_node_deref((n));						\
+}

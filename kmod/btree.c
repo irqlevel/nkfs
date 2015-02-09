@@ -166,18 +166,6 @@ static void btree_node_ref(struct btree_node *node)
 	atomic_inc(&node->ref);
 }
 
-#define BTREE_NODE_REF(n)						\
-{									\
-	btree_node_ref((n));						\
-	KLOG(KL_DBG3, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
-}
-
-#define BTREE_NODE_DEREF(n)						\
-{									\
-	KLOG(KL_DBG3, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
-	btree_node_deref((n));						\
-}
-
 static void btree_node_deref(struct btree_node *node)
 {
 	BUG_ON(atomic_read(&node->ref) <= 0);
@@ -1235,7 +1223,7 @@ static struct btree_node *
 btree_node_child_balance(struct btree_node *node,
 	int child_index);
 
-static struct btree_node *
+struct btree_node *
 btree_node_find_left_most(struct btree_node *node, int *pindex)
 {
 	struct btree_node *curr, *next;
@@ -1806,6 +1794,26 @@ int btree_check(struct btree *tree)
 		rc = -EAGAIN;
 	up_read(&tree->rw_lock);
 	return rc;
+}
+
+void btree_read_lock(struct btree *tree)
+{
+	down_read(&tree->rw_lock);
+}
+
+void btree_read_unlock(struct btree *tree)
+{
+	up_read(&tree->rw_lock);
+}
+
+void btree_write_lock(struct btree *tree)
+{
+	down_write(&tree->rw_lock);
+}
+
+void btree_write_unlock(struct btree *tree)
+{
+	up_write(&tree->rw_lock);
 }
 
 int btree_init(void)

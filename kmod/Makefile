@@ -4,7 +4,7 @@ obj-m = ds.o
 
 ccflags-y := -I$(src) -D __KERNEL__ $(COMMON_CFLAGS)
 
-ds-y := module.o dev.o net.o			\
+ds-y := ext_tree.o module.o dev.o net.o		\
 	super.o balloc.o inode.o btree.o	\
 	upages.o ksocket.o route.o dio.o	\
 
