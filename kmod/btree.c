@@ -36,7 +36,7 @@ static void __btree_node_free(struct btree_node *node)
 	kmem_cache_free(btree_node_cachep, node);
 }
 
-static struct btree_key *btree_node_key(struct btree_node *node, int index)
+struct btree_key *btree_node_key(struct btree_node *node, int index)
 {
 	int pg_idx;
 	int pg_off;
@@ -68,7 +68,7 @@ static struct btree_child *btree_node_child(struct btree_node *node, int index)
 		+ pg_off);
 }
 
-static struct btree_value *btree_node_value(struct btree_node *node, int index)
+struct btree_value *btree_node_value(struct btree_node *node, int index)
 {
 	int pg_idx;
 	int pg_off;
@@ -160,13 +160,13 @@ static void __btree_node_release(struct btree_node *node)
 	__btree_node_free(node);
 }
 
-static void btree_node_ref(struct btree_node *node)
+void btree_node_ref(struct btree_node *node)
 {
 	BUG_ON(atomic_read(&node->ref) <= 0);
 	atomic_inc(&node->ref);
 }
 
-static void btree_node_deref(struct btree_node *node)
+void btree_node_deref(struct btree_node *node)
 {
 	BUG_ON(atomic_read(&node->ref) <= 0);
 	if (atomic_dec_and_test(&node->ref))
@@ -507,7 +507,7 @@ free_node:
 	return NULL;	
 }
 
-static int btree_node_write(struct btree_node *node)
+int btree_node_write(struct btree_node *node)
 {
 	struct dio_cluster *clu;
 	struct btree_header_page *header;
@@ -571,6 +571,18 @@ u64 btree_key_to_u64(struct btree_key *key)
 	u64 val;
 	memcpy(&val, key, sizeof(val));
 	return val;
+}
+
+void btree_value_by_u64(u64 val, struct btree_value *value)
+{
+	BUG_ON(sizeof(val) > sizeof(value));
+	memset(value, 0, sizeof(*value));
+	value->val = val;
+}
+
+u64 btree_value_to_u64(struct btree_value *value)
+{
+	return value->val;
 }
 
 static struct btree_node *btree_node_create(struct btree *tree)
@@ -1117,7 +1129,8 @@ out:
 	return rc;
 }
 
-static struct btree_node *btree_node_find_key(struct btree_node *first,
+static
+struct btree_node *btree_node_find_key(struct btree_node *first,
 		struct btree_key *key, int *pindex)
 {
 	int i;
@@ -1223,7 +1236,7 @@ static struct btree_node *
 btree_node_child_balance(struct btree_node *node,
 	int child_index);
 
-struct btree_node *
+static struct btree_node *
 btree_node_find_left_most(struct btree_node *node, int *pindex)
 {
 	struct btree_node *curr, *next;
@@ -1463,7 +1476,7 @@ btree_node_child_balance(struct btree_node *node,
 	return child;
 }
 
-static int btree_node_delete_key(struct btree_node *first,
+int btree_node_delete_key(struct btree_node *first,
 		struct btree_key *key)
 {
 	struct btree_key key_copy;
@@ -1621,6 +1634,40 @@ static void btree_log_node(struct btree_node *first, u32 height, int llevel)
 			}
 		}
 	}
+}
+
+static int btree_enum_node(struct btree_node *first, btree_enum_clb_t clb,
+		void *ctx)
+{
+	struct btree_node *child;
+	struct btree_node *node = first;
+	int i;
+	int rc;
+
+	if (node->nr_keys) {
+		for (i = 0; i < node->nr_keys; i++) {
+			if (clb(ctx, node, i))
+				return 1;
+		}
+
+		if (!node->leaf) {
+			for (i = 0; i < node->nr_keys + 1; i++) {
+				child = btree_node_read(node->tree,
+					btree_node_get_child_val(node, i));
+				BUG_ON(!child);
+				rc = btree_enum_node(child, clb, ctx);
+				BTREE_NODE_DEREF(child);
+				if (rc)
+					return rc;
+			}
+		}
+	}
+	return 0;
+}
+
+int btree_enum_tree(struct btree *tree, btree_enum_clb_t clb, void *ctx)
+{
+	return btree_enum_node(tree->root, clb, ctx);
 }
 
 static void btree_node_stats(struct btree_node *node,

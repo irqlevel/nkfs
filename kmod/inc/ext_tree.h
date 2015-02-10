@@ -2,7 +2,7 @@
 
 struct ext {
 	u64	start;
-	u64	len;
+	u64	size;
 };
 
 struct ext_tree {

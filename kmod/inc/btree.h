@@ -73,11 +73,23 @@ void btree_erase(struct btree *tree,
 	btree_key_erase_clb_t key_erase_clb,
 	void *ctx);
 
+void btree_value_by_u64(u64 val, struct btree_value *value);
+u64 btree_value_to_u64(struct btree_value *value);
+
 void btree_key_by_u64(u64 val, struct btree_key *key);
 u64 btree_key_to_u64(struct btree_key *key);
 
 char *btree_key_hex(struct btree_key *key);
 char *btree_value_hex(struct btree_value *value);
+
+typedef int (*btree_enum_clb_t)(void *ctx, struct btree_node *node, int index);
+int btree_enum_tree(struct btree *tree, btree_enum_clb_t clb, void *ctx);
+
+int btree_node_delete_key(struct btree_node *first,
+		struct btree_key *key);
+
+struct btree_key *btree_node_key(struct btree_node *node, int index);
+struct btree_value *btree_node_value(struct btree_node *node, int index);
 
 void btree_log(struct btree *tree, int llevel);
 
@@ -90,8 +102,10 @@ int btree_test(int num_keys);
 int btree_init(void);
 void btree_finit(void);
 
-struct btree_node *
-btree_node_find_left_most(struct btree_node *node, int *pindex);
+int btree_node_write(struct btree_node *node);
+
+void btree_node_ref(struct btree_node *node);
+void btree_node_deref(struct btree_node *node);
 
 #define BTREE_NODE_REF(n)						\
 {									\
