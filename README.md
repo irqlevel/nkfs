@@ -1,4 +1,4 @@
-### Distributed decentralized fault-tolerant data storage system.
+### Distributed decentralized fault-tolerant file system.
 
 #### Build status:
 [![build status](https://travis-ci.org/irqlevel/ds.svg?branch=master)](https://travis-ci.org/irqlevel/ds)
@@ -8,24 +8,24 @@
 "small world" network.
 2. Decentralized - no one computer node is a center and no one computer node
 holds meta information about all system. Each computer node holds only a parts
-of meta and data of storage system.
-3. Data storage API - CREATE/PUT/GET/DELETE.
+of meta and data of file system.
+3. Files API - CREATE/PUT/GET/DELETE.
 4. Flexible replication of meta data and data by so called algorithm "(n, k) schema":
 each data can be converted to an N different parts, and only K (where K < N) different parts is need
 to restore origin data.
 5. Flexible network topology - computer nodes can be added/removed to/from
-storage.
+file system.
 6. Self-healing system. System should resurects in many cases of faults.
 7. Fast data searching by assigned unique id.
 8. Data is stored at pool of linux devices like HDD/SSDs.
-9. Integrity checks to detect data corruptions by SHA256 everywhere.
+9. Integrity checks to detect data corruptions by XXHASH64 everywhere.
 
 #### Implementation:
 Main core written as linux kernel module for perfomance reasons - fastest path
 from network stack to block devices stack bypassing user-space switches.
 For each computer node of system core linux kernel module should be built and launched.
 Core linux kernel module can:
-- lock/control block devices to store parts of meta/data of objects.
+- lock/control block devices to store parts of meta/data of files.
 - connect to other computers nodes
 and receive clients/other computer nodes requests.
 
@@ -53,14 +53,14 @@ $ sudo insmod bin/ds_crt.ko #load runtime helper module
 $ sudo insmod bin/ds.ko #load core kernel module
 
 $ sudo bin/ds_ctl dev_add -d /dev/sdb -f #attach block device /dev/sdb to 
-object storage and format(!!!) it.
+file system and format(!!!) it.
 
 $ sudo bin/ds_ctl srv_start -s 127.0.0.1 -p 8000 #run network server at 127.0.0.1:8000
 
 $ bin/ds_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put already created file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
 
-$ bin/ds_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file(object)
+$ bin/ds_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file
 obj_id : d963a52161d67bf9d1e7c09ce313b050 
 size : 11
 block : 3
