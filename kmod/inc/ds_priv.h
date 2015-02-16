@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/rbtree.h>
 #include <linux/completion.h>
+#include <linux/version.h>
 #include <net/sock.h>
 #include <asm/ioctls.h>
 

@@ -499,12 +499,12 @@ static void dio_io_end_bio(struct bio *bio, int err)
 	io->err = err;
 	if (err) {
 		KLOG(KL_ERR, "err %d rw %x io %p bio %p sec %llx size %x",
-			err, io->rw, io, io->bio, bio->bi_iter.bi_sector,
-			io->bio->bi_iter.bi_size);
+			err, io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
+			BIO_BI_SIZE(io->bio));
 	} else {
 		KLOG(KL_DBG3, "err %d rw %x io %p bio %p sec %llx size %x",
-			err, io->rw, io, io->bio, bio->bi_iter.bi_sector,
-			io->bio->bi_iter.bi_size);
+			err, io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
+			BIO_BI_SIZE(io->bio));
 	}
 
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
@@ -529,7 +529,7 @@ static struct bio *dio_io_alloc_bio(struct dio_io *io)
 	if (!bio)
 		return NULL;
 
-	bio->bi_iter.bi_sector = io->cluster->index*(io->cluster->clu_size >> 9);
+	BIO_BI_SECTOR(bio) = io->cluster->index*(io->cluster->clu_size >> 9);
 	bio->bi_bdev = io->cluster->dev->bdev;
 
 	for (i = 0; i < io->cluster->pages.nr_pages; i++) {
@@ -539,7 +539,7 @@ static struct bio *dio_io_alloc_bio(struct dio_io *io)
 	}
 
 	bio->bi_vcnt = io->cluster->pages.nr_pages;
-	bio->bi_iter.bi_size = io->cluster->pages.nr_pages*PAGE_SIZE;
+	BIO_BI_SIZE(bio) = io->cluster->pages.nr_pages*PAGE_SIZE;
 
 	bio->bi_end_io = dio_io_end_bio;
 	bio->bi_private = io;
@@ -578,8 +578,8 @@ static void dio_submit(unsigned long rw, struct dio_io *io)
 	io->rw |= rw;
 
 	KLOG(KL_DBG3, "rw %x io %p bio %p sec %llx size %x",
-			io->rw, io, io->bio, io->bio->bi_iter.bi_sector,
-			io->bio->bi_iter.bi_size);
+			io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
+			BIO_BI_SIZE(io->bio));
 	submit_bio(io->rw, io->bio);
 }
 

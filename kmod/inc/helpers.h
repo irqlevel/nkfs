@@ -20,3 +20,14 @@ static inline u32 ds_mod(u64 x, u64 y)
 	return do_div(tmp, y);
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,14,0)
+
+#define BIO_BI_SECTOR(bio)	(bio)->bi_sector
+#define BIO_BI_SIZE(bio)	(bio)->bi_size
+
+#else
+
+#define BIO_BI_SECTOR(bio)	(bio)->bi_iter.bi_sector
+#define BIO_BI_SIZE(bio)	(bio)->bi_iter.bi_size
+
+#endif

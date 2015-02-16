@@ -14,6 +14,10 @@
 
 #include <linux/types.h>
 
+#ifndef U64_MAX
+#define U64_MAX (u64)(~0ULL)
+#endif
+
 #else
 
 #include <stdint.h>
