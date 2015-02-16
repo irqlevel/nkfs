@@ -13,6 +13,7 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <linux/kernel.h>
 
 #ifndef U64_MAX
 #define U64_MAX (u64)(~0ULL)
