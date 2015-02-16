@@ -1,7 +1,7 @@
 ### Distributed decentralized fault-tolerant file system.
 
 #### Build status:
-[![build status](https://travis-ci.org/irqlevel/ds.svg?branch=master)](https://travis-ci.org/irqlevel/ds)
+[![build status](https://travis-ci.org/irqlevel/ddfs.svg?branch=master)](https://travis-ci.org/irqlevel/ddfs)
 
 #### Features:
 1. Distributed - system consists of unlimited number of computer nodes connected in
