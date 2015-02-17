@@ -1,10 +1,10 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 MODULE_LICENSE("GPL");
 
 #define __SUBCOMPONENT__ "mod"
 
-static int ds_mod_get(struct inode *inode, struct file *file)
+static int nkfs_mod_get(struct inode *inode, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE)) {
 		KLOG(KL_ERR, "cant ref module");
@@ -13,13 +13,13 @@ static int ds_mod_get(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ds_mod_put(struct inode *inode, struct file *file)
+static int nkfs_mod_put(struct inode *inode, struct file *file)
 {
 	module_put(THIS_MODULE);
 	return 0;
 }
 
-static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
+static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
 	struct nkfs_ctl *cmd = NULL;	
@@ -37,37 +37,37 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 
 	switch (code) {
 		case IOCTL_NKFS_DEV_ADD:
-			err = ds_dev_add(cmd->u.dev_add.dev_name,
+			err = nkfs_dev_add(cmd->u.dev_add.dev_name,
 					cmd->u.dev_add.format);
 			break;
 		case IOCTL_NKFS_DEV_REMOVE:
-			err = ds_dev_remove(cmd->u.dev_remove.dev_name);
+			err = nkfs_dev_remove(cmd->u.dev_remove.dev_name);
 			break;
 		case IOCTL_NKFS_DEV_QUERY:
-			err = ds_dev_query(cmd->u.dev_query.dev_name,
+			err = nkfs_dev_query(cmd->u.dev_query.dev_name,
 				&cmd->u.dev_query.info);
 			break;
 		case IOCTL_NKFS_SRV_START:
-			err = ds_server_start(cmd->u.server_start.ip,
+			err = nkfs_server_start(cmd->u.server_start.ip,
 				cmd->u.server_start.port);	
 			break;
 		case IOCTL_NKFS_SRV_STOP:
-			err = ds_server_stop(cmd->u.server_stop.ip,
+			err = nkfs_server_stop(cmd->u.server_stop.ip,
 				cmd->u.server_stop.port);
 			break;
 		case IOCTL_NKFS_NEIGH_ADD:
-			err = ds_neigh_add(cmd->u.neigh_add.d_ip,
+			err = nkfs_neigh_add(cmd->u.neigh_add.d_ip,
 				cmd->u.neigh_add.d_port,
 				cmd->u.neigh_add.s_ip,
 				cmd->u.neigh_add.s_port);
 			break;
 		case IOCTL_NKFS_NEIGH_REMOVE:
-			err = ds_neigh_remove(cmd->u.neigh_remove.d_ip,
+			err = nkfs_neigh_remove(cmd->u.neigh_remove.d_ip,
 				cmd->u.neigh_remove.d_port);
 			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);
-			err = DS_E_UNK_IOCTL;
+			err = NKFS_E_UNK_IOCTL;
 			break;
 	}
 	cmd->err = err;
@@ -84,20 +84,20 @@ out:
 	return err;	
 }
 
-static const struct file_operations ds_fops = {
+static const struct file_operations nkfs_fops = {
 	.owner = THIS_MODULE,
-	.open = ds_mod_get,
-	.release = ds_mod_put,
-	.unlocked_ioctl = ds_ioctl,
+	.open = nkfs_mod_get,
+	.release = nkfs_mod_put,
+	.unlocked_ioctl = nkfs_ioctl,
 };
 
-static struct miscdevice ds_misc = {
-	.fops = &ds_fops,
+static struct miscdevice nkfs_misc = {
+	.fops = &nkfs_fops,
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = NKFS_CTL_DEV_NAME,	
 };
 
-static int __init ds_init(void)
+static int __init nkfs_init(void)
 {	
 	int err = -EINVAL;
 	
@@ -109,7 +109,7 @@ static int __init ds_init(void)
 		goto out;
 	}
 
-	err = misc_register(&ds_misc);
+	err = misc_register(&nkfs_misc);
 	if (err) {
 		KLOG(KL_ERR, "misc_register err=%d", err);
 		goto out_dio_release; 
@@ -127,33 +127,33 @@ static int __init ds_init(void)
 		goto out_btree_release;
 	}
 
-	err = ds_inode_init();
+	err = nkfs_inode_init();
 	if (err) {
 		KLOG(KL_ERR, "inode_init err %d", err);
 		goto out_ext_tree_release;
 	}
 
-	err = ds_sb_init();
+	err = nkfs_sb_init();
 	if (err) {
-		KLOG(KL_ERR, "ds_sb_init err %d", err);
+		KLOG(KL_ERR, "nkfs_sb_init err %d", err);
 		goto out_inode_release;
 	}
 
-	err = ds_dev_init();
+	err = nkfs_dev_init();
 	if (err) {
-		KLOG(KL_ERR, "ds_dev_init err %d", err);
+		KLOG(KL_ERR, "nkfs_dev_init err %d", err);
 		goto out_sb_release;
 	}
 
-	err = ds_server_init();
+	err = nkfs_server_init();
 	if (err) {
-		KLOG(KL_ERR, "ds_server_init err %d", err);
+		KLOG(KL_ERR, "nkfs_server_init err %d", err);
 		goto out_dev_release;
 	}
 
-	err = ds_route_init();
+	err = nkfs_route_init();
 	if (err) {
-		KLOG(KL_ERR, "ds_route_init err %d", err);
+		KLOG(KL_ERR, "nkfs_route_init err %d", err);
 		goto out_srv_release;
 	}
 
@@ -162,42 +162,42 @@ static int __init ds_init(void)
 	return 0;
 
 out_srv_release:
-	ds_server_finit();
+	nkfs_server_finit();
 out_dev_release:
-	ds_dev_finit();
+	nkfs_dev_finit();
 out_sb_release:
-	ds_sb_finit();
+	nkfs_sb_finit();
 out_inode_release:
-	ds_inode_finit();
+	nkfs_inode_finit();
 out_ext_tree_release:
 	ext_tree_finit();
 out_btree_release:
 	nkfs_btree_finit();
 out_misc_release:
-	misc_deregister(&ds_misc);
+	misc_deregister(&nkfs_misc);
 out_dio_release:
 	dio_finit();
 out:
 	return err;
 }
 
-static void __exit ds_exit(void)
+static void __exit nkfs_exit(void)
 {
 	KLOG(KL_INF, "exiting");
 
-	misc_deregister(&ds_misc);
-	ds_route_finit();
-	ds_server_finit();
-	ds_dev_finit();
-	ds_sb_finit();
+	misc_deregister(&nkfs_misc);
+	nkfs_route_finit();
+	nkfs_server_finit();
+	nkfs_dev_finit();
+	nkfs_sb_finit();
 	ext_tree_finit();
 	nkfs_btree_finit();
-	ds_inode_finit();
+	nkfs_inode_finit();
 	dio_finit();
 
 	KLOG(KL_INF, "exited");
 }
 
-module_init(ds_init);
-module_exit(ds_exit);
+module_init(nkfs_init);
+module_exit(nkfs_exit);
 

@@ -1,11 +1,11 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "upages"
 
-int ds_get_user_pages(unsigned long uaddr, u32 nr_pages,
-	int write, struct ds_user_pages *pup)
+int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
+	int write, struct nkfs_user_pages *pup)
 {
-	struct ds_user_pages up;
+	struct nkfs_user_pages up;
 	int ret, err;
 
 	if (uaddr & (PAGE_SIZE -1))
@@ -39,11 +39,11 @@ int ds_get_user_pages(unsigned long uaddr, u32 nr_pages,
 	memcpy(pup, &up, sizeof(up));
 	return 0;	
 fail:
-	ds_release_user_pages(&up);
+	nkfs_release_user_pages(&up);
 	return err;
 }
 
-void ds_release_user_pages(struct ds_user_pages *up)
+void nkfs_release_user_pages(struct nkfs_user_pages *up)
 {
 	int i;
 
@@ -62,7 +62,7 @@ void ds_release_user_pages(struct ds_user_pages *up)
 	kfree(up->pages);
 }
 
-void ds_pages_region(unsigned long buf, u32 len,
+void nkfs_pages_region(unsigned long buf, u32 len,
 	unsigned long *ppg_addr, u32 *ppg_off, u32 *pnr_pages)
 {
 	u32 pg_off;
@@ -84,9 +84,9 @@ void ds_pages_region(unsigned long buf, u32 len,
 	*pnr_pages = (u32)pages_delta;
 }
 
-int ds_pages_create(u32 len, struct ds_pages *ppages)
+int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 {
-	struct ds_pages pages;
+	struct nkfs_pages pages;
 	u32 i, j;
 
 	if (len == 0)
@@ -120,7 +120,7 @@ fail:
 	return -ENOMEM;
 }
 
-int ds_pages_dsum(struct ds_pages *pages, struct csum *dsum, u32 len)
+int nkfs_pages_dsum(struct nkfs_pages *pages, struct csum *dsum, u32 len)
 {
 	struct csum_ctx ctx;
 	u32 i, ilen;
@@ -146,7 +146,7 @@ int ds_pages_dsum(struct ds_pages *pages, struct csum *dsum, u32 len)
 	return 0;
 }
 
-void ds_pages_release(struct ds_pages *pages)
+void nkfs_pages_release(struct nkfs_pages *pages)
 {
 	u32 i;
 	for (i = 0; i < pages->nr_pages; i++)

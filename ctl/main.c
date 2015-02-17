@@ -5,7 +5,7 @@
 
 static void prepare_logging()
 {
-	crt_log_set_path(NULL, "ds_ctl.log");
+	crt_log_set_path(NULL, "nkfs_ctl.log");
 	crt_log_set_level(CL_DBG);
 	crt_log_enable_printf(1);
 }

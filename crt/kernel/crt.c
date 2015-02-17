@@ -149,7 +149,7 @@ static int __init crt_init(void)
 {	
 	int err = -EINVAL;
 
-	printk("ds_crt: initing\n");
+	printk("nkfs_crt: initing\n");
 	err = klog_init();
 	if (err)
 		goto out;
@@ -194,7 +194,7 @@ static void __exit crt_exit(void)
 	nk8_release();
 	crt_random_release();
 	klog_release();
-	printk("ds_crt: exited\n");
+	printk("nkfs_crt: exited\n");
 }
 
 module_init(crt_init);

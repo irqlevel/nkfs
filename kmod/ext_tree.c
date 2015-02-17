@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "ext_tree"
 
@@ -39,7 +39,7 @@ void ext_tree_deref(struct ext_tree *tree)
 		ext_tree_release(tree);	
 }
 
-struct ext_tree *ext_tree_create(struct ds_sb *sb, u64 block)
+struct ext_tree *ext_tree_create(struct nkfs_sb *sb, u64 block)
 {
 	struct ext_tree *tree;
 	

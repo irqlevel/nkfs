@@ -18,7 +18,7 @@
 static void prepare_logging()
 {
 	/* 
-	 * set CLOG log path : NULL and log name ds_client.log
+	 * set CLOG log path : NULL and log name nkfs_client.log
 	 * NULL means use current working dir as path
 	*/
 	crt_log_set_path(NULL, "nkfs_client.log");

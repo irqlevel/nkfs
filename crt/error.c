@@ -1,28 +1,28 @@
 #include <crt/include/crt.h>
 
-char *ds_error(int err)
+char *nkfs_error(int err)
 {
 	switch (err) {
-	case DS_E_NO_MEM:
+	case NKFS_E_NO_MEM:
 		return "no memory";
-	case DS_E_UNK_IOCTL:
+	case NKFS_E_UNK_IOCTL:
 		return "unknown ioctl";
-	case DS_E_BUF_SMALL:
+	case NKFS_E_BUF_SMALL:
 		return "buffer too small";
-	case DS_E_OBJ_PUT:
+	case NKFS_E_OBJ_PUT:
 		return "send obj failed";
-	case DS_E_OBJ_CREATE:
+	case NKFS_E_OBJ_CREATE:
 		return "create obj on server failed";
-	case DS_E_OBJ_DELETE:
+	case NKFS_E_OBJ_DELETE:
 		return "delete obj on server failed";
-	case DS_E_CON_INIT_FAILED:
+	case NKFS_E_CON_INIT_FAILED:
 		return "connection initialization failed";
-	case DS_E_OBJ_GET:
+	case NKFS_E_OBJ_GET:
 		return "failed to get object";
-	case DS_E_INVAL:
+	case NKFS_E_INVAL:
 		return "invalid value";
 	default:
 		return "unknown err code";
 	}
 }
-EXPORT_SYMBOL(ds_error);
+EXPORT_SYMBOL(nkfs_error);

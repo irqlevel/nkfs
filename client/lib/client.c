@@ -83,7 +83,7 @@ static int con_init(struct nkfs_con *con)
 	sock = socket(AF_INET,SOCK_STREAM,0);
 	if (sock < 0) {
 		CLOG(CL_ERR, "socket() failed");
-		err =  DS_E_CON_INIT_FAILED;
+		err =  NKFS_E_CON_INIT_FAILED;
 		con_fail(con, err);
 		goto out;
 	} 
@@ -100,7 +100,7 @@ int nkfs_connect(struct nkfs_con *con, char *ip, int port)
 	
 	err = con_init(con);
 	if (err) {
-		CLOG(CL_INF, "err %x - %s", err, ds_error(err));
+		CLOG(CL_INF, "err %x - %s", err, nkfs_error(err));
 		return err;
 	}
 	

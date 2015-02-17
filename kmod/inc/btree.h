@@ -24,7 +24,7 @@ struct nkfs_btree_node {
 
 struct nkfs_btree {
 	struct nkfs_btree_node	*root;
-	struct ds_sb		*sb;
+	struct nkfs_sb		*sb;
 	struct rw_semaphore	rw_lock;
 	rwlock_t		nodes_lock;
 	struct rb_root		nodes;
@@ -41,7 +41,7 @@ struct nkfs_btree_info {
 
 #pragma pack(pop)
 
-struct nkfs_btree *nkfs_btree_create(struct ds_sb *sb, u64 begin);
+struct nkfs_btree *nkfs_btree_create(struct nkfs_sb *sb, u64 begin);
 
 u64 nkfs_btree_root_block(struct nkfs_btree *tree);
 

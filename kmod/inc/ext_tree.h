@@ -8,11 +8,11 @@ struct ext {
 struct ext_tree {
 	atomic_t		ref;
 	struct nkfs_btree	*btree;
-	struct ds_sb		*sb;
+	struct nkfs_sb		*sb;
 	int			releasing;
 };
 
-struct ext_tree *ext_tree_create(struct ds_sb *sb, u64 block);
+struct ext_tree *ext_tree_create(struct nkfs_sb *sb, u64 block);
 
 int ext_tree_ext_alloc(struct ext_tree *tree, u64 len, struct ext *ext);
 void ext_tree_ext_free(struct ext_tree *tree, struct ext *ext);

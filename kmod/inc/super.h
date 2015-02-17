@@ -1,8 +1,8 @@
 #pragma once
 
-struct ds_sb {
+struct nkfs_sb {
 	struct list_head	list;
-	struct ds_dev 		*dev;
+	struct nkfs_dev 		*dev;
 	struct dio_dev		*ddev;
 	struct block_device 	*bdev;	
 	atomic_t		refs;
@@ -30,33 +30,33 @@ _Static_assert(sizeof(struct nkfs_btree_key) >= sizeof(struct nkfs_obj_id),
 _Static_assert(sizeof(struct nkfs_btree_value) >= sizeof(u64),
 	"sizes error");
 
-struct ds_sb_link {
+struct nkfs_sb_link {
 	struct list_head 	list;
-	struct ds_sb		*sb;
+	struct nkfs_sb		*sb;
 };
 
-void ds_sb_stop(struct ds_sb *sb);
+void nkfs_sb_stop(struct nkfs_sb *sb);
 
-void ds_sb_ref(struct ds_sb *sb);
-void ds_sb_deref(struct ds_sb *sb);
-struct ds_sb *ds_sb_lookup(struct nkfs_obj_id *id);
+void nkfs_sb_ref(struct nkfs_sb *sb);
+void nkfs_sb_deref(struct nkfs_sb *sb);
+struct nkfs_sb *nkfs_sb_lookup(struct nkfs_obj_id *id);
 
-int ds_sb_insert(struct ds_sb *sb);
+int nkfs_sb_insert(struct nkfs_sb *sb);
 
-int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb);
-int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb);
+int nkfs_sb_format(struct nkfs_dev *dev, struct nkfs_sb **psb);
+int nkfs_sb_load(struct nkfs_dev *dev, struct nkfs_sb **psb);
 
-int ds_sb_list_create_obj(struct nkfs_obj_id *pobj_id);
+int nkfs_sb_list_create_obj(struct nkfs_obj_id *pobj_id);
 
-int ds_sb_list_get_obj(struct nkfs_obj_id *obj_id, u64 off,
+int nkfs_sb_list_get_obj(struct nkfs_obj_id *obj_id, u64 off,
 	u32 pg_off, u32 len, struct page **pages, int nr_pages, u32 *pread);
 
-int ds_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
+int nkfs_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
 	u32 pg_off, u32 len, struct page **pages, int nr_pages);
 
-int ds_sb_list_delete_obj(struct nkfs_obj_id *obj_id);
+int nkfs_sb_list_delete_obj(struct nkfs_obj_id *obj_id);
 
-int ds_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info);
+int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info);
 
-int ds_sb_init(void);
-void ds_sb_finit(void);
+int nkfs_sb_init(void);
+void nkfs_sb_finit(void);

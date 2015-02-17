@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 static struct kmem_cache *dio_dev_cachep;
 static struct kmem_cache *dio_clu_cachep;

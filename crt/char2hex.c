@@ -57,7 +57,7 @@ static int bytes_buf_hex(char *src, int src_count, char *hex, int hex_count)
 	int i;
 
 	if (hex_count < 2*src_count)
-		return -DS_E_BUF_SMALL;
+		return -NKFS_E_BUF_SMALL;
 
 	for (i = 0; i < src_count; i++) {
 		*hex++ = char_to_hex((*src >> 4) & 0xF);

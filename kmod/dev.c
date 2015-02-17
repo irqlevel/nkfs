@@ -1,38 +1,38 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "dev"
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);
 
-static struct kmem_cache *ds_dev_cachep;
+static struct kmem_cache *nkfs_dev_cachep;
 
-static void ds_dev_free(struct ds_dev *dev)
+static void nkfs_dev_free(struct nkfs_dev *dev)
 {
 	if (dev->sb)
-		ds_sb_deref(dev->sb);
+		nkfs_sb_deref(dev->sb);
 
 	KLOG(KL_DBG, "dev %s %p sb %p",
 		dev->dev_name, dev, dev->sb);
 
-	kmem_cache_free(ds_dev_cachep, dev);
+	kmem_cache_free(nkfs_dev_cachep, dev);
 }
 
-void ds_dev_ref(struct ds_dev *dev)
+void nkfs_dev_ref(struct nkfs_dev *dev)
 {
 	atomic_inc(&dev->ref);
 }
 
-void ds_dev_deref(struct ds_dev *dev)
+void nkfs_dev_deref(struct nkfs_dev *dev)
 {
 	BUG_ON(atomic_read(&dev->ref) <= 0);
 	if (atomic_dec_and_test(&dev->ref))
-		ds_dev_free(dev);
+		nkfs_dev_free(dev);
 }
 
-static int ds_dev_insert(struct ds_dev *cand)
+static int nkfs_dev_insert(struct nkfs_dev *cand)
 {
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 	int err = 0;
 
 	mutex_lock(&dev_list_lock);
@@ -49,7 +49,7 @@ static int ds_dev_insert(struct ds_dev *cand)
 	return err;
 }
 
-static void ds_dev_release(struct ds_dev *dev)
+static void nkfs_dev_release(struct nkfs_dev *dev)
 {
 	KLOG(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
 
@@ -62,22 +62,22 @@ static void ds_dev_release(struct ds_dev *dev)
 		dev->dev_name);
 }
 
-static void ds_dev_unlink(struct ds_dev *dev)
+static void nkfs_dev_unlink(struct nkfs_dev *dev)
 {
 	mutex_lock(&dev_list_lock);
 	list_del(&dev->dev_list);
 	mutex_unlock(&dev_list_lock);
 }
 
-struct ds_dev *ds_dev_lookup(char *dev_name)
+struct nkfs_dev *nkfs_dev_lookup(char *dev_name)
 {
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry(dev, &dev_list, dev_list) {
 		if (0 == strncmp(dev->dev_name, dev_name,
 			strlen(dev_name)+1)) {
-			ds_dev_ref(dev);
+			nkfs_dev_ref(dev);
 			mutex_unlock(&dev_list_lock);
 			return dev;
 		}
@@ -86,12 +86,12 @@ struct ds_dev *ds_dev_lookup(char *dev_name)
 	return NULL;
 }
 
-int ds_dev_query(char *dev_name, struct nkfs_dev_info *info)
+int nkfs_dev_query(char *dev_name, struct nkfs_dev_info *info)
 {
-	struct ds_dev *dev;
-	struct ds_sb *sb;
+	struct nkfs_dev *dev;
+	struct nkfs_sb *sb;
 
-	dev = ds_dev_lookup(dev_name);
+	dev = nkfs_dev_lookup(dev_name);
 	if (!dev)
 		return -ENOENT;
 
@@ -117,13 +117,13 @@ int ds_dev_query(char *dev_name, struct nkfs_dev_info *info)
 		info->minor = MINOR(dev->bdev->bd_dev);
 	}
 
-	ds_dev_deref(dev);
+	nkfs_dev_deref(dev);
 	return 0;	
 }
 
-static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
+static struct nkfs_dev *nkfs_dev_lookup_unlink(char *dev_name)
 {
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry(dev, &dev_list, dev_list) {
@@ -138,9 +138,9 @@ static struct ds_dev *ds_dev_lookup_unlink(char *dev_name)
 	return NULL;
 }
 
-struct ds_dev *ds_dev_create(char *dev_name, int fmode)
+struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 {
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 	int len;
 	int err;
 
@@ -150,7 +150,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 
-	dev = kmem_cache_alloc(ds_dev_cachep, GFP_NOIO);
+	dev = kmem_cache_alloc(nkfs_dev_cachep, GFP_NOIO);
 	if (!dev) {
 		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
@@ -166,7 +166,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	if ((err = IS_ERR(dev->bdev))) {
 		dev->bdev = NULL;
 		KLOG(KL_ERR, "bkdev_get_by_path failed err %d", err);
-		ds_dev_deref(dev);
+		nkfs_dev_deref(dev);
 		return NULL;
 	}
 	dev->fmode = fmode;
@@ -177,32 +177,32 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		KLOG(KL_ERR, "cant create ddev");	
 		blkdev_put(dev->bdev, dev->fmode);
 		dev->bdev = NULL;
-		ds_dev_deref(dev);
+		nkfs_dev_deref(dev);
 		return NULL;
 	}
 
 	return dev;
 }
 
-static int ds_dev_start(struct ds_dev *dev, int format)
+static int nkfs_dev_start(struct nkfs_dev *dev, int format)
 {
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
 	BUG_ON(dev->sb);
 	if (!format)
-		err = ds_sb_load(dev, &sb);
+		err = nkfs_sb_load(dev, &sb);
 	else
-		err = ds_sb_format(dev, &sb);
+		err = nkfs_sb_format(dev, &sb);
 
 	if (err) {
 		KLOG(KL_ERR, "check or format err %d", err);
 		return err;
 	}
 
-	err = ds_sb_insert(sb);
+	err = nkfs_sb_insert(sb);
 	if (err) {
-		ds_sb_deref(sb);
+		nkfs_sb_deref(sb);
 		KLOG(KL_ERR, "sb insert err=%d", err);
 		return err;
 	}
@@ -211,37 +211,37 @@ static int ds_dev_start(struct ds_dev *dev, int format)
 	return 0;
 }
 
-static void ds_dev_stop(struct ds_dev *dev)
+static void nkfs_dev_stop(struct nkfs_dev *dev)
 {
 	dev->stopping = 1;
-	ds_sb_stop(dev->sb);
+	nkfs_sb_stop(dev->sb);
 }
 
-int ds_dev_add(char *dev_name, int format)
+int nkfs_dev_add(char *dev_name, int format)
 {
 	int err;
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 
 	KLOG(KL_DBG, "inserting dev %s", dev_name);
-	dev = ds_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+	dev = nkfs_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	if (!dev) {
 		return -ENOMEM;
 	}
 
-	err = ds_dev_insert(dev);
+	err = nkfs_dev_insert(dev);
 	if (err) {
-		KLOG(KL_ERR, "ds_dev_insert err %d", err);
-		ds_dev_release(dev);
-		ds_dev_deref(dev);
+		KLOG(KL_ERR, "nkfs_dev_insert err %d", err);
+		nkfs_dev_release(dev);
+		nkfs_dev_deref(dev);
 		return err;
 	}
 
-	err = ds_dev_start(dev, format);
+	err = nkfs_dev_start(dev, format);
 	if (err) {
-		KLOG(KL_ERR, "ds_dev_insert err %d", err);
-		ds_dev_unlink(dev);		
-		ds_dev_release(dev);
-		ds_dev_deref(dev);
+		KLOG(KL_ERR, "nkfs_dev_insert err %d", err);
+		nkfs_dev_unlink(dev);		
+		nkfs_dev_release(dev);
+		nkfs_dev_deref(dev);
 		return err;
 	}
 
@@ -250,19 +250,19 @@ int ds_dev_add(char *dev_name, int format)
 	return err;
 }
 
-int ds_dev_remove(char *dev_name)
+int nkfs_dev_remove(char *dev_name)
 {
 	int err;
-	struct ds_dev *dev;
+	struct nkfs_dev *dev;
 
 	KLOG(KL_DBG, "removing dev %s", dev_name);
-	dev = ds_dev_lookup_unlink(dev_name);
+	dev = nkfs_dev_lookup_unlink(dev_name);
 	if (dev) {
-		ds_dev_stop(dev);
-		ds_dev_release(dev);
+		nkfs_dev_stop(dev);
+		nkfs_dev_release(dev);
 		KLOG(KL_DBG, "removed dev %s %p sb %p",
 			dev->dev_name, dev, dev->sb);
-		ds_dev_deref(dev);
+		nkfs_dev_deref(dev);
 		err = 0;
 	} else {
 		KLOG(KL_ERR, "dev with name %s not found", dev_name);
@@ -272,27 +272,27 @@ int ds_dev_remove(char *dev_name)
 	return err;
 }
 
-static void ds_dev_release_all(void)
+static void nkfs_dev_release_all(void)
 {
-	struct ds_dev *dev;
-	struct ds_dev *tmp;
+	struct nkfs_dev *dev;
+	struct nkfs_dev *tmp;
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry_safe(dev, tmp, &dev_list, dev_list) {
-		ds_dev_stop(dev);
-		ds_dev_release(dev);
+		nkfs_dev_stop(dev);
+		nkfs_dev_release(dev);
 		list_del(&dev->dev_list);
-		ds_dev_deref(dev);
+		nkfs_dev_deref(dev);
 	}
 	mutex_unlock(&dev_list_lock);
 }
 
-int ds_dev_init(void)
+int nkfs_dev_init(void)
 {
 	int err;
 	
-	ds_dev_cachep = kmem_cache_create("ds_dev_cache", sizeof(struct ds_dev), 0,
+	nkfs_dev_cachep = kmem_cache_create("nkfs_dev_cache", sizeof(struct nkfs_dev), 0,
 			SLAB_MEM_SPREAD, NULL);
-	if (!ds_dev_cachep) {
+	if (!nkfs_dev_cachep) {
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
 		goto out;
@@ -303,8 +303,8 @@ out:
 	return err;
 }
 
-void ds_dev_finit(void)
+void nkfs_dev_finit(void)
 {
-	ds_dev_release_all();
-	kmem_cache_destroy(ds_dev_cachep);
+	nkfs_dev_release_all();
+	kmem_cache_destroy(nkfs_dev_cachep);
 }

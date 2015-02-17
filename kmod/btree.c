@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "nkfs_btree"
 
@@ -555,7 +555,7 @@ static void nkfs_btree_node_delete(struct nkfs_btree_node *node)
 		node, node->leaf, node->nr_keys, node->block);
 
 	nkfs_btree_nodes_remove(node->tree, node);
-	ds_balloc_block_free(node->tree->sb, node->block);
+	nkfs_balloc_block_free(node->tree->sb, node->block);
 	node->block = 0;
 }
 
@@ -594,7 +594,7 @@ static struct nkfs_btree_node *nkfs_btree_node_create(struct nkfs_btree *tree)
 	if (!node)
 		return NULL;
 
-	err = ds_balloc_block_alloc(tree->sb, &node->block);
+	err = nkfs_balloc_block_alloc(tree->sb, &node->block);
 	if (err) {
 		KLOG(KL_ERR, "cant alloc block, err=%d", err);
 		__nkfs_btree_node_free(node);
@@ -660,7 +660,7 @@ u64 nkfs_btree_root_block(struct nkfs_btree *tree)
 	return block;
 }
 
-struct nkfs_btree *nkfs_btree_create(struct ds_sb *sb, u64 root_block)
+struct nkfs_btree *nkfs_btree_create(struct nkfs_sb *sb, u64 root_block)
 {
 	struct nkfs_btree *tree;
 	int err;

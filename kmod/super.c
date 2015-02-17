@@ -1,14 +1,14 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "super"
 
 static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);
 
-static struct kmem_cache *ds_sb_cachep;
-static int ds_sb_sync(struct ds_sb *sb);
+static struct kmem_cache *nkfs_sb_cachep;
+static int nkfs_sb_sync(struct nkfs_sb *sb);
 
-static void ds_sb_release(struct ds_sb *sb)
+static void nkfs_sb_release(struct nkfs_sb *sb)
 {
 	KLOG(KL_DBG, "sb %p inodes tree %p", sb, sb->inodes_tree);
 	if (sb->inodes_tree)
@@ -18,13 +18,13 @@ static void ds_sb_release(struct ds_sb *sb)
 		sb, sb->inodes_tree);
 }
 
-static void ds_sb_delete(struct ds_sb *sb)
+static void nkfs_sb_delete(struct nkfs_sb *sb)
 {
-	ds_sb_release(sb);
-	kmem_cache_free(ds_sb_cachep, sb);
+	nkfs_sb_release(sb);
+	kmem_cache_free(nkfs_sb_cachep, sb);
 }
 
-void ds_sb_stop(struct ds_sb *sb)
+void nkfs_sb_stop(struct nkfs_sb *sb)
 {
 	KLOG(KL_DBG, "sb %p dev %s stopping",
 			sb, sb->dev->dev_name);
@@ -38,32 +38,32 @@ void ds_sb_stop(struct ds_sb *sb)
 		nkfs_btree_stop(sb->inodes_tree);
 
 	BUG_ON(sb->inodes_active);
-	ds_sb_sync(sb);
+	nkfs_sb_sync(sb);
 	KLOG(KL_INF, "sb %p used_blocks %llu",
 		sb, atomic64_read(&sb->used_blocks));
 }
 
-void ds_sb_ref(struct ds_sb *sb)
+void nkfs_sb_ref(struct nkfs_sb *sb)
 {
 	BUG_ON(atomic_read(&sb->refs) <= 0);
 	atomic_inc(&sb->refs);
 }
 
-void ds_sb_deref(struct ds_sb *sb)
+void nkfs_sb_deref(struct nkfs_sb *sb)
 {
 	BUG_ON(atomic_read(&sb->refs) <= 0);
 	if (atomic_dec_and_test(&sb->refs))
-		ds_sb_delete(sb);
+		nkfs_sb_delete(sb);
 }
 
-struct ds_sb *ds_sb_lookup(struct nkfs_obj_id *id)
+struct nkfs_sb *nkfs_sb_lookup(struct nkfs_obj_id *id)
 {
-	struct ds_sb *sb, *found = NULL;
+	struct nkfs_sb *sb, *found = NULL;
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		if (0 == nkfs_obj_id_cmp(&sb->id, id)) {
-			ds_sb_ref(sb);
+			nkfs_sb_ref(sb);
 			found = sb;
 			break;
 		}	
@@ -72,20 +72,20 @@ struct ds_sb *ds_sb_lookup(struct nkfs_obj_id *id)
 	return found;
 }
 
-static u64 ds_sb_free_blocks(struct ds_sb *sb)
+static u64 nkfs_sb_free_blocks(struct nkfs_sb *sb)
 {
 	BUG_ON(sb->nr_blocks < atomic64_read(&sb->used_blocks));
 	return sb->nr_blocks - atomic64_read(&sb->used_blocks);	
 }
 
-static struct ds_sb *ds_sb_select_most_free(void)
+static struct nkfs_sb *nkfs_sb_select_most_free(void)
 {
-	struct ds_sb *sb, *found = NULL;
+	struct nkfs_sb *sb, *found = NULL;
 	u64 max_free_blocks = 0;
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
-		u32 free_blocks = ds_sb_free_blocks(sb);
+		u32 free_blocks = nkfs_sb_free_blocks(sb);
 		if (free_blocks >= max_free_blocks) {
 			found = sb;
 			max_free_blocks = free_blocks;
@@ -93,26 +93,26 @@ static struct ds_sb *ds_sb_select_most_free(void)
 	}
 
 	if (found)
-		ds_sb_ref(found);
+		nkfs_sb_ref(found);
 
 	up_read(&sb_list_lock);
 	return found;
 }
 
-static void ds_sb_list_release(struct list_head *phead)
+static void nkfs_sb_list_release(struct list_head *phead)
 {
-	struct ds_sb_link *curr, *tmp;
+	struct nkfs_sb_link *curr, *tmp;
 
 	list_for_each_entry_safe(curr, tmp, phead, list) {
 		list_del_init(&curr->list);
-		ds_sb_deref(curr->sb);
+		nkfs_sb_deref(curr->sb);
 		kfree(curr);
 	}
 }
 
-static u64 ds_sb_list_count(struct list_head *phead)
+static u64 nkfs_sb_list_count(struct list_head *phead)
 {
-	struct ds_sb_link *curr;
+	struct nkfs_sb_link *curr;
 	u64 count;
 
 	count = 0;
@@ -122,30 +122,30 @@ static u64 ds_sb_list_count(struct list_head *phead)
 	return count;
 }
 
-static struct ds_sb *ds_sb_list_first(struct list_head *phead)
+static struct nkfs_sb *nkfs_sb_list_first(struct list_head *phead)
 {
 	return (list_empty(phead)) ? NULL : list_first_entry(phead,
-		struct ds_sb_link, list)->sb;	
+		struct nkfs_sb_link, list)->sb;	
 }
 
-static struct ds_sb_link *ds_sb_link_create(struct ds_sb *sb)
+static struct nkfs_sb_link *nkfs_sb_link_create(struct nkfs_sb *sb)
 {
-	struct ds_sb_link *link;
+	struct nkfs_sb_link *link;
 	link = kmalloc(sizeof(*link), GFP_NOIO);
 	if (!link)
 		return NULL;
-	ds_sb_ref(sb);
+	nkfs_sb_ref(sb);
 	link->sb = sb;
 	return link;
 }
 
-static int ds_sb_list_by_obj(struct nkfs_obj_id *obj_id,
+static int nkfs_sb_list_by_obj(struct nkfs_obj_id *obj_id,
 	struct list_head *phead)
 {
 	u64 block;
 	int err;
-	struct ds_sb *sb;
-	struct ds_sb_link *link;
+	struct nkfs_sb *sb;
+	struct nkfs_sb_link *link;
 
 	INIT_LIST_HEAD(phead);
 
@@ -155,7 +155,7 @@ static int ds_sb_list_by_obj(struct nkfs_obj_id *obj_id,
 				(struct nkfs_btree_value *)&block);
 		if (err)
 			continue;
-		link = ds_sb_link_create(sb);
+		link = nkfs_sb_link_create(sb);
 		if (!link) {
 			KLOG(KL_ERR, "no memory");
 			err = -ENOMEM;
@@ -168,16 +168,16 @@ static int ds_sb_list_by_obj(struct nkfs_obj_id *obj_id,
 unlock:
 	up_read(&sb_list_lock);
 	if (err) {
-		ds_sb_list_release(phead);
+		nkfs_sb_list_release(phead);
 		INIT_LIST_HEAD(phead);
 	}
 
 	return err;
 }
 
-int ds_sb_insert(struct ds_sb *cand)
+int nkfs_sb_insert(struct nkfs_sb *cand)
 {
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 	int err = 0;
 
 	down_write(&sb_list_lock);
@@ -193,19 +193,19 @@ int ds_sb_insert(struct ds_sb *cand)
 	return err;
 }
 
-static int ds_sb_gen_header(struct ds_sb *sb,
+static int nkfs_sb_gen_header(struct nkfs_sb *sb,
 	u64 size,
 	u32 bsize)
 {
 	int err;
 	u64 bm_blocks;	
 
-	if (ds_mod(size, bsize) || (size <= bsize)) {
+	if (nkfs_mod(size, bsize) || (size <= bsize)) {
 		KLOG(KL_ERR, "size %lld bsize %u", size, bsize);
 		return -EINVAL;
 	}
 
-	bm_blocks = ds_div_round_up(ds_div_round_up(ds_div(size, bsize), 8), bsize);
+	bm_blocks = nkfs_div_round_up(nkfs_div_round_up(nkfs_div(size, bsize), 8), bsize);
 	if (size <= (NKFS_IMAGE_BM_BLOCK + bm_blocks)*bsize) {
 		KLOG(KL_ERR, "size %lld to small bsize %u bm_blocks %u",
 			size, bsize, bm_blocks);
@@ -239,7 +239,7 @@ static void nkfs_image_header_sum(struct nkfs_image_header *header,
        	csum_digest(&ctx, sum);
 }
 
-static int ds_sb_parse_header(struct ds_sb *sb,
+static int nkfs_sb_parse_header(struct nkfs_sb *sb,
 	struct nkfs_image_header *header)
 {
 	struct csum sum;
@@ -269,7 +269,7 @@ static int ds_sb_parse_header(struct ds_sb *sb,
 	return 0;
 }
 
-static void ds_sb_fill_header(struct ds_sb *sb,
+static void nkfs_sb_fill_header(struct nkfs_sb *sb,
 	struct nkfs_image_header *header)
 {
 	memset(header, 0, sizeof(*header));
@@ -286,7 +286,7 @@ static void ds_sb_fill_header(struct ds_sb *sb,
 	nkfs_image_header_sum(header, &header->sum);
 }
 
-static int ds_sb_sync(struct ds_sb *sb)
+static int nkfs_sb_sync(struct nkfs_sb *sb)
 {
 	struct dio_cluster *clu;
 	struct nkfs_image_header header;
@@ -298,7 +298,7 @@ static int ds_sb_sync(struct ds_sb *sb)
 		return -EIO;
 	}
 
-	ds_sb_fill_header(sb, &header);
+	nkfs_sb_fill_header(sb, &header);
 
 	err = dio_clu_write(clu, &header, sizeof(header), 0);
 	if (err) {
@@ -317,7 +317,7 @@ out:
 	return err;
 }
 
-static int ds_sb_check(struct ds_sb *sb)
+static int nkfs_sb_check(struct nkfs_sb *sb)
 {
 	int err;
 
@@ -337,7 +337,7 @@ static int ds_sb_check(struct ds_sb *sb)
 
 	if ((sb->size == 0) || (sb->bsize == 0) ||
 		(sb->size <= sb->bsize) ||
-		(ds_mod(sb->size, sb->bsize))) {
+		(nkfs_mod(sb->size, sb->bsize))) {
 		KLOG(KL_ERR, "sb %p invalid size %llu bsize %u",
 			sb, sb->size, sb->bsize);
 		err = -EINVAL;
@@ -364,14 +364,14 @@ out:
 }
 
 
-static int ds_sb_create(struct ds_dev *dev,
+static int nkfs_sb_create(struct nkfs_dev *dev,
 		struct nkfs_image_header *header,
-		struct ds_sb **psb)
+		struct nkfs_sb **psb)
 {
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
-	sb = kmem_cache_alloc(ds_sb_cachep, GFP_NOIO);
+	sb = kmem_cache_alloc(nkfs_sb_cachep, GFP_NOIO);
 	if (!sb) {
 		KLOG(KL_ERR, "cant alloc sb");
 		return -ENOMEM;
@@ -384,27 +384,27 @@ static int ds_sb_create(struct ds_dev *dev,
 	rwlock_init(&sb->inodes_lock);
 
 	if (!header) {
-		err = ds_sb_gen_header(sb, i_size_read(dev->bdev->bd_inode),
+		err = nkfs_sb_gen_header(sb, i_size_read(dev->bdev->bd_inode),
 			dev->bsize);
 		if (err) {
 			KLOG(KL_ERR, "can gen header");
 			goto free_sb;
 		}
 	} else {
-		err = ds_sb_parse_header(sb, header);
+		err = nkfs_sb_parse_header(sb, header);
 		if (err) {
 			KLOG(KL_ERR, "cant parse header");
 			goto free_sb;
 		}
 	}
 
-	err = ds_sb_check(sb);
+	err = nkfs_sb_check(sb);
 	if (err) {
 		KLOG(KL_ERR, "invalid sb");
 		goto free_sb;
 	}
 
-	sb->nr_blocks = ds_div(sb->size, sb->bsize);
+	sb->nr_blocks = nkfs_div(sb->size, sb->bsize);
 	sb->dev = dev;
 	sb->bdev = dev->bdev;
 	sb->ddev = dev->ddev;
@@ -413,22 +413,22 @@ static int ds_sb_create(struct ds_dev *dev,
 	return 0;
 
 free_sb:
-	kmem_cache_free(ds_sb_cachep, sb);
+	kmem_cache_free(nkfs_sb_cachep, sb);
 	return err;
 }
 
-void ds_sb_log(struct ds_sb *sb)
+void nkfs_sb_log(struct nkfs_sb *sb)
 {
 	KLOG(KL_DBG, "sb %p blocks %llu inodes tree %llu bm %llu bm_blocks %llu",
 		sb, sb->nr_blocks, sb->inodes_tree_block, sb->bm_block,
 		sb->bm_blocks);
 }
 
-int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
+int nkfs_sb_format(struct nkfs_dev *dev, struct nkfs_sb **psb)
 {
 	struct dio_cluster *clu;
 	int err;
-	struct ds_sb *sb = NULL;
+	struct nkfs_sb *sb = NULL;
 	struct nkfs_image_header header;
 	u64 i;
 
@@ -439,20 +439,20 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto out;	
 	}
 
-	err = ds_sb_create(dev, NULL, &sb);
+	err = nkfs_sb_create(dev, NULL, &sb);
 	if (err) {
 		KLOG(KL_ERR, "cant create sb");
 		goto free_clu;
 	}
 
-	err = ds_balloc_bm_clear(sb);
+	err = nkfs_balloc_bm_clear(sb);
 	if (err) {
 		KLOG(KL_ERR, "cant clear balloc bm err %d", err);
 		goto del_sb;
 	}
 
 	for (i = 0; i < sb->bm_block + sb->bm_blocks; i++) {
-		err = ds_balloc_block_mark(sb, i, 1);
+		err = nkfs_balloc_block_mark(sb, i, 1);
 		if (err) {
 			KLOG(KL_ERR, "cant mark block %llu as used err %d",
 				i, err);
@@ -469,7 +469,7 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 	sb->inodes_tree_block = nkfs_btree_root_block(sb->inodes_tree);
 
 	dio_clu_zero(clu);
-	ds_sb_fill_header(sb, &header);
+	nkfs_sb_fill_header(sb, &header);
 
 	err = dio_clu_write(clu, &header, sizeof(header), 0);
 	if (err) {
@@ -483,23 +483,23 @@ int ds_sb_format(struct ds_dev *dev, struct ds_sb **psb)
 		goto del_sb;
 	}
 
-	ds_sb_log(sb);
+	nkfs_sb_log(sb);
 	*psb = sb;
 	err = 0;
 	goto free_clu;
 
 del_sb:
-	ds_sb_delete(sb);
+	nkfs_sb_delete(sb);
 free_clu:
 	dio_clu_put(clu);
 out:
 	return err;
 }
 
-int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
+int nkfs_sb_load(struct nkfs_dev *dev, struct nkfs_sb **psb)
 {
 	struct dio_cluster *clu;
-	struct ds_sb *sb = NULL;
+	struct nkfs_sb *sb = NULL;
 	struct nkfs_image_header header;
 	int err;
 	
@@ -516,7 +516,7 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 		goto free_clu;
 	}
 
-	err = ds_sb_create(dev, &header,
+	err = nkfs_sb_create(dev, &header,
 		&sb);
 	if (err) {
 		KLOG(KL_ERR, "cant create sb");
@@ -544,26 +544,26 @@ int ds_sb_load(struct ds_dev *dev, struct ds_sb **psb)
 		goto free_sb;
 	}
 
-	ds_sb_log(sb);
+	nkfs_sb_log(sb);
 	*psb = sb;
 	err = 0;
 	goto free_clu;
 
 free_sb:
-	ds_sb_delete(sb);
+	nkfs_sb_delete(sb);
 free_clu:
 	dio_clu_put(clu);
 out:
 	return err;
 }
 
-int ds_sb_init(void)
+int nkfs_sb_init(void)
 {
 	int err;
 	
-	ds_sb_cachep = kmem_cache_create("ds_sb_cache", sizeof(struct ds_sb), 0,
+	nkfs_sb_cachep = kmem_cache_create("nkfs_sb_cache", sizeof(struct nkfs_sb), 0,
 			SLAB_MEM_SPREAD, NULL);
-	if (!ds_sb_cachep) {
+	if (!nkfs_sb_cachep) {
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
 		goto out;
@@ -574,18 +574,18 @@ out:
 	return err;
 }
 
-void ds_sb_finit(void)
+void nkfs_sb_finit(void)
 {
-	kmem_cache_destroy(ds_sb_cachep);
+	kmem_cache_destroy(nkfs_sb_cachep);
 }
 
-static int ds_sb_get_obj(struct ds_sb *sb, 
+static int nkfs_sb_get_obj(struct nkfs_sb *sb, 
 	struct nkfs_obj_id *id, u64 off, u32 pg_off, u32 len,
 	struct page **pages,
 	int nr_pages,
 	u32 *pread)
 {
-	struct ds_inode *inode;
+	struct nkfs_inode *inode;
 	u64 iblock;
 	int err;
 
@@ -599,7 +599,7 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 		return err;
 	}
 	
-	inode = ds_inode_read(sb, iblock);
+	inode = nkfs_inode_read(sb, iblock);
 	if (!inode) {
 		KLOG(KL_ERR, "cant read inode %llu", iblock);
 		return -EIO;
@@ -612,7 +612,7 @@ static int ds_sb_get_obj(struct ds_sb *sb,
 		goto cleanup;
 	}
 
-	err = ds_inode_io_pages(inode, off, pg_off, len,
+	err = nkfs_inode_io_pages(inode, off, pg_off, len,
 		pages, nr_pages, 0, pread);
 	if (err) {
 		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u len %u err %d",
@@ -625,18 +625,18 @@ cleanup:
 	return err;
 }
 
-static int ds_sb_create_obj(struct ds_sb *sb,
+static int nkfs_sb_create_obj(struct nkfs_sb *sb,
 	struct nkfs_obj_id *pobj_id)
 {
 	struct nkfs_obj_id obj_id;
-	struct ds_inode *inode;
+	struct nkfs_inode *inode;
 	int err;
 
 	if (sb->stopping)
 		return -EAGAIN;
 
 	nkfs_obj_id_gen(&obj_id);
-	inode = ds_inode_create(sb, &obj_id); 
+	inode = nkfs_inode_create(sb, &obj_id); 
 	if (!inode) {
 		KLOG(KL_ERR, "no memory");
 		return -ENOMEM;
@@ -647,7 +647,7 @@ static int ds_sb_create_obj(struct ds_sb *sb,
 	if (err) {
 		KLOG(KL_ERR, "cant insert ino in inodes_tree err %d",
 				err);
-		ds_inode_delete(inode);
+		nkfs_inode_delete(inode);
 		goto out;
 	}
 
@@ -658,11 +658,11 @@ out:
 	return err;	
 }
 
-static int ds_sb_put_obj(struct ds_sb *sb, 
+static int nkfs_sb_put_obj(struct nkfs_sb *sb, 
 	struct nkfs_obj_id *obj_id, u64 off, u32 pg_off, u32 len,
 	struct page **pages, int nr_pages)
 {
-	struct ds_inode *inode;
+	struct nkfs_inode *inode;
 	u64 iblock;
 	int err;
 	u32 io_count;
@@ -675,7 +675,7 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	if (err)
 		return err;
 
-	inode = ds_inode_read(sb, iblock);
+	inode = nkfs_inode_read(sb, iblock);
 	if (!inode) {
 		KLOG(KL_ERR, "cant read inode at %llu off %llu",
 			iblock, off);
@@ -683,7 +683,7 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	}
 	BUG_ON(inode->block != iblock);
 
-	err = ds_inode_io_pages(inode, off, pg_off, len,
+	err = nkfs_inode_io_pages(inode, off, pg_off, len,
 		pages, nr_pages, 1, &io_count);
 	if (err) {
 		KLOG(KL_ERR, "block %llu off %llu pages %u len %u err %d",
@@ -694,11 +694,11 @@ static int ds_sb_put_obj(struct ds_sb *sb,
 	return err;
 }
 
-static int ds_sb_delete_obj(struct ds_sb *sb, struct nkfs_obj_id *obj_id)
+static int nkfs_sb_delete_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id)
 {
 	int err;
 	u64 iblock;
-	struct ds_inode *inode;
+	struct nkfs_inode *inode;
 
 	BUG_ON(!sb->inodes_tree);
 	BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
@@ -711,115 +711,115 @@ static int ds_sb_delete_obj(struct ds_sb *sb, struct nkfs_obj_id *obj_id)
 	if (err)
 		return err;
 
-	inode = ds_inode_read(sb, iblock);
+	inode = nkfs_inode_read(sb, iblock);
 	if (!inode) {
 		KLOG(KL_ERR, "cant read inode %llu", iblock);
 		return -EIO;
 	}
 
 	nkfs_btree_delete_key(sb->inodes_tree, (struct nkfs_btree_key *)&inode->ino);
-	ds_inode_delete(inode);
+	nkfs_inode_delete(inode);
 	INODE_DEREF(inode);
 	return err;
 }
 
-int ds_sb_list_get_obj(struct nkfs_obj_id *obj_id, u64 off,
+int nkfs_sb_list_get_obj(struct nkfs_obj_id *obj_id, u64 off,
 	u32 pg_off, u32 len, struct page **pages, int nr_pages, u32 *pread)
 {
 	struct list_head list;
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
-	err = ds_sb_list_by_obj(obj_id, &list);
+	err = nkfs_sb_list_by_obj(obj_id, &list);
 	if (err)
 		return err;
 
-	BUG_ON(ds_sb_list_count(&list) > 1);
-	sb = ds_sb_list_first(&list);
+	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
 		goto cleanup;
 	}
 
-	err = ds_sb_get_obj(sb, obj_id, off, pg_off, len,
+	err = nkfs_sb_get_obj(sb, obj_id, off, pg_off, len,
 		pages, nr_pages, pread);
 
 cleanup:
-	ds_sb_list_release(&list);
+	nkfs_sb_list_release(&list);
 	return err;
 }
 
-int ds_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
+int nkfs_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
 	u32 pg_off, u32 len, struct page **pages, int nr_pages)
 {
 	struct list_head list;
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
-	err = ds_sb_list_by_obj(obj_id, &list);
+	err = nkfs_sb_list_by_obj(obj_id, &list);
 	if (err)
 		return err;
 
-	BUG_ON(ds_sb_list_count(&list) > 1);
-	sb = ds_sb_list_first(&list);
+	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
 		goto cleanup;
 	}
 
-	err = ds_sb_put_obj(sb, obj_id, off, pg_off, len, pages, nr_pages);
+	err = nkfs_sb_put_obj(sb, obj_id, off, pg_off, len, pages, nr_pages);
 
 cleanup:
-	ds_sb_list_release(&list);
+	nkfs_sb_list_release(&list);
 	return err;
 }
 
-int ds_sb_list_delete_obj(struct nkfs_obj_id *obj_id)
+int nkfs_sb_list_delete_obj(struct nkfs_obj_id *obj_id)
 {
 	struct list_head list;
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
-	err = ds_sb_list_by_obj(obj_id, &list);
+	err = nkfs_sb_list_by_obj(obj_id, &list);
 	if (err)
 		return err;
 
-	BUG_ON(ds_sb_list_count(&list) > 1);
-	sb = ds_sb_list_first(&list);
+	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
 		goto cleanup;
 	}
 
-	err = ds_sb_delete_obj(sb, obj_id);
+	err = nkfs_sb_delete_obj(sb, obj_id);
 
 cleanup:
-	ds_sb_list_release(&list);
+	nkfs_sb_list_release(&list);
 	return err;
 
 }
 
-int ds_sb_list_create_obj(struct nkfs_obj_id *pobj_id)
+int nkfs_sb_list_create_obj(struct nkfs_obj_id *pobj_id)
 {
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 	int err;
 
-	sb = ds_sb_select_most_free();
+	sb = nkfs_sb_select_most_free();
 	if (!sb) {
 		return -ENOENT;
 	}
 
-	err = ds_sb_create_obj(sb, pobj_id);
-	ds_sb_deref(sb);
+	err = nkfs_sb_create_obj(sb, pobj_id);
+	nkfs_sb_deref(sb);
 	return err;
 }
 
-static int ds_sb_query_obj(struct ds_sb *sb, struct nkfs_obj_id *obj_id,
+static int nkfs_sb_query_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id,
 	struct nkfs_obj_info *info)
 {
 	int err;
 	u64 iblock;
-	struct ds_inode *inode;
+	struct nkfs_inode *inode;
 
 	BUG_ON(!sb->inodes_tree);
 	BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
@@ -832,7 +832,7 @@ static int ds_sb_query_obj(struct ds_sb *sb, struct nkfs_obj_id *obj_id,
 	if (err)
 		return err;
 
-	inode = ds_inode_read(sb, iblock);
+	inode = nkfs_inode_read(sb, iblock);
 	if (!inode) {
 		KLOG(KL_ERR, "cant read inode %llu", iblock);
 		return -EIO;
@@ -851,27 +851,27 @@ static int ds_sb_query_obj(struct ds_sb *sb, struct nkfs_obj_id *obj_id,
 	return err;
 }
 
-int ds_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info)
+int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info)
 {
 	struct list_head list;
 	int err;
-	struct ds_sb *sb;
+	struct nkfs_sb *sb;
 
-	err = ds_sb_list_by_obj(obj_id, &list);
+	err = nkfs_sb_list_by_obj(obj_id, &list);
 	if (err)
 		return err;
 
-	BUG_ON(ds_sb_list_count(&list) > 1);
-	sb = ds_sb_list_first(&list);
+	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
 		goto cleanup;
 	}
 
-	err = ds_sb_query_obj(sb, obj_id, info);
+	err = nkfs_sb_query_obj(sb, obj_id, info);
 
 cleanup:
-	ds_sb_list_release(&list);
+	nkfs_sb_list_release(&list);
 	return err;
 }
 

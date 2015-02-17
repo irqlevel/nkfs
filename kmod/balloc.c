@@ -1,8 +1,8 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "balloc"
 
-int ds_balloc_bm_clear(struct ds_sb *sb)
+int nkfs_balloc_bm_clear(struct nkfs_sb *sb)
 {
 	struct dio_cluster *clu;
 	u64 i;
@@ -38,7 +38,7 @@ out:
 	return err;
 }
 
-static int ds_balloc_block_bm_bit(struct ds_sb *sb, u64 block,
+static int nkfs_balloc_block_bm_bit(struct nkfs_sb *sb, u64 block,
 	u64 *pblock, unsigned long *plong, long *pbit)
 {
 	u64 long_num;
@@ -50,17 +50,17 @@ static int ds_balloc_block_bm_bit(struct ds_sb *sb, u64 block,
 		return -EINVAL;
 	}
 
-	long_num = ds_div(block, bits_per_long);
+	long_num = nkfs_div(block, bits_per_long);
 
-	*pbit = ds_mod(block, bits_per_long);
-	*pblock = sb->bm_block + ds_div(long_num*sizeof(unsigned long),
+	*pbit = nkfs_mod(block, bits_per_long);
+	*pblock = sb->bm_block + nkfs_div(long_num*sizeof(unsigned long),
 					sb->bsize);
-	*plong = ds_mod(long_num*sizeof(unsigned long), sb->bsize);
+	*plong = nkfs_mod(long_num*sizeof(unsigned long), sb->bsize);
 
 	return 0;
 }
 
-int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
+int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 {
 	int err;
 	long bit;
@@ -68,7 +68,7 @@ int ds_balloc_block_mark(struct ds_sb *sb, u64 block, int use)
 	u64 bm_block;
 	struct dio_cluster *clu;
 
-	err = ds_balloc_block_bm_bit(sb, block, &bm_block, &long_off, &bit);
+	err = nkfs_balloc_block_bm_bit(sb, block, &bm_block, &long_off, &bit);
 	if (err)
 		return err;
 
@@ -107,12 +107,12 @@ out:
 	return err;
 }
 
-int ds_balloc_block_free(struct ds_sb *sb, u64 block)
+int nkfs_balloc_block_free(struct nkfs_sb *sb, u64 block)
 {
-	return ds_balloc_block_mark(sb, block, 0);
+	return nkfs_balloc_block_mark(sb, block, 0);
 }
 
-static int ds_balloc_block_find_set_free_bit(struct ds_sb *sb,
+static int nkfs_balloc_block_find_set_free_bit(struct nkfs_sb *sb,
 	u64 bm_block, struct dio_cluster *clu, unsigned long *plong, long *pbit)
 {
 	int i, j;
@@ -168,7 +168,7 @@ nospace:
 	return -ENOENT;
 }
 
-int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
+int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 {
 	struct dio_cluster *clu;
 	u64 i;
@@ -184,7 +184,7 @@ int ds_balloc_block_alloc(struct ds_sb *sb, u64 *pblock)
 			return -EIO;
 		}
 
-		err = ds_balloc_block_find_set_free_bit(sb, i, clu,
+		err = nkfs_balloc_block_find_set_free_bit(sb, i, clu,
 			&long_off, &bit);
 		if (!err) {
 			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off

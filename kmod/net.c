@@ -1,4 +1,4 @@
-#include <inc/ds_priv.h>
+#include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "net"
 
@@ -15,26 +15,26 @@ static struct kmem_cache *con_cachep;
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
-static void ds_con_wait(struct ds_con *con)
+static void nkfs_con_wait(struct nkfs_con *con)
 {
 	kthread_stop(con->thread);
 }
 
-static void ds_con_free(struct ds_con *con)
+static void nkfs_con_free(struct nkfs_con *con)
 {
 	kmem_cache_free(con_cachep, con);
 }
 
-void ds_con_close(struct ds_con *con)
+void nkfs_con_close(struct nkfs_con *con)
 {
 	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
 	if (con->thread)
 		put_task_struct(con->thread);
-	ds_con_free(con);
+	nkfs_con_free(con);
 }
 
-void ds_con_fail(struct ds_con *con, int err)
+void nkfs_con_fail(struct nkfs_con *con, int err)
 {
 	if (!con->err) {
 		KLOG(KL_DBG, "con %p failed err %x", con, err);
@@ -42,7 +42,7 @@ void ds_con_fail(struct ds_con *con, int err)
 	}
 }
 
-int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
+int nkfs_con_recv(struct nkfs_con *con, void *buffer, u32 nob)
 {
 	u32 read;
 	int err;
@@ -52,21 +52,21 @@ int ds_con_recv(struct ds_con *con, void *buffer, u32 nob)
 
 	err = ksock_read(con->sock, buffer, nob, &read);
 	if (err) {
-		ds_con_fail(con, err);
+		nkfs_con_fail(con, err);
 		return err;
 	}
 
 	if (nob != read) {
 		KLOG(KL_ERR, "nob %u read %u", nob, read);
 		err = -EIO;
-		ds_con_fail(con, err);
+		nkfs_con_fail(con, err);
 		return err;
 	}
 
 	return 0;
 }
 
-int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
+int nkfs_con_send(struct nkfs_con *con, void *buffer, u32 nob)
 {
 	u32 wrote;
 	int err;
@@ -76,44 +76,44 @@ int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
 
 	err = ksock_write(con->sock, buffer, nob, &wrote);
 	if (err) {
-		ds_con_fail(con, err);
+		nkfs_con_fail(con, err);
 		return err;
 	}
 
 	if (nob != wrote) {
 		KLOG(KL_ERR, "nob %u wrote %u", nob, wrote);
 		err = -EIO;
-		ds_con_fail(con, err);
+		nkfs_con_fail(con, err);
 		return err;
 	}
 
 	return 0;
 }
 
-int ds_con_send_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
+int nkfs_con_send_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 {
 	int err;
 
 	net_pkt_sign(pkt);
-	err = ds_con_send(con, pkt, sizeof(*pkt));
+	err = nkfs_con_send(con, pkt, sizeof(*pkt));
 	if (err) {
 		KLOG(KL_ERR, "pkt send err %d", err);
 	}
 	return err;
 }
 
-int ds_con_send_reply(struct ds_con *con,
+int nkfs_con_send_reply(struct nkfs_con *con,
 		struct nkfs_net_pkt *reply, int err)
 {
 	reply->err = err;
-	return ds_con_send_pkt(con, reply);
+	return nkfs_con_send_pkt(con, reply);
 }
 
-int ds_con_recv_pkt(struct ds_con *con,
+int nkfs_con_recv_pkt(struct nkfs_con *con,
 		struct nkfs_net_pkt *pkt)
 {
 	int err;
-	err = ds_con_recv(con, pkt, sizeof(*pkt));
+	err = nkfs_con_recv(con, pkt, sizeof(*pkt));
 	if (err) {
 		if (err == -ECONNRESET) {
 			KLOG(KL_DBG, "recv err %d", err);
@@ -126,16 +126,16 @@ int ds_con_recv_pkt(struct ds_con *con,
 	err = net_pkt_check(pkt);
 	if (err) {	
 		KLOG(KL_ERR, "pkt check err %d", err);
-		ds_con_fail(con, -EINVAL);
+		nkfs_con_fail(con, -EINVAL);
 	}
 	return err;
 }
 
-static int ds_con_recv_pages(struct ds_con *con,
-	struct nkfs_net_pkt *pkt, struct ds_pages *ppages)
+static int nkfs_con_recv_pages(struct nkfs_con *con,
+	struct nkfs_net_pkt *pkt, struct nkfs_pages *ppages)
 {
 	struct csum dsum;
-	struct ds_pages pages;
+	struct nkfs_pages pages;
 	int err;
 	u32 read, llen;
 	void *buf;
@@ -146,7 +146,7 @@ static int ds_con_recv_pages(struct ds_con *con,
 		return -EINVAL;
 	}
 
-	err = ds_pages_create(pkt->dsize, &pages);
+	err = nkfs_pages_create(pkt->dsize, &pages);
 	if (err) {
 		KLOG(KL_ERR, "no memory");
 		return err;
@@ -161,18 +161,18 @@ static int ds_con_recv_pages(struct ds_con *con,
 		NKFS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
 		llen = (read > PAGE_SIZE) ? PAGE_SIZE : read;
-		err = ds_con_recv(con, buf, llen);
+		err = nkfs_con_recv(con, buf, llen);
 		kunmap(pages.pages[i]);
 		if (err) {
 			KLOG(KL_ERR, "read err %d", err);
-			ds_con_fail(con, err);
+			nkfs_con_fail(con, err);
 			goto free_pages;
 		}
 		i++;
 		read-= llen;
 	}
 
-	err = ds_pages_dsum(&pages, &dsum, pkt->dsize);
+	err = nkfs_pages_dsum(&pages, &dsum, pkt->dsize);
 	if (err) {
 		KLOG(KL_ERR, "cant calc dsum");
 		goto free_pages;
@@ -188,12 +188,12 @@ static int ds_con_recv_pages(struct ds_con *con,
 	return 0;
 
 free_pages:
-	ds_pages_release(&pages);
+	nkfs_pages_release(&pages);
 	return err;
 }
 
-static int ds_con_send_pages(struct ds_con *con,
-	struct ds_pages *pages, u32 len)
+static int nkfs_con_send_pages(struct nkfs_con *con,
+	struct nkfs_pages *pages, u32 len)
 {
 	u32 i, ilen;
 	void *ibuf;
@@ -207,10 +207,10 @@ static int ds_con_send_pages(struct ds_con *con,
 		BUG_ON(i >= pages->nr_pages);
 		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
 		ibuf = kmap(pages->pages[i]);
-		err = ds_con_send(con, ibuf, ilen);
+		err = nkfs_con_send(con, ibuf, ilen);
 		kunmap(pages->pages[i]);	
 		if (err) {
-			ds_con_fail(con, err);
+			nkfs_con_fail(con, err);
 			goto out;
 		}	
 		len-= ilen;
@@ -221,11 +221,11 @@ out:
 	return err;
 }
 
-static int ds_con_get_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
-	struct ds_pages pages;
+	struct nkfs_pages pages;
 	struct csum dsum;
 	u32 read;
 
@@ -234,13 +234,13 @@ static int ds_con_get_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
 		return -EINVAL;
 	}
 
-	err = ds_pages_create(pkt->dsize, &pages);
+	err = nkfs_pages_create(pkt->dsize, &pages);
 	if (err) {
-		ds_con_send_reply(con, reply, err);
+		nkfs_con_send_reply(con, reply, err);
 		goto out;
 	}
 
-	err = ds_sb_list_get_obj(&pkt->u.get_obj.obj_id,
+	err = nkfs_sb_list_get_obj(&pkt->u.get_obj.obj_id,
 		pkt->u.get_obj.off,
 		0,
 		pkt->dsize,
@@ -248,15 +248,15 @@ static int ds_con_get_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
 		pages.nr_pages,
 		&read);
 	if (err) {
-		ds_con_send_reply(con, reply, err);
+		nkfs_con_send_reply(con, reply, err);
 		goto free_pages;
 	}
 
 	if (read) {	
-		err = ds_pages_dsum(&pages, &dsum, read);
+		err = nkfs_pages_dsum(&pages, &dsum, read);
 		if (err) {
 			KLOG(KL_ERR, "cant dsum pages err %d", err);
-			ds_con_send_reply(con, reply, err);
+			nkfs_con_send_reply(con, reply, err);
 			goto free_pages;	
 		}
 		memcpy(&reply->dsum, &dsum, sizeof(dsum));
@@ -264,87 +264,87 @@ static int ds_con_get_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
 
 	reply->dsize = read;
 
-	err = ds_con_send_reply(con, reply, 0);
+	err = nkfs_con_send_reply(con, reply, 0);
 	if (err) {
 		goto free_pages;	
 	}
 
 	if (read)
-		err = ds_con_send_pages(con, &pages, read);
+		err = nkfs_con_send_pages(con, &pages, read);
 
 free_pages:
-	ds_pages_release(&pages);
+	nkfs_pages_release(&pages);
 out:
 	return err;
 }
 
-static int ds_con_put_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_put_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
-	struct ds_pages pages;
+	struct nkfs_pages pages;
 
-	err = ds_con_recv_pages(con, pkt, &pages);
+	err = nkfs_con_recv_pages(con, pkt, &pages);
 	if (err) {
 		if (!con->err)
-			ds_con_send_reply(con, reply, err);
+			nkfs_con_send_reply(con, reply, err);
 		goto out;
 	}
 	
-	err = ds_sb_list_put_obj(&pkt->u.put_obj.obj_id,
+	err = nkfs_sb_list_put_obj(&pkt->u.put_obj.obj_id,
 		pkt->u.put_obj.off,
 		0,
 		pkt->dsize,
 		pages.pages,
 		pages.nr_pages);
 
-	err = ds_con_send_reply(con, reply, err);
+	err = nkfs_con_send_reply(con, reply, err);
 
-	ds_pages_release(&pages);
+	nkfs_pages_release(&pages);
 out:
 	return err;
 }
 
-static int ds_con_create_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_create_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
 
-	err = ds_sb_list_create_obj(&reply->u.create_obj.obj_id);
-	return ds_con_send_reply(con, reply, err);
+	err = nkfs_sb_list_create_obj(&reply->u.create_obj.obj_id);
+	return nkfs_con_send_reply(con, reply, err);
 }
 
-static int ds_con_delete_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_delete_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
 
-	err = ds_sb_list_delete_obj(&pkt->u.delete_obj.obj_id);
-	return ds_con_send_reply(con, reply, err);
+	err = nkfs_sb_list_delete_obj(&pkt->u.delete_obj.obj_id);
+	return nkfs_con_send_reply(con, reply, err);
 }
 
-static int ds_con_echo(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_echo(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
-	return ds_con_send_reply(con, reply, 0);
+	return nkfs_con_send_reply(con, reply, 0);
 }
 
-static int ds_con_query_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_query_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
 
-	err = ds_sb_list_query_obj(&pkt->u.query_obj.obj_id,
+	err = nkfs_sb_list_query_obj(&pkt->u.query_obj.obj_id,
 		&reply->u.query_obj.obj_info);
-	return ds_con_send_reply(con, reply, err);
+	return nkfs_con_send_reply(con, reply, err);
 }
 
-static int ds_con_neigh_handshake(struct ds_con *con, struct nkfs_net_pkt *pkt,
+static int nkfs_con_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
 
-	err = ds_neigh_handshake(&pkt->u.neigh_handshake.net_id,
+	err = nkfs_neigh_handshake(&pkt->u.neigh_handshake.net_id,
 		&pkt->u.neigh_handshake.host_id,
 		pkt->u.neigh_handshake.d_ip,
 		pkt->u.neigh_handshake.d_port,
@@ -352,11 +352,11 @@ static int ds_con_neigh_handshake(struct ds_con *con, struct nkfs_net_pkt *pkt,
 		pkt->u.neigh_handshake.s_port,
 		&reply->u.neigh_handshake.reply_host_id);
 
-	return ds_con_send_reply(con, reply, err);
+	return nkfs_con_send_reply(con, reply, err);
 }
 
 
-static int ds_con_process_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
+static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 {
 	struct nkfs_net_pkt *reply;
 	int err;
@@ -365,7 +365,7 @@ static int ds_con_process_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
 	if (!reply) {
 		err = -ENOMEM;
 		KLOG(KL_ERR, "no memory");
-		ds_con_fail(con, err);
+		nkfs_con_fail(con, err);
 		return err;
 	}
 
@@ -373,28 +373,28 @@ static int ds_con_process_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
 
 	switch (pkt->type) {
 		case NKFS_NET_PKT_ECHO:
-			err = ds_con_echo(con, pkt, reply);
+			err = nkfs_con_echo(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_PUT_OBJ:
-			err = ds_con_put_obj(con, pkt, reply);
+			err = nkfs_con_put_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_GET_OBJ:
-			err = ds_con_get_obj(con, pkt, reply);
+			err = nkfs_con_get_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_DELETE_OBJ:
-			err = ds_con_delete_obj(con, pkt, reply);
+			err = nkfs_con_delete_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_CREATE_OBJ:
-			err = ds_con_create_obj(con, pkt, reply);
+			err = nkfs_con_create_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_QUERY_OBJ:
-			err = ds_con_query_obj(con, pkt, reply);
+			err = nkfs_con_query_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_NEIGH_HANDSHAKE:
-			err = ds_con_neigh_handshake(con, pkt, reply);
+			err = nkfs_con_neigh_handshake(con, pkt, reply);
 			break;
 		default:
-			err = ds_con_send_reply(con, reply, -EINVAL);
+			err = nkfs_con_send_reply(con, reply, -EINVAL);
 			break;
 	}
 	KLOG(KL_DBG1, "pkt %d err %d reply.err %d",
@@ -407,10 +407,10 @@ static int ds_con_process_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
 	return err;
 }
 
-static int ds_con_thread_routine(void *data)
+static int nkfs_con_thread_routine(void *data)
 {
-	struct ds_con *con = (struct ds_con *)data;
-	struct ds_server *server = con->server;
+	struct nkfs_con *con = (struct nkfs_con *)data;
+	struct nkfs_server *server = con->server;
 	int err;
 
 	BUG_ON(con->thread != current);
@@ -420,11 +420,11 @@ static int ds_con_thread_routine(void *data)
 	while (!kthread_should_stop() && !con->err) {
 		struct nkfs_net_pkt *pkt = net_pkt_alloc();
 		if (!pkt) {
-			ds_con_fail(con, -ENOMEM);
+			nkfs_con_fail(con, -ENOMEM);
 			KLOG(KL_ERR, "no memory");
 			break;
 		}
-		err = ds_con_recv_pkt(con, pkt);	
+		err = nkfs_con_recv_pkt(con, pkt);	
 		if (err) {
 			if (err == -ECONNRESET) {
 				KLOG(KL_DBG, "pkt recv err %d", err);
@@ -434,7 +434,7 @@ static int ds_con_thread_routine(void *data)
 			crt_free(pkt);
 			break;
 		}
-		ds_con_process_pkt(con, pkt);
+		nkfs_con_process_pkt(con, pkt);
 		crt_free(pkt);
 	}
 
@@ -450,31 +450,31 @@ static int ds_con_thread_routine(void *data)
 		mutex_unlock(&server->con_list_lock);
 
 		if (con)
-			ds_con_close(con);
+			nkfs_con_close(con);
 	}
 
 	return 0;
 }
 
-static struct ds_con *ds_con_alloc(void)
+static struct nkfs_con *nkfs_con_alloc(void)
 {
-	struct ds_con *con;
+	struct nkfs_con *con;
 
 	con = kmem_cache_alloc(con_cachep, GFP_NOIO);
 	if (!con) {
-		KLOG(KL_ERR, "cant alloc ds_con");
+		KLOG(KL_ERR, "cant alloc nkfs_con");
 		return NULL;
 	}
 	memset(con, 0, sizeof(*con));
 	return con;
 }
 
-int ds_con_connect(u32 ip, int port, struct ds_con **pcon)
+int nkfs_con_connect(u32 ip, int port, struct nkfs_con **pcon)
 {
-	struct ds_con *con;
+	struct nkfs_con *con;
 	int err;
 
-	con = ds_con_alloc();
+	con = nkfs_con_alloc();
 	if (!con)
 		return -ENOMEM;
 
@@ -487,24 +487,24 @@ int ds_con_connect(u32 ip, int port, struct ds_con **pcon)
 	*pcon = con;
 	return 0;
 free_con:
-	ds_con_free(con);
+	nkfs_con_free(con);
 	return err;
 }
 
-static struct ds_con *ds_con_start(struct ds_server *server,
+static struct nkfs_con *nkfs_con_start(struct nkfs_server *server,
 	struct socket *sock)
 {
-	struct ds_con *con;
+	struct nkfs_con *con;
 	int err = -EINVAL;
 
-	con = ds_con_alloc();
+	con = nkfs_con_alloc();
 	if (!con)
 		return NULL;
 
 	con->server = server;
 	con->thread = NULL;
 	con->sock = sock;
-	con->thread = kthread_create(ds_con_thread_routine, con, "ds_con");
+	con->thread = kthread_create(nkfs_con_thread_routine, con, "nkfs_con");
 	if (IS_ERR(con->thread)) {
 		err = PTR_ERR(con->thread);
 		con->thread = NULL;
@@ -521,21 +521,21 @@ static struct ds_con *ds_con_start(struct ds_server *server,
 
 	return con;	
 out:
-	ds_con_free(con);
+	nkfs_con_free(con);
 	return NULL;
 }
 
-static void ds_server_free(struct ds_server *server)
+static void nkfs_server_free(struct nkfs_server *server)
 {
 	kmem_cache_free(server_cachep, server);
 }
 
-static int ds_server_thread_routine(void *data)
+static int nkfs_server_thread_routine(void *data)
 {
-	struct ds_server *server = (struct ds_server *)data;
+	struct nkfs_server *server = (struct nkfs_server *)data;
 	struct socket *lsock = NULL;
 	struct socket *con_sock = NULL;
-	struct ds_con *con = NULL;
+	struct nkfs_con *con = NULL;
 	int err = 0;
 	u32 listen_attempts = 3;
 
@@ -582,8 +582,8 @@ static int ds_server_thread_routine(void *data)
 				continue;
 			}
 			KLOG_SOCK(KL_DBG, con_sock, "accepted");
-			if (!ds_con_start(server, con_sock)) {
-				KLOG(KL_ERR, "ds_con_start failed");
+			if (!nkfs_con_start(server, con_sock)) {
+				KLOG(KL_ERR, "nkfs_con_start failed");
 				ksock_release(con_sock);
 				continue;
 			}
@@ -606,7 +606,7 @@ static int ds_server_thread_routine(void *data)
 		con = NULL;
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&server->con_list)) {
-			con = list_first_entry(&server->con_list, struct ds_con,
+			con = list_first_entry(&server->con_list, struct nkfs_con,
 					list);
 			list_del_init(&con->list);		
 		}
@@ -614,15 +614,15 @@ static int ds_server_thread_routine(void *data)
 		if (!con)
 			break;
 
-		ds_con_wait(con);
-		ds_con_free(con);
+		nkfs_con_wait(con);
+		nkfs_con_free(con);
 	}
 
 	KLOG(KL_DBG, "released cons");
 	return 0;
 }
 
-static void ds_server_do_stop(struct ds_server *server)
+static void nkfs_server_do_stop(struct nkfs_server *server)
 {
 	if (server->stopping) {
 		KLOG(KL_ERR, "server %p %u-%d already stopping",
@@ -641,11 +641,11 @@ static void ds_server_do_stop(struct ds_server *server)
 		server->ip, server->port);
 }
 
-static struct ds_server *ds_server_create_start(u32 ip, int port)
+static struct nkfs_server *nkfs_server_create_start(u32 ip, int port)
 {
 	char thread_name[10];
 	int err;
-	struct ds_server *server;
+	struct nkfs_server *server;
 
 	server = kmem_cache_alloc(server_cachep, GFP_NOIO);
 	if (!server) {
@@ -662,13 +662,13 @@ static struct ds_server *ds_server_create_start(u32 ip, int port)
 	server->ip = ip;
 	init_completion(&server->comp);
 
-	snprintf(thread_name, sizeof(thread_name), "%s-%d", "ds_srv", port);
-	server->thread = kthread_create(ds_server_thread_routine, server, thread_name);
+	snprintf(thread_name, sizeof(thread_name), "%s-%d", "nkfs_srv", port);
+	server->thread = kthread_create(nkfs_server_thread_routine, server, thread_name);
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
 		KLOG(KL_ERR, "kthread_create err=%d", err);
-		ds_server_free(server);
+		nkfs_server_free(server);
 		return NULL;
 	}
 	get_task_struct(server->thread);
@@ -678,10 +678,10 @@ static struct ds_server *ds_server_create_start(u32 ip, int port)
 	return server;
 }
 
-int ds_server_start(u32 ip, int port)
+int nkfs_server_start(u32 ip, int port)
 {
 	int err;
-	struct ds_server *server;
+	struct nkfs_server *server;
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
@@ -693,7 +693,7 @@ int ds_server_start(u32 ip, int port)
 			return err;
 		}
 	}
-	server = ds_server_create_start(ip, port);
+	server = nkfs_server_create_start(ip, port);
 	if (server && !server->err) {
 		KLOG(KL_INF, "started server on ip %x port %d",
 			ip, port);
@@ -702,8 +702,8 @@ int ds_server_start(u32 ip, int port)
 	} else {
 		err = (!server) ? -ENOMEM : server->err;
 		if (server) {
-			ds_server_do_stop(server);
-			ds_server_free(server);
+			nkfs_server_do_stop(server);
+			nkfs_server_free(server);
 		}
 	}
 	mutex_unlock(&srv_list_lock);
@@ -711,17 +711,17 @@ int ds_server_start(u32 ip, int port)
 	return err;
 }
 
-int ds_server_stop(u32 ip, int port)
+int nkfs_server_stop(u32 ip, int port)
 {
 	int err = -EINVAL;
-	struct ds_server *server;
+	struct nkfs_server *server;
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port && server->ip == ip) {
-			ds_server_do_stop(server);
+			nkfs_server_do_stop(server);
 			list_del(&server->srv_list);
-			ds_server_free(server);
+			nkfs_server_free(server);
 			err = 0;
 			break;
 		}
@@ -730,25 +730,25 @@ int ds_server_stop(u32 ip, int port)
 	return err;
 }
 
-static void ds_server_stop_all(void)
+static void nkfs_server_stop_all(void)
 {
-	struct ds_server *server;
-	struct ds_server *tmp;
+	struct nkfs_server *server;
+	struct nkfs_server *tmp;
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry_safe(server, tmp, &srv_list, srv_list) {
-		ds_server_do_stop(server);
+		nkfs_server_do_stop(server);
 		list_del(&server->srv_list);
-		ds_server_free(server);
+		nkfs_server_free(server);
 	}
 	mutex_unlock(&srv_list_lock);
 }
 
-int ds_server_init(void)
+int nkfs_server_init(void)
 {
 	int err;
 
 	server_cachep = kmem_cache_create("server_cache",
-			sizeof(struct ds_server), 0,
+			sizeof(struct nkfs_server), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!server_cachep) {
 		KLOG(KL_ERR, "cant create cache");
@@ -757,7 +757,7 @@ int ds_server_init(void)
 	}
 
 	con_cachep = kmem_cache_create("con_cache",
-			sizeof(struct ds_con), 0,
+			sizeof(struct nkfs_con), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!con_cachep) {
 		KLOG(KL_ERR, "cant create cache");
@@ -773,14 +773,14 @@ out:
 	return err;
 }
 
-void ds_server_finit(void)
+void nkfs_server_finit(void)
 {
-	ds_server_stop_all();
+	nkfs_server_stop_all();
 	kmem_cache_destroy(server_cachep);
 	kmem_cache_destroy(con_cachep);
 }
 
-int ds_ip_port_cmp(u32 ip1, int port1, u32 ip2, int port2)
+int nkfs_ip_port_cmp(u32 ip1, int port1, u32 ip2, int port2)
 {
 	if (ip1 == ip2) {
 		if (port1 < port2)
