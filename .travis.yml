@@ -12,7 +12,7 @@ install:
     - popd
 
 script:
-    - export DS_KERNEL_PATH=$(pwd)/linux-stable
+    - export NKFS_KERNEL_PATH=$(pwd)/linux-stable
     - make
 
 notifications:
