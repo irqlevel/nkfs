@@ -6,10 +6,10 @@ struct ext {
 };
 
 struct ext_tree {
-	atomic_t	ref;
-	struct btree 	*btree;
-	struct ds_sb	*sb;
-	int		releasing;
+	atomic_t		ref;
+	struct nkfs_btree	*btree;
+	struct ds_sb		*sb;
+	int			releasing;
 };
 
 struct ext_tree *ext_tree_create(struct ds_sb *sb, u64 block);

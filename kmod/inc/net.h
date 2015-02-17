@@ -31,12 +31,12 @@ int ds_con_connect(u32 ip, int port, struct ds_con **pcon);
 int ds_con_send(struct ds_con *con, void *buffer, u32 nob);
 int ds_con_recv(struct ds_con *con, void *buffer, u32 nob);
 
-int ds_con_send_pkt(struct ds_con *con, struct ds_net_pkt *pkt);
+int ds_con_send_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt);
 int ds_con_send_reply(struct ds_con *con,
-		struct ds_net_pkt *reply, int err);
+		struct nkfs_net_pkt *reply, int err);
 
 int ds_con_recv_pkt(struct ds_con *con,
-		struct ds_net_pkt *pkt);
+		struct nkfs_net_pkt *pkt);
 
 void ds_con_close(struct ds_con *con);
 void ds_con_fail(struct ds_con *con, int err);

@@ -3,7 +3,6 @@
 MODULE_LICENSE("GPL");
 
 #define __SUBCOMPONENT__ "mod"
-#define DS_MISC_DEV_NAME "ds_ctl"
 
 static int ds_mod_get(struct inode *inode, struct file *file)
 {
@@ -23,46 +22,46 @@ static int ds_mod_put(struct inode *inode, struct file *file)
 static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
-	struct ds_ctl *cmd = NULL;	
+	struct nkfs_ctl *cmd = NULL;	
 
-	cmd = kmalloc(sizeof(struct ds_ctl), GFP_NOIO);
+	cmd = kmalloc(sizeof(struct nkfs_ctl), GFP_NOIO);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	if (copy_from_user(cmd, (const void *)arg, sizeof(struct ds_ctl))) {
+	if (copy_from_user(cmd, (const void *)arg, sizeof(struct nkfs_ctl))) {
 		err = -EFAULT;
 		goto out_free_cmd;
 	}
 
 	switch (code) {
-		case IOCTL_DS_DEV_ADD:
+		case IOCTL_NKFS_DEV_ADD:
 			err = ds_dev_add(cmd->u.dev_add.dev_name,
 					cmd->u.dev_add.format);
 			break;
-		case IOCTL_DS_DEV_REMOVE:
+		case IOCTL_NKFS_DEV_REMOVE:
 			err = ds_dev_remove(cmd->u.dev_remove.dev_name);
 			break;
-		case IOCTL_DS_DEV_QUERY:
+		case IOCTL_NKFS_DEV_QUERY:
 			err = ds_dev_query(cmd->u.dev_query.dev_name,
 				&cmd->u.dev_query.info);
 			break;
-		case IOCTL_DS_SRV_START:
+		case IOCTL_NKFS_SRV_START:
 			err = ds_server_start(cmd->u.server_start.ip,
 				cmd->u.server_start.port);	
 			break;
-		case IOCTL_DS_SRV_STOP:
+		case IOCTL_NKFS_SRV_STOP:
 			err = ds_server_stop(cmd->u.server_stop.ip,
 				cmd->u.server_stop.port);
 			break;
-		case IOCTL_DS_NEIGH_ADD:
+		case IOCTL_NKFS_NEIGH_ADD:
 			err = ds_neigh_add(cmd->u.neigh_add.d_ip,
 				cmd->u.neigh_add.d_port,
 				cmd->u.neigh_add.s_ip,
 				cmd->u.neigh_add.s_port);
 			break;
-		case IOCTL_DS_NEIGH_REMOVE:
+		case IOCTL_NKFS_NEIGH_REMOVE:
 			err = ds_neigh_remove(cmd->u.neigh_remove.d_ip,
 				cmd->u.neigh_remove.d_port);
 			break;
@@ -72,7 +71,7 @@ static long ds_ioctl(struct file *file, unsigned int code, unsigned long arg)
 			break;
 	}
 	cmd->err = err;
-	if (copy_to_user((void *)arg, cmd, sizeof(struct ds_ctl))) {
+	if (copy_to_user((void *)arg, cmd, sizeof(struct nkfs_ctl))) {
 		err = -EFAULT;
 		goto out_free_cmd;
 	}
@@ -95,7 +94,7 @@ static const struct file_operations ds_fops = {
 static struct miscdevice ds_misc = {
 	.fops = &ds_fops,
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = DS_MISC_DEV_NAME,	
+	.name = NKFS_CTL_DEV_NAME,	
 };
 
 static int __init ds_init(void)
@@ -116,7 +115,7 @@ static int __init ds_init(void)
 		goto out_dio_release; 
 	}
 
-	err = btree_init();
+	err = nkfs_btree_init();
 	if (err) {
 		KLOG(KL_ERR, "btree_init err %d", err);
 		goto out_misc_release;
@@ -173,7 +172,7 @@ out_inode_release:
 out_ext_tree_release:
 	ext_tree_finit();
 out_btree_release:
-	btree_finit();
+	nkfs_btree_finit();
 out_misc_release:
 	misc_deregister(&ds_misc);
 out_dio_release:
@@ -192,7 +191,7 @@ static void __exit ds_exit(void)
 	ds_dev_finit();
 	ds_sb_finit();
 	ext_tree_finit();
-	btree_finit();
+	nkfs_btree_finit();
 	ds_inode_finit();
 	dio_finit();
 

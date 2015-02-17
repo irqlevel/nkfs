@@ -23,10 +23,10 @@ static int cmd_equal(char *cmd, const char *val)
 	return (strncmp(cmd, val, strlen(val) + 1) == 0) ? 1 : 0;
 }
 
-static int output_dev_info(struct ds_dev_info *info)
+static int output_dev_info(struct nkfs_dev_info *info)
 {
 	char *hex_sb_id;
-	hex_sb_id = ds_obj_id_str(&info->sb_id);
+	hex_sb_id = nkfs_obj_id_str(&info->sb_id);
 	if (!hex_sb_id)
 		return -ENOMEM;
 
@@ -59,7 +59,7 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			usage(prog);
 			return -EINVAL;
 		}
-		err = ds_dev_add(dev_name, format);
+		err = nkfs_dev_add(dev_name, format);
 		if (err) {
 			printf("cant add device %s err %d\n", dev_name, err);
 		}
@@ -69,18 +69,18 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			usage(prog);
 			return -EINVAL;
 		}
-		err = ds_dev_rem(dev_name);
+		err = nkfs_dev_rem(dev_name);
 		if (err) {
 			printf("cant rem device %s err %d\n", dev_name, err);
 		}
 	} else if (cmd_equal(cmd, "dev_query")) {
-		struct ds_dev_info info;
+		struct nkfs_dev_info info;
 		if (dev_name == NULL) {
 			printf("device not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
-		err = ds_dev_query(dev_name, &info);
+		err = nkfs_dev_query(dev_name, &info);
 		if (err) {
 			printf("cant query device %s err %d\n", dev_name, err);
 			return err;
@@ -111,7 +111,7 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			return -EINVAL;
 		}
 		ip = ntohl(addr.s_addr);
-		err = ds_server_start(ip, server_port);
+		err = nkfs_server_start(ip, server_port);
 		if (err) {
 			printf("cant start server %s:%d err %d\n",
 				server, server_port, err);
@@ -138,7 +138,7 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			return -EINVAL;
 		}
 		ip = ntohl(addr.s_addr);
-		err = ds_server_stop(ip, server_port);
+		err = nkfs_server_stop(ip, server_port);
 		if (err) {
 			printf("cant stop server %s:%d err %d\n",
 				server, server_port, err);
@@ -185,7 +185,7 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 
 		s_ip = ntohl(s_addr.s_addr);
 		r_ip = ntohl(r_addr.s_addr);
-		err = ds_neigh_add(r_ip, remote_port, s_ip, server_port);
+		err = nkfs_neigh_add(r_ip, remote_port, s_ip, server_port);
 		if (err) {
 			printf("cant add neighbour %s:%d->%s:%d err %d\n",
 				server, server_port, remote, remote_port, err);
@@ -212,7 +212,7 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			return -EINVAL;
 		}
 		r_ip = ntohl(r_addr.s_addr);
-		err = ds_neigh_remove(r_ip, remote_port);
+		err = nkfs_neigh_remove(r_ip, remote_port);
 		if (err) {
 			printf("cant remove neighbour %s:%d err %d\n",
 				remote, remote_port, err);
@@ -236,8 +236,8 @@ int main(int argc, char *argv[])
 	char *server = NULL;
 	char *remote = NULL;
 	char *prog = argv[0];
-	int server_port = DS_SRV_PORT;
-	int remote_port = DS_SRV_PORT;
+	int server_port = NKFS_SRV_PORT;
+	int remote_port = NKFS_SRV_PORT;
 
 	prepare_logging();
 

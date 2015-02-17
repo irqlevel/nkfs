@@ -1,9 +1,9 @@
 #pragma once
 
-#include <include/ds_types.h>
-#include <include/ds_obj_id.h>
-#include <include/ds_net.h>
-#include <include/ds_ctl.h>
+#include <include/nkfs_types.h>
+#include <include/nkfs_obj_id.h>
+#include <include/nkfs_net.h>
+#include <include/nkfs_ctl.h>
 
 void *crt_memset(void *ptr, int value, size_t num);
 void *crt_memcpy(void * destination, const void * source, size_t num);

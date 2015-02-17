@@ -1,8 +1,8 @@
 #pragma once
 
 enum {
-	DS_NEIGH_INIT,
-	DS_NEIGH_VALID,
+	NKFS_NEIGH_INIT,
+	NKFS_NEIGH_VALID,
 };
 
 #pragma pack(push, 1)
@@ -14,8 +14,8 @@ struct ds_host_work {
 };
 
 struct ds_host {
-	struct ds_obj_id	net_id;
-	struct ds_obj_id	host_id;
+	struct nkfs_obj_id	net_id;
+	struct nkfs_obj_id	host_id;
 	struct rb_root		neighs;
 	rwlock_t		neighs_lock;
 	struct list_head	neigh_list;
@@ -33,7 +33,7 @@ struct ds_host_id {
 	struct ds_host		*host;
 	struct list_head	neigh_list;
 	rwlock_t		neigh_list_lock;
-	struct ds_obj_id	host_id;
+	struct nkfs_obj_id	host_id;
 	struct rb_node		host_ids_link;
 };
 
@@ -89,6 +89,6 @@ void ds_route_finit(void);
 int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
 int ds_neigh_remove(u32 d_ip, int d_port);
 
-int ds_neigh_handshake(struct ds_obj_id *net_id,
-	struct ds_obj_id *host_id, u32 d_ip, int d_port,
-	u32 s_ip, int s_port, struct ds_obj_id *reply_host_id);
+int ds_neigh_handshake(struct nkfs_obj_id *net_id,
+	struct nkfs_obj_id *host_id, u32 d_ip, int d_port,
+	u32 s_ip, int s_port, struct nkfs_obj_id *reply_host_id);

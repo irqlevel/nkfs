@@ -12,10 +12,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <crt/include/crt.h>
-#include <include/ds_client.h>
-#include <include/ds_const.h>
-
-#include "test.h"
+#include <include/nkfs_client.h>
+#include <include/nkfs_const.h>
 
 static void prepare_logging()
 {
@@ -23,7 +21,7 @@ static void prepare_logging()
 	 * set CLOG log path : NULL and log name ds_client.log
 	 * NULL means use current working dir as path
 	*/
-	crt_log_set_path(NULL, "ds_client.log");
+	crt_log_set_path(NULL, "nkfs_client.log");
 	/* set CLOG log level */
 	crt_log_set_level(CL_DBG);
 	crt_log_enable_printf(1);
@@ -46,8 +44,8 @@ static int do_file_put(char *server, int port, char *fpath)
 	int err, fd;
 	int bytes_read;
 	int buf_size = 16*4096;
-	struct ds_obj_id obj_id;
-	struct ds_con con;
+	struct nkfs_obj_id obj_id;
+	struct nkfs_con con;
 	u64 off;
 	void *buf;
 	char *hex_id = NULL;
@@ -65,20 +63,20 @@ static int do_file_put(char *server, int port, char *fpath)
 		goto close;
 	}
 
-	err = ds_connect(&con, server, port);
+	err = nkfs_connect(&con, server, port);
 	if (err) {
 		CLOG(CL_ERR, "cant connect to server %s:%d",
 			server, port);
 		goto free_buf;
 	}
 
-	err = ds_create_object(&con, &obj_id);
+	err = nkfs_create_object(&con, &obj_id);
 	if (err) {
 		CLOG(CL_ERR, "cant create object %d", err);
 		goto close_con;
 	}
 
-	hex_id = ds_obj_id_str(&obj_id);
+	hex_id = nkfs_obj_id_str(&obj_id);
 	if (!hex_id) {
 		CLOG(CL_ERR, "cant get string by id");
 		err = -EINVAL;
@@ -95,7 +93,7 @@ static int do_file_put(char *server, int port, char *fpath)
 		}
 		if (bytes_read == 0)
 			break;
-		err = ds_put_object(&con, &obj_id, off, buf, bytes_read);
+		err = nkfs_put_object(&con, &obj_id, off, buf, bytes_read);
 		if (err) {
 			CLOG(CL_ERR, "cant put obj off %llu len %d err %d",
 				off, bytes_read, err);
@@ -107,9 +105,9 @@ static int do_file_put(char *server, int port, char *fpath)
 	err = 0;
 	goto close_con;
 del_obj:
-	ds_delete_object(&con, &obj_id);
+	nkfs_delete_object(&con, &obj_id);
 close_con:
-	ds_close(&con);
+	nkfs_close(&con);
 free_buf:
 	crt_free(buf);
 close:
@@ -120,11 +118,11 @@ close:
 	return err;
 }
 
-static int do_file_get(char *server, int port, struct ds_obj_id *obj_id, char *fpath)
+static int do_file_get(char *server, int port, struct nkfs_obj_id *obj_id, char *fpath)
 {
 	int err, fd;
 	int buf_size = 16*4096;
-	struct ds_con con;
+	struct nkfs_con con;
 	u64 off;
 	int wrote, wrote_bytes;
 	u32 read;
@@ -143,7 +141,7 @@ static int do_file_get(char *server, int port, struct ds_obj_id *obj_id, char *f
 		goto close;
 	}
 
-	err = ds_connect(&con, server, port);
+	err = nkfs_connect(&con, server, port);
 	if (err) {
 		CLOG(CL_ERR, "cant connect to server %s:%d",
 			server, port);
@@ -151,7 +149,7 @@ static int do_file_get(char *server, int port, struct ds_obj_id *obj_id, char *f
 	}
 	off = 0;
 	while (1) {
-		err = ds_get_object(&con, obj_id, off, buf, buf_size, &read);
+		err = nkfs_get_object(&con, obj_id, off, buf, buf_size, &read);
 		if (err) {
 			CLOG(CL_ERR, "cant get obj err %d", err);
 			goto close_con;
@@ -176,7 +174,7 @@ static int do_file_get(char *server, int port, struct ds_obj_id *obj_id, char *f
 
 	err = 0;
 close_con:
-	ds_close(&con);
+	nkfs_close(&con);
 free_buf:
 	crt_free(buf);
 close:
@@ -184,13 +182,13 @@ close:
 	return err;
 }
 
-static int output_obj_info(struct ds_obj_info *info)
+static int output_obj_info(struct nkfs_obj_info *info)
 {
 	char *hex_obj_id, *hex_sb_id;
-	hex_obj_id = ds_obj_id_str(&info->obj_id);
+	hex_obj_id = nkfs_obj_id_str(&info->obj_id);
 	if (!hex_obj_id)
 		return -ENOMEM;
-	hex_sb_id = ds_obj_id_str(&info->sb_id);
+	hex_sb_id = nkfs_obj_id_str(&info->sb_id);
 	if (!hex_sb_id) {
 		crt_free(hex_obj_id);
 	}
@@ -208,19 +206,19 @@ static int output_obj_info(struct ds_obj_info *info)
 	return 0;
 }
 
-static int do_obj_query(char *server, int port, struct ds_obj_id *id)
+static int do_obj_query(char *server, int port, struct nkfs_obj_id *id)
 {
 	int err;
-	struct ds_obj_info info;
-	struct ds_con con;
+	struct nkfs_obj_info info;
+	struct nkfs_con con;
 
-	err = ds_connect(&con, server, port);
+	err = nkfs_connect(&con, server, port);
 	if (err) {
 		CLOG(CL_ERR, "cant connect to server %s:%d",
 			server, port);
 	}
 
-	err = ds_query_object(&con, id, &info);
+	err = nkfs_query_object(&con, id, &info);
 	if (err) {
 		CLOG(CL_ERR, "cant query obj err %d", err);
 		goto close_con;
@@ -233,29 +231,29 @@ static int do_obj_query(char *server, int port, struct ds_obj_id *id)
 	}
 
 close_con:
-	ds_close(&con);
+	nkfs_close(&con);
 	return err;
 }
 
-static int do_obj_delete(char *server, int port, struct ds_obj_id *id)
+static int do_obj_delete(char *server, int port, struct nkfs_obj_id *id)
 {
 	int err;
-	struct ds_con con;
+	struct nkfs_con con;
 
-	err = ds_connect(&con, server, port);
+	err = nkfs_connect(&con, server, port);
 	if (err) {
 		CLOG(CL_ERR, "cant connect to server %s:%d",
 			server, port);
 	}
 
-	err = ds_delete_object(&con, id);
+	err = nkfs_delete_object(&con, id);
 	if (err) {
 		CLOG(CL_ERR, "cant delete obj err %d", err);
 		goto close_con;
 	}
 
 close_con:
-	ds_close(&con);
+	nkfs_close(&con);
 	return err;
 }
 
@@ -272,7 +270,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		}
 		return do_file_put(server, port, fpath);
 	} else if (cmd_equal(cmd, "get")) {
-		struct ds_obj_id *id;
+		struct nkfs_obj_id *id;
 		if (fpath == NULL) {
 			printf("file path not specified\n");
 			usage(prog);
@@ -285,7 +283,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			return -EINVAL;
 		}
 
-		id = ds_obj_id_by_str(obj_id);
+		id = nkfs_obj_id_by_str(obj_id);
 		if (id == NULL) {
 			printf("cant convert string to obj id\n");
 			usage(prog);
@@ -296,14 +294,14 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		crt_free(id);
 		return err;
 	} else if (cmd_equal(cmd, "query")) {
-		struct ds_obj_id *id;
+		struct nkfs_obj_id *id;
 		if (obj_id == NULL) {
 			printf("obj id not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		id = ds_obj_id_by_str(obj_id);
+		id = nkfs_obj_id_by_str(obj_id);
 		if (id == NULL) {
 			printf("cant convert string to obj id\n");
 			usage(prog);
@@ -314,14 +312,14 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		crt_free(id);
 		return err;
 	} else if (cmd_equal(cmd, "delete")) {
-		struct ds_obj_id *id;
+		struct nkfs_obj_id *id;
 		if (obj_id == NULL) {
 			printf("obj id not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		id = ds_obj_id_by_str(obj_id);
+		id = nkfs_obj_id_by_str(obj_id);
 		if (id == NULL) {
 			printf("cant convert string to obj id\n");
 			usage(prog);
@@ -331,8 +329,6 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 		err = do_obj_delete(server, port, id);
 		crt_free(id);
 		return err;
-	} else if (cmd_equal(cmd, "obj_test")) {
-		err = obj_test("127.0.0.1", DS_SRV_PORT, 30, 1, 51145);
 	} else {
 		printf("unknown cmd %s\n", cmd);
 		usage(prog);
@@ -351,7 +347,7 @@ int main(int argc, char *argv[])
 	char *cmd = NULL;
 	char *server = "127.0.0.1";
 	char *prog = argv[0];
-	int port = DS_SRV_PORT;
+	int port = NKFS_SRV_PORT;
 
 	prepare_logging();
 	while ((opt = getopt(argc, argv, "f:i:s:p:")) != -1) {

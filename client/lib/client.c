@@ -1,5 +1,5 @@
-#include <include/ds_client.h>
-#include <include/ds_net.h>
+#include <include/nkfs_client.h>
+#include <include/nkfs_net.h>
 #include <crt/include/crt.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -12,17 +12,17 @@
 #include <string.h>
 #include <errno.h>
 
-static void con_fail(struct ds_con *con, int err)
+static void con_fail(struct nkfs_con *con, int err)
 {
 	con->err = err;
 }
 
-static int con_check(struct ds_con *con)
+static int con_check(struct nkfs_con *con)
 {
 	return con->err;
 }
 
-static int con_send(struct ds_con *con, void *buf, u32 size)
+static int con_send(struct nkfs_con *con, void *buf, u32 size)
 {
 	ssize_t sent = 0, total_sent = 0;
 	int err;
@@ -48,7 +48,7 @@ out:
 	return err;
 }
 
-static int con_recv(struct ds_con *con, void *buf, u32 size)
+static int con_recv(struct nkfs_con *con, void *buf, u32 size)
 {
 	ssize_t recvd = 0, total_recvd = 0;
 	int err;
@@ -74,7 +74,7 @@ out:
 	return err;
 }
 
-static int con_init(struct ds_con *con)
+static int con_init(struct nkfs_con *con)
 {
 	int sock;
 	int err;
@@ -93,7 +93,7 @@ out:
 	return err;
 }
 
-int ds_connect(struct ds_con *con, char *ip, int port)
+int nkfs_connect(struct nkfs_con *con, char *ip, int port)
 {
 	struct sockaddr_in serv_addr;
 	int err;
@@ -129,18 +129,18 @@ out:
 	return err;
 }
 
-int ds_put_object(struct ds_con *con, struct ds_obj_id *obj_id,
+int nkfs_put_object(struct nkfs_con *con, struct nkfs_obj_id *obj_id,
 		u64 off, void *data, u32 data_size)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	struct csum_ctx ctx;
 	int err;
 
 	net_pkt_zero(&cmd);
 	cmd.dsize = data_size;
 	cmd.u.put_obj.off = off;
-	cmd.type = DS_NET_PKT_PUT_OBJ;
-	ds_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
+	cmd.type = NKFS_NET_PKT_PUT_OBJ;
+	nkfs_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
 	
 	csum_reset(&ctx);
 	csum_update(&ctx, data, data_size);
@@ -179,18 +179,18 @@ out:
 	return err;
 }
 
-int ds_get_object(struct ds_con *con, struct ds_obj_id *obj_id,
+int nkfs_get_object(struct nkfs_con *con, struct nkfs_obj_id *obj_id,
 		u64 off, void *data, u32 data_size, u32 *pread)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	struct csum dsum;
 	int err;
 
 	net_pkt_zero(&cmd);
 	cmd.dsize = data_size;
 	cmd.u.get_obj.off = off;
-	cmd.type = DS_NET_PKT_GET_OBJ;
-	ds_obj_id_copy(&cmd.u.get_obj.obj_id, obj_id);
+	cmd.type = NKFS_NET_PKT_GET_OBJ;
+	nkfs_obj_id_copy(&cmd.u.get_obj.obj_id, obj_id);
 
 	net_pkt_sign(&cmd);
 
@@ -239,14 +239,14 @@ out:
 	return err;
 }
 
-int ds_delete_object(struct ds_con *con, struct ds_obj_id *id)
+int nkfs_delete_object(struct nkfs_con *con, struct nkfs_obj_id *id)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	int err;
 
 	net_pkt_zero(&cmd);
-	cmd.type = DS_NET_PKT_DELETE_OBJ;
-	ds_obj_id_copy(&cmd.u.delete_obj.obj_id, id);
+	cmd.type = NKFS_NET_PKT_DELETE_OBJ;
+	nkfs_obj_id_copy(&cmd.u.delete_obj.obj_id, id);
 
 	net_pkt_sign(&cmd);
 
@@ -275,15 +275,15 @@ out:
 	return err;
 }
 
-int ds_query_object(struct ds_con *con, struct ds_obj_id *id,
-	struct ds_obj_info *info)
+int nkfs_query_object(struct nkfs_con *con, struct nkfs_obj_id *id,
+	struct nkfs_obj_info *info)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	int err;
 
 	net_pkt_zero(&cmd);
-	cmd.type = DS_NET_PKT_QUERY_OBJ;
-	ds_obj_id_copy(&cmd.u.query_obj.obj_id, id);
+	cmd.type = NKFS_NET_PKT_QUERY_OBJ;
+	nkfs_obj_id_copy(&cmd.u.query_obj.obj_id, id);
 
 	net_pkt_sign(&cmd);
 
@@ -314,13 +314,13 @@ out:
 	return err;
 }
 
-int ds_create_object(struct ds_con *con, struct ds_obj_id *pobj_id)
+int nkfs_create_object(struct nkfs_con *con, struct nkfs_obj_id *pobj_id)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	int err;
 
 	net_pkt_zero(&cmd);
-	cmd.type = DS_NET_PKT_CREATE_OBJ;
+	cmd.type = NKFS_NET_PKT_CREATE_OBJ;
 	net_pkt_sign(&cmd);
 
 	err = con_send(con, &cmd, sizeof(cmd));
@@ -346,19 +346,19 @@ int ds_create_object(struct ds_con *con, struct ds_obj_id *pobj_id)
 		goto out;
 	}
 
-	ds_obj_id_copy(pobj_id, &reply.u.create_obj.obj_id);
+	nkfs_obj_id_copy(pobj_id, &reply.u.create_obj.obj_id);
 out:
 	return err;
 }
 
 
-int ds_echo(struct ds_con *con)
+int nkfs_echo(struct nkfs_con *con)
 {
-	struct ds_net_pkt cmd, reply;
+	struct nkfs_net_pkt cmd, reply;
 	int err;
 
 	net_pkt_zero(&cmd);
-	cmd.type = DS_NET_PKT_ECHO;
+	cmd.type = NKFS_NET_PKT_ECHO;
 	net_pkt_sign(&cmd);
 
 	err = con_send(con, &cmd, sizeof(cmd));
@@ -386,7 +386,7 @@ out:
 	return err;
 }
 
-void ds_close(struct ds_con *con)
+void nkfs_close(struct nkfs_con *con)
 {
 	close(con->sock);
 }

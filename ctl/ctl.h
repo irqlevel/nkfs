@@ -11,27 +11,18 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <include/ds_ctl.h>
-#include <include/ds_const.h>
+#include <include/nkfs_ctl.h>
+#include <include/nkfs_const.h>
 #include <crt/include/crt.h>
 
-int ds_dev_add(const char *dev_name, int format);
-int ds_dev_rem(const char *dev_name);
+int nkfs_dev_add(const char *dev_name, int format);
+int nkfs_dev_rem(const char *dev_name);
 
-int ds_dev_query(const char *dev_name,
-			struct ds_dev_info *info);
+int nkfs_dev_query(const char *dev_name,
+			struct nkfs_dev_info *info);
 
-int ds_get_object(struct ds_obj_id *obj_id,
-		u64 off, void *buf, u32 len, u32 *pread);
+int nkfs_server_stop(u32 ip, int port);
+int nkfs_server_start(u32 ip, int port);
 
-int ds_put_object(struct ds_obj_id *obj_id,
-		u64 off, void *buf, u32 len);
-
-int ds_delete_object(struct ds_obj_id *obj_id);
-int ds_create_object(struct ds_obj_id *obj_id);
-
-int ds_server_stop(u32 ip, int port);
-int ds_server_start(u32 ip, int port);
-
-int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
-int ds_neigh_remove(u32 d_ip, int d_port);
+int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
+int nkfs_neigh_remove(u32 d_ip, int d_port);

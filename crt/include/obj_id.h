@@ -1,17 +1,17 @@
 #pragma once
 
-#include <include/ds_obj_id.h>
+#include <include/nkfs_obj_id.h>
 
-char *ds_obj_id_str(struct ds_obj_id *id);
-int ds_obj_id_gen(struct ds_obj_id *id);
-struct ds_obj_id *ds_obj_id_create(void);
-int ds_obj_id_cmp(struct ds_obj_id *id1,
-			struct ds_obj_id *id2);
+char *nkfs_obj_id_str(struct nkfs_obj_id *id);
+int nkfs_obj_id_gen(struct nkfs_obj_id *id);
+struct nkfs_obj_id *nkfs_obj_id_create(void);
+int nkfs_obj_id_cmp(struct nkfs_obj_id *id1,
+			struct nkfs_obj_id *id2);
 
-void ds_obj_id_dist(struct ds_obj_id *id1, struct ds_obj_id *id2,
-	struct ds_obj_id *result);
+void nkfs_obj_id_dist(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
+	struct nkfs_obj_id *result);
 
-void ds_obj_id_copy(struct ds_obj_id *dst,
-			struct ds_obj_id *src);
+void nkfs_obj_id_copy(struct nkfs_obj_id *dst,
+			struct nkfs_obj_id *src);
 
-struct ds_obj_id *ds_obj_id_by_str(char *s);
+struct nkfs_obj_id *nkfs_obj_id_by_str(char *s);

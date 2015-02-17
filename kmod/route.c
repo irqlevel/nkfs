@@ -6,8 +6,8 @@
 #define KLOG_HOST(lvl, h)					\
 	do {							\
 		char *host_id, *net_id;				\
-		host_id = ds_obj_id_str(&((h)->host_id));	\
-		net_id = ds_obj_id_str(&((h)->net_id));	\
+		host_id = nkfs_obj_id_str(&((h)->host_id));	\
+		net_id = nkfs_obj_id_str(&((h)->net_id));	\
 		KLOG((lvl), "host %p host_id %s net_id %s",	\
 			(h), host_id, net_id);			\
 		if (host_id)					\
@@ -20,7 +20,7 @@
 	do {									\
 		char *host_id = NULL;						\
 		if ((n)->host_id)						\
-			host_id = ds_obj_id_str(&((n)->host_id)->host_id);	\
+			host_id = nkfs_obj_id_str(&((n)->host_id)->host_id);	\
 		KLOG((lvl), "neigh %p host_id %s s%d %x:%d -> %x:%d",		\
 			(n), host_id, (n)->state, (n)->s_ip,			\
 			(n)->s_port, (n)->d_ip, (n)->d_port);			\
@@ -159,7 +159,7 @@ void ds_host_id_deref(struct ds_host_id *host_id)
 		ds_host_id_release(host_id);	
 }
 
-struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct ds_obj_id *host_id)
+struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct nkfs_obj_id *host_id)
 {
 	struct rb_node *n = host->host_ids.rb_node;
 	struct ds_host_id *found = NULL;
@@ -169,7 +169,7 @@ struct ds_host_id *__ds_host_ids_lookup(struct ds_host *host, struct ds_obj_id *
 		int cmp;
 
 		hid = rb_entry(n, struct ds_host_id, host_ids_link);
-		cmp = ds_obj_id_cmp(host_id, &hid->host_id);
+		cmp = nkfs_obj_id_cmp(host_id, &hid->host_id);
 		KLOG(KL_DBG, "host_id %p, hid %p, cmp=%d", host_id, hid, cmp);
 		if (cmp < 0) {
 			n = n->rb_left;
@@ -210,7 +210,7 @@ struct ds_host_id *__ds_host_id_insert(struct ds_host *host,
 		int cmp;
 		parent = *p;
 		found = rb_entry(parent, struct ds_host_id, host_ids_link);
-		cmp = ds_obj_id_cmp(&host_id->host_id, &found->host_id);
+		cmp = nkfs_obj_id_cmp(&host_id->host_id, &found->host_id);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
 		} else if (cmp > 0) {
@@ -233,14 +233,14 @@ struct ds_host_id *__ds_host_id_insert(struct ds_host *host,
 }
 
 struct ds_host_id *ds_host_id_lookup_or_create(struct ds_host *host,
-	struct ds_obj_id *host_id)
+	struct nkfs_obj_id *host_id)
 {
 	struct ds_host_id *hid, *inserted;
 	hid = ds_host_id_alloc();
 	if (!hid)
 		return NULL;
 	
-	ds_obj_id_copy(&hid->host_id, host_id);
+	nkfs_obj_id_copy(&hid->host_id, host_id);
 	write_lock_irq(&host->host_ids_lock);
 	inserted = __ds_host_id_insert(host, hid);
 	write_unlock_irq(&host->host_ids_lock);
@@ -380,7 +380,7 @@ static void ds_neigh_attach_host_id(struct ds_neigh *neigh,
 static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 {
 	int err;
-	struct ds_net_pkt *req, *reply;
+	struct nkfs_net_pkt *req, *reply;
 	struct ds_host *host = neigh->host;
 	struct ds_host_id *hid;
 	BUG_ON(neigh->con);
@@ -403,9 +403,9 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		goto free_req;
 	}
 
-	req->type = DS_NET_PKT_NEIGH_HANDSHAKE;
-	ds_obj_id_copy(&req->u.neigh_handshake.net_id, &host->net_id);
-	ds_obj_id_copy(&req->u.neigh_handshake.host_id, &host->host_id);
+	req->type = NKFS_NET_PKT_NEIGH_HANDSHAKE;
+	nkfs_obj_id_copy(&req->u.neigh_handshake.net_id, &host->net_id);
+	nkfs_obj_id_copy(&req->u.neigh_handshake.host_id, &host->host_id);
 
 	req->u.neigh_handshake.s_ip = neigh->d_ip;
 	req->u.neigh_handshake.s_port = neigh->d_port;
@@ -442,7 +442,7 @@ static int ds_neigh_do_handshake(struct ds_neigh *neigh)
 		goto free_reply;
 	}
 	ds_neigh_attach_host_id(neigh, hid);
-	neigh->state = DS_NEIGH_VALID;
+	neigh->state = NKFS_NEIGH_VALID;
 	KLOG_NEIGH(KL_INF, neigh);
 
 free_reply:
@@ -457,7 +457,7 @@ close_con:
 static void ds_neigh_handshake_work(struct work_struct *wrk)
 {
 	struct ds_neigh *neigh = container_of(wrk, struct ds_neigh, work);
-	if (neigh->state == DS_NEIGH_INIT) {
+	if (neigh->state == NKFS_NEIGH_INIT) {
 		ds_neigh_do_handshake(neigh);
 	}
 	atomic_set(&neigh->work_used, 0);	
@@ -472,7 +472,7 @@ static void ds_host_connect_work(struct work_struct *wrk)
 
 	read_lock(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
-		if (neigh->state == DS_NEIGH_INIT)
+		if (neigh->state == NKFS_NEIGH_INIT)
 			ds_neigh_queue_work(neigh, ds_neigh_handshake_work,
 					NULL);
 	}
@@ -516,7 +516,7 @@ static struct ds_host *ds_host_create(void)
 	if (!host)
 		return NULL;
 	
-	ds_obj_id_gen(&host->host_id);
+	nkfs_obj_id_gen(&host->host_id);
 	host->neighs = RB_ROOT;
 	rwlock_init(&host->neighs_lock);
 
@@ -576,8 +576,8 @@ static void ds_host_release(struct ds_host *host)
 	KLOG(KL_DBG, "neighs %d host_ids %d",
 		host->neighs_active, host->host_ids_active);
 
-	DS_BUG_ON(host->neighs_active);
-	DS_BUG_ON(host->host_ids_active);
+	NKFS_BUG_ON(host->neighs_active);
+	NKFS_BUG_ON(host->host_ids_active);
 	ds_host_free(host);
 }
 
@@ -686,7 +686,7 @@ int ds_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	neigh->d_port = d_port;
 	neigh->s_ip = s_ip;
 	neigh->s_port = s_port;
-	neigh->state = DS_NEIGH_INIT;
+	neigh->state = NKFS_NEIGH_INIT;
 	err = ds_host_add_neigh(ds_host, neigh); 
 	if (err) {
 		KLOG(KL_ERR, "cant add neigh err %d", err);
@@ -701,17 +701,17 @@ int ds_neigh_remove(u32 d_ip, int d_port)
 	return ds_host_remove_neigh(ds_host, d_ip, d_port);
 }
 
-int ds_neigh_handshake(struct ds_obj_id *net_id,
-	struct ds_obj_id *host_id, 
+int ds_neigh_handshake(struct nkfs_obj_id *net_id,
+	struct nkfs_obj_id *host_id, 
 	u32 d_ip, int d_port,
 	u32 s_ip, int s_port,
-	struct ds_obj_id *reply_host_id)
+	struct nkfs_obj_id *reply_host_id)
 {
 	struct ds_neigh *neigh;
 	struct ds_host_id *hid;
 	int err;
 
-	if (0 != ds_obj_id_cmp(net_id, &ds_host->net_id)) {
+	if (0 != nkfs_obj_id_cmp(net_id, &ds_host->net_id)) {
 		KLOG(KL_ERR, "diff net id");
 		return -EINVAL;
 	}
@@ -734,14 +734,14 @@ int ds_neigh_handshake(struct ds_obj_id *net_id,
 		goto deref_neigh;
 	}
 	ds_neigh_attach_host_id(neigh, hid);
-	neigh->state = DS_NEIGH_VALID;
+	neigh->state = NKFS_NEIGH_VALID;
 
 	err = ds_host_add_neigh(ds_host, neigh);
 	if (err) {
 		KLOG(KL_ERR, "cant add neigh err %d", err);
 		goto deref_neigh;
 	}
-	ds_obj_id_copy(reply_host_id, &ds_host->host_id);
+	nkfs_obj_id_copy(reply_host_id, &ds_host->host_id);
 
 	return 0;
 

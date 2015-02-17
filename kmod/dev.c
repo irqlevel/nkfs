@@ -86,7 +86,7 @@ struct ds_dev *ds_dev_lookup(char *dev_name)
 	return NULL;
 }
 
-int ds_dev_query(char *dev_name, struct ds_dev_info *info)
+int ds_dev_query(char *dev_name, struct nkfs_dev_info *info)
 {
 	struct ds_dev *dev;
 	struct ds_sb *sb;
@@ -97,7 +97,7 @@ int ds_dev_query(char *dev_name, struct ds_dev_info *info)
 
 	memset(info, 0, sizeof(*info));
 	if ((sb = dev->sb)) {
-		ds_obj_id_copy(&info->sb_id, &sb->id);
+		nkfs_obj_id_copy(&info->sb_id, &sb->id);
 		info->size = sb->size;
 		info->blocks = sb->nr_blocks;
 		info->used_blocks = atomic64_read(&sb->used_blocks);
@@ -145,7 +145,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 	int err;
 
 	len = strlen(dev_name);
-	if (len == 0 || len >= DS_NAME_MAX_SZ) {
+	if (len == 0 || len >= NKFS_NAME_MAX_SZ) {
 		KLOG(KL_ERR, "len=%d", len);
 		return NULL;
 	}
@@ -170,7 +170,7 @@ struct ds_dev *ds_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 	dev->fmode = fmode;
-	dev->bsize = DS_BLOCK_SIZE;
+	dev->bsize = NKFS_BLOCK_SIZE;
 
 	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 64);
 	if (!dev->ddev) {

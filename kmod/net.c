@@ -90,7 +90,7 @@ int ds_con_send(struct ds_con *con, void *buffer, u32 nob)
 	return 0;
 }
 
-int ds_con_send_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
+int ds_con_send_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
 {
 	int err;
 
@@ -103,14 +103,14 @@ int ds_con_send_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 }
 
 int ds_con_send_reply(struct ds_con *con,
-		struct ds_net_pkt *reply, int err)
+		struct nkfs_net_pkt *reply, int err)
 {
 	reply->err = err;
 	return ds_con_send_pkt(con, reply);
 }
 
 int ds_con_recv_pkt(struct ds_con *con,
-		struct ds_net_pkt *pkt)
+		struct nkfs_net_pkt *pkt)
 {
 	int err;
 	err = ds_con_recv(con, pkt, sizeof(*pkt));
@@ -132,7 +132,7 @@ int ds_con_recv_pkt(struct ds_con *con,
 }
 
 static int ds_con_recv_pages(struct ds_con *con,
-	struct ds_net_pkt *pkt, struct ds_pages *ppages)
+	struct nkfs_net_pkt *pkt, struct ds_pages *ppages)
 {
 	struct csum dsum;
 	struct ds_pages pages;
@@ -141,7 +141,7 @@ static int ds_con_recv_pages(struct ds_con *con,
 	void *buf;
 	int i;
 
-	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
+	if (pkt->dsize == 0 || pkt->dsize > NKFS_NET_PKT_MAX_DSIZE) {
 		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
 		return -EINVAL;
 	}
@@ -158,7 +158,7 @@ static int ds_con_recv_pages(struct ds_con *con,
 	while (read > 0) {
 		KLOG(KL_DBG1, "read %u nr_pages %u i %u, llen %u dsize %u plen %u",
 			read, pages.nr_pages, i, llen, pkt->dsize, pages.len);
-		DS_BUG_ON(i >= pages.nr_pages);
+		NKFS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
 		llen = (read > PAGE_SIZE) ? PAGE_SIZE : read;
 		err = ds_con_recv(con, buf, llen);
@@ -221,15 +221,15 @@ out:
 	return err;
 }
 
-static int ds_con_get_obj(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_get_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 	struct ds_pages pages;
 	struct csum dsum;
 	u32 read;
 
-	if (pkt->dsize == 0 || pkt->dsize > DS_NET_PKT_MAX_DSIZE) {
+	if (pkt->dsize == 0 || pkt->dsize > NKFS_NET_PKT_MAX_DSIZE) {
 		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
 		return -EINVAL;
 	}
@@ -278,8 +278,8 @@ out:
 	return err;
 }
 
-static int ds_con_put_obj(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_put_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 	struct ds_pages pages;
@@ -305,8 +305,8 @@ out:
 	return err;
 }
 
-static int ds_con_create_obj(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_create_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 
@@ -314,8 +314,8 @@ static int ds_con_create_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	return ds_con_send_reply(con, reply, err);
 }
 
-static int ds_con_delete_obj(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_delete_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 
@@ -323,14 +323,14 @@ static int ds_con_delete_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	return ds_con_send_reply(con, reply, err);
 }
 
-static int ds_con_echo(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_echo(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	return ds_con_send_reply(con, reply, 0);
 }
 
-static int ds_con_query_obj(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_query_obj(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 
@@ -339,8 +339,8 @@ static int ds_con_query_obj(struct ds_con *con, struct ds_net_pkt *pkt,
 	return ds_con_send_reply(con, reply, err);
 }
 
-static int ds_con_neigh_handshake(struct ds_con *con, struct ds_net_pkt *pkt,
-	struct ds_net_pkt *reply)
+static int ds_con_neigh_handshake(struct ds_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply)
 {
 	int err;
 
@@ -356,9 +356,9 @@ static int ds_con_neigh_handshake(struct ds_con *con, struct ds_net_pkt *pkt,
 }
 
 
-static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
+static int ds_con_process_pkt(struct ds_con *con, struct nkfs_net_pkt *pkt)
 {
-	struct ds_net_pkt *reply;
+	struct nkfs_net_pkt *reply;
 	int err;
 
 	reply = net_pkt_alloc();
@@ -372,25 +372,25 @@ static int ds_con_process_pkt(struct ds_con *con, struct ds_net_pkt *pkt)
 	KLOG(KL_DBG1, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
-		case DS_NET_PKT_ECHO:
+		case NKFS_NET_PKT_ECHO:
 			err = ds_con_echo(con, pkt, reply);
 			break;
-		case DS_NET_PKT_PUT_OBJ:
+		case NKFS_NET_PKT_PUT_OBJ:
 			err = ds_con_put_obj(con, pkt, reply);
 			break;
-		case DS_NET_PKT_GET_OBJ:
+		case NKFS_NET_PKT_GET_OBJ:
 			err = ds_con_get_obj(con, pkt, reply);
 			break;
-		case DS_NET_PKT_DELETE_OBJ:
+		case NKFS_NET_PKT_DELETE_OBJ:
 			err = ds_con_delete_obj(con, pkt, reply);
 			break;
-		case DS_NET_PKT_CREATE_OBJ:
+		case NKFS_NET_PKT_CREATE_OBJ:
 			err = ds_con_create_obj(con, pkt, reply);
 			break;
-		case DS_NET_PKT_QUERY_OBJ:
+		case NKFS_NET_PKT_QUERY_OBJ:
 			err = ds_con_query_obj(con, pkt, reply);
 			break;
-		case DS_NET_PKT_NEIGH_HANDSHAKE:
+		case NKFS_NET_PKT_NEIGH_HANDSHAKE:
 			err = ds_con_neigh_handshake(con, pkt, reply);
 			break;
 		default:
@@ -418,7 +418,7 @@ static int ds_con_thread_routine(void *data)
 	KLOG_SOCK(KL_DBG, con->sock, "con starting");
 
 	while (!kthread_should_stop() && !con->err) {
-		struct ds_net_pkt *pkt = net_pkt_alloc();
+		struct nkfs_net_pkt *pkt = net_pkt_alloc();
 		if (!pkt) {
 			ds_con_fail(con, -ENOMEM);
 			KLOG(KL_ERR, "no memory");

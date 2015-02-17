@@ -67,10 +67,10 @@ void klog_release(void);
 			crt_free(hsum);		\
 	}
 
-#define KLOG_BTREE_KEY(level, key)						\
+#define KLOG_NKFS_BTREE_KEY(level, key)						\
 	if ((level) >= KLOG_LEVEL) {						\
 		char *hex;							\
-		hex = bytes_hex((void *)(key), sizeof(struct btree_key));	\
+		hex = bytes_hex((void *)(key), sizeof(struct nkfs_btree_key));	\
 		KLOG((level), "key %s", hex);					\
 		if (hex)							\
 			crt_free(hex);						\

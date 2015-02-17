@@ -9,14 +9,11 @@ all: $(BIN_OUT)
 	cp lib/$(LIB_OUT) $(LIB)/$(LIB_OUT)
 	rm -rf *.o $(BIN_OUT) lib/*.a lib/*.o
 
-nkfs_client: client.o test.o main.o
-	$(CC) main.o test.o lib/$(LIB_OUT) $(LIB)/nkfs_crtlib.a -o $(BIN_OUT)
+$(BIN_OUT): client.o main.o
+	$(CC) main.o lib/$(LIB_OUT) $(LIB)/nkfs_crtlib.a -o $(BIN_OUT)
 
 main.o: main.c
 	$(CC) $(CFLAGS) main.c
-
-test.o: test.c
-	$(CC) $(CFLAGS) test.c
 
 client.o:
 	$(CC) $(CFLAGS) lib/client.c

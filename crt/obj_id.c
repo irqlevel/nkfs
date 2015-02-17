@@ -1,18 +1,18 @@
 #include <crt/include/crt.h>
 
-char *ds_obj_id_str(struct ds_obj_id *id)
+char *nkfs_obj_id_str(struct nkfs_obj_id *id)
 {
 	return bytes_hex((char *)id, sizeof(*id));
 }
-EXPORT_SYMBOL(ds_obj_id_str);
+EXPORT_SYMBOL(nkfs_obj_id_str);
 
-int ds_obj_id_gen(struct ds_obj_id *id)
+int nkfs_obj_id_gen(struct nkfs_obj_id *id)
 {
 	return crt_random_buf(id, sizeof(*id));
 }
-EXPORT_SYMBOL(ds_obj_id_gen);
+EXPORT_SYMBOL(nkfs_obj_id_gen);
 
-int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
+int nkfs_obj_id_cmp(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2)
 {
 	if (id1->high > id2->high)
 		return 1;
@@ -27,10 +27,10 @@ int ds_obj_id_cmp(struct ds_obj_id *id1, struct ds_obj_id *id2)
 			return 0;	
 	}
 }
-EXPORT_SYMBOL(ds_obj_id_cmp);
+EXPORT_SYMBOL(nkfs_obj_id_cmp);
 
-static void ds_obj_id_minus(struct ds_obj_id *id1, struct ds_obj_id *id2,
-	struct ds_obj_id *result)
+static void nkfs_obj_id_minus(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
+	struct nkfs_obj_id *result)
 {
 	if (id1->high > id2->high) {
 		if (id1->low >= id2->low) {
@@ -52,32 +52,32 @@ static void ds_obj_id_minus(struct ds_obj_id *id1, struct ds_obj_id *id2,
 	return;
 }
 
-void ds_obj_id_dist(struct ds_obj_id *id1, struct ds_obj_id *id2,
-	struct ds_obj_id *result)
+void nkfs_obj_id_dist(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
+	struct nkfs_obj_id *result)
 {
-	return (ds_obj_id_cmp(id1, id2) >= 0) ? 
-		ds_obj_id_minus(id1, id2, result) :
-		ds_obj_id_minus(id2, id1, result);
+	return (nkfs_obj_id_cmp(id1, id2) >= 0) ? 
+		nkfs_obj_id_minus(id1, id2, result) :
+		nkfs_obj_id_minus(id2, id1, result);
 }
-EXPORT_SYMBOL(ds_obj_id_dist);
+EXPORT_SYMBOL(nkfs_obj_id_dist);
 
-void ds_obj_id_copy(struct ds_obj_id *dst, struct ds_obj_id *src)
+void nkfs_obj_id_copy(struct nkfs_obj_id *dst, struct nkfs_obj_id *src)
 {
 	crt_memcpy(dst, src, sizeof(*src));
 }
-EXPORT_SYMBOL(ds_obj_id_copy);
+EXPORT_SYMBOL(nkfs_obj_id_copy);
 
-struct ds_obj_id *ds_obj_id_create(void)
+struct nkfs_obj_id *nkfs_obj_id_create(void)
 {
-	struct ds_obj_id *id;
+	struct nkfs_obj_id *id;
 	int err;
 
-	id = crt_malloc(sizeof(struct ds_obj_id));
+	id = crt_malloc(sizeof(struct nkfs_obj_id));
 	if (!id) {
 		return NULL;
 	}
 
-	err = ds_obj_id_gen(id);
+	err = nkfs_obj_id_gen(id);
 	if (err) {
 		crt_free(id);
 		return NULL;
@@ -85,14 +85,14 @@ struct ds_obj_id *ds_obj_id_create(void)
 
 	return id;
 }
-EXPORT_SYMBOL(ds_obj_id_create);
+EXPORT_SYMBOL(nkfs_obj_id_create);
 
 
-struct ds_obj_id *ds_obj_id_by_str(char *s)
+struct nkfs_obj_id *nkfs_obj_id_by_str(char *s)
 {
-	struct ds_obj_id *id;
+	struct nkfs_obj_id *id;
 	
-	id = crt_malloc(sizeof(struct ds_obj_id));
+	id = crt_malloc(sizeof(struct nkfs_obj_id));
 	if (!id) {
 		CLOG(CL_ERR, "no mem");
 		return NULL;
@@ -107,4 +107,4 @@ struct ds_obj_id *ds_obj_id_by_str(char *s)
 
 	return id;
 }
-EXPORT_SYMBOL(ds_obj_id_by_str);
+EXPORT_SYMBOL(nkfs_obj_id_by_str);

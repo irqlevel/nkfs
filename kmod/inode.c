@@ -3,7 +3,7 @@
 #define __SUBCOMPONENT__ "inode"
 
 struct kmem_cache *ds_inode_cachep;
-struct kmem_cache *ds_inode_disk_cachep;
+struct kmem_cache *nkfs_inode_disk_cachep;
 
 static void ds_inodes_remove(struct ds_sb *sb, struct ds_inode *inode);
 
@@ -37,9 +37,9 @@ static struct ds_inode *ds_inode_alloc(void)
 static void ds_inode_free(struct ds_inode *inode)
 {
 	if (inode->blocks_tree)
-		btree_deref(inode->blocks_tree);
+		nkfs_btree_deref(inode->blocks_tree);
 	if (inode->blocks_sum_tree)
-		btree_deref(inode->blocks_sum_tree);
+		nkfs_btree_deref(inode->blocks_sum_tree);
 
 	kmem_cache_free(ds_inode_cachep, inode);
 }
@@ -140,13 +140,13 @@ static struct ds_inode *ds_inodes_insert(struct ds_sb *sb,
 	return inserted;
 }
 
-static void ds_inode_on_disk_sum(struct ds_inode_disk *on_disk,
+static void ds_inode_on_disk_sum(struct nkfs_inode_disk *on_disk,
 		struct csum *sum)
 {
 	struct csum_ctx ctx;
 
 	csum_reset(&ctx);
-	csum_update(&ctx, on_disk, offsetof(struct ds_inode_disk, sum));
+	csum_update(&ctx, on_disk, offsetof(struct nkfs_inode_disk, sum));
 	csum_digest(&ctx, sum);
 }
 
@@ -160,24 +160,24 @@ static void ds_inode_set_size(struct ds_inode *inode,
 }
 
 static void ds_inode_to_on_disk(struct ds_inode *inode,
-	struct ds_inode_disk *on_disk)
+	struct nkfs_inode_disk *on_disk)
 {
-	ds_obj_id_copy(&on_disk->ino, &inode->ino);
+	nkfs_obj_id_copy(&on_disk->ino, &inode->ino);
 	on_disk->size = cpu_to_be64(inode->size);	
 	on_disk->blocks_tree_block = cpu_to_be64(inode->blocks_tree_block);
 	on_disk->blocks_sum_tree_block = 
 		cpu_to_be64(inode->blocks_sum_tree_block);
-	on_disk->sig1 = cpu_to_be32(DS_INODE_SIG1);
-	on_disk->sig2 = cpu_to_be32(DS_INODE_SIG2);
+	on_disk->sig1 = cpu_to_be32(NKFS_INODE_SIG1);
+	on_disk->sig2 = cpu_to_be32(NKFS_INODE_SIG2);
 	ds_inode_on_disk_sum(on_disk, &on_disk->sum);
 }
 
 static int ds_inode_parse_on_disk(struct ds_inode *inode,
-	struct ds_inode_disk *on_disk)
+	struct nkfs_inode_disk *on_disk)
 {
 	struct csum sum;
-	if (be32_to_cpu(on_disk->sig1) != DS_INODE_SIG1 ||
-		be32_to_cpu(on_disk->sig2) != DS_INODE_SIG2) {
+	if (be32_to_cpu(on_disk->sig1) != NKFS_INODE_SIG1 ||
+		be32_to_cpu(on_disk->sig2) != NKFS_INODE_SIG2) {
 		KLOG(KL_ERR, "invalid inode %llu sig",
 			inode->block);
 		return -EINVAL;
@@ -205,7 +205,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 {
 	struct ds_inode *inode, *inserted;
 	struct dio_cluster *clu;
-	struct ds_inode_disk *inode_disk;
+	struct nkfs_inode_disk *inode_disk;
 	int err;
 
 	inode =	ds_inodes_lookup(sb, block);
@@ -229,7 +229,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 		goto free_inode;
 	}
 
-	inode_disk = kmem_cache_alloc(ds_inode_disk_cachep, GFP_NOIO);
+	inode_disk = kmem_cache_alloc(nkfs_inode_disk_cachep, GFP_NOIO);
 	if (!inode_disk) {
 		KLOG(KL_ERR, "no mem");
 		goto put_clu;
@@ -248,7 +248,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 		goto free_idisk;
 	}
 
-	inode->blocks_tree = btree_create(sb,
+	inode->blocks_tree = nkfs_btree_create(sb,
 			inode->blocks_tree_block);
 	if (!inode->blocks_tree) {
 		KLOG(KL_ERR, "cant create blocks tree inode %llu",
@@ -256,7 +256,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 		goto free_idisk;
 	}
 
-	inode->blocks_sum_tree = btree_create(sb,
+	inode->blocks_sum_tree = nkfs_btree_create(sb,
 		inode->blocks_sum_tree_block);
 	if (!inode->blocks_sum_tree) {
 		KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
@@ -267,7 +267,7 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 	inode->block = block;
 	inserted = ds_inodes_insert(sb, inode);
 	if (inserted != inode) {
-		kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+		kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
 		dio_clu_put(clu);
 		ds_inode_free(inode);
 		return inserted;
@@ -275,12 +275,12 @@ struct ds_inode *ds_inode_read(struct ds_sb *sb, u64 block)
 		INODE_DEREF(inserted);
 	}
 
-	kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+	kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
 	dio_clu_put(clu);
 	return inode;
 
 free_idisk:
-	kmem_cache_free(ds_inode_disk_cachep, inode_disk);
+	kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
 put_clu:
 	dio_clu_put(clu);
 free_inode:
@@ -288,8 +288,8 @@ free_inode:
 	return NULL;
 }
 
-static void inode_block_erase(struct btree_key *key,
-	struct btree_value *value, void *ctx)
+static void inode_block_erase(struct nkfs_btree_key *key,
+	struct nkfs_btree_value *value, void *ctx)
 {
 	struct ds_inode *inode = (struct ds_inode *)ctx;
 	u64 block = value->val;
@@ -300,10 +300,10 @@ void ds_inode_delete(struct ds_inode *inode)
 {
 	down_write(&inode->rw_sem);
 	if (inode->blocks_tree)
-		btree_erase(inode->blocks_tree,
+		nkfs_btree_erase(inode->blocks_tree,
 			inode_block_erase, inode);
 	if (inode->blocks_sum_tree)
-		btree_erase(inode->blocks_sum_tree,
+		nkfs_btree_erase(inode->blocks_sum_tree,
 			inode_block_erase, inode);
 
 	ds_inodes_remove(inode->sb, inode);
@@ -316,7 +316,7 @@ void ds_inode_delete(struct ds_inode *inode)
 static int ds_inode_write(struct ds_inode *inode)
 {
 	struct dio_cluster *clu;	
-	struct ds_inode_disk *idisk;
+	struct nkfs_inode_disk *idisk;
 	int err;
 
 	BUG_ON(!inode->block);
@@ -328,7 +328,7 @@ static int ds_inode_write(struct ds_inode *inode)
 			inode->block);
 		return -EIO;
 	}
-	idisk = kmem_cache_alloc(ds_inode_disk_cachep, GFP_NOIO);
+	idisk = kmem_cache_alloc(nkfs_inode_disk_cachep, GFP_NOIO);
 	if (!idisk) {
 		KLOG(KL_ERR, "no memory");
 		dio_clu_put(clu);
@@ -351,7 +351,7 @@ static int ds_inode_write(struct ds_inode *inode)
 	}
 
 cleanup:
-	kmem_cache_free(ds_inode_disk_cachep, idisk);
+	kmem_cache_free(nkfs_inode_disk_cachep, idisk);
 	dio_clu_put(clu);
 
 	return err;
@@ -369,7 +369,7 @@ static int ds_inode_write_dirty(struct ds_inode *inode)
 	}
 }
 
-struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
+struct ds_inode *ds_inode_create(struct ds_sb *sb, struct nkfs_obj_id *ino)
 {
 	struct ds_inode *inode;
 	struct ds_inode *inserted;
@@ -389,16 +389,16 @@ struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
 	}
 	BUG_ON(!inode->block);
 
-	ds_obj_id_copy(&inode->ino, ino);
+	nkfs_obj_id_copy(&inode->ino, ino);
 
-	inode->blocks_tree = btree_create(sb, 0);
+	inode->blocks_tree = nkfs_btree_create(sb, 0);
 	if (!inode->blocks_tree) {
 		KLOG(KL_ERR, "cant create blocks tree inode %llu",
 			inode->block);
 		goto idelete;
 	}
 
-	inode->blocks_sum_tree = btree_create(sb, 0);
+	inode->blocks_sum_tree = nkfs_btree_create(sb, 0);
 	if (!inode->blocks_sum_tree) {
 		KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
 			inode->block);
@@ -406,9 +406,9 @@ struct ds_inode *ds_inode_create(struct ds_sb *sb, struct ds_obj_id *ino)
 	}
 
 	inode->blocks_tree_block =
-		btree_root_block(inode->blocks_tree);
+		nkfs_btree_root_block(inode->blocks_tree);
 	inode->blocks_sum_tree_block =
-		btree_root_block(inode->blocks_sum_tree);
+		nkfs_btree_root_block(inode->blocks_sum_tree);
 
 	err = ds_inode_write(inode);
 	if (err) {
@@ -504,7 +504,7 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 {
 	int err;
 	struct inode_block ib;
-	struct btree_key key;
+	struct nkfs_btree_key key;
 	int sum_block_allocated = 0;
 	int sum_block_inserted = 0;
 
@@ -523,9 +523,9 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	ds_inode_block_to_sum_block(ib.vblock, inode->sb->bsize,
 		&ib.vsum_block, &ib.sum_off);
 
-	btree_key_by_u64(ib.vsum_block, &key);
-	err = btree_find_key(inode->blocks_sum_tree, &key,
-		(struct btree_value *)&ib.sum_block);
+	nkfs_btree_key_by_u64(ib.vsum_block, &key);
+	err = nkfs_btree_find_key(inode->blocks_sum_tree, &key,
+		(struct nkfs_btree_value *)&ib.sum_block);
 	if (err) {
 		err = __ds_inode_block_alloc(inode, &ib.sum_block);
 		if (err) {
@@ -536,9 +536,9 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 
 		sum_block_allocated = 1;
 
-		btree_key_by_u64(ib.vsum_block, &key);
-		err = btree_insert_key(inode->blocks_sum_tree, &key,
-			(struct btree_value *)&ib.sum_block, 0);
+		nkfs_btree_key_by_u64(ib.vsum_block, &key);
+		err = nkfs_btree_insert_key(inode->blocks_sum_tree, &key,
+			(struct nkfs_btree_value *)&ib.sum_block, 0);
 		if (err) {
 			KLOG(KL_ERR, "cant inode %llu insert key %llu",
 				inode->block, ib.vsum_block);
@@ -556,9 +556,9 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 	}
 
 
-	btree_key_by_u64(ib.vblock, &key);	
-	err = btree_insert_key(inode->blocks_tree, &key,
-		(struct btree_value *)&ib.block, 0);
+	nkfs_btree_key_by_u64(ib.vblock, &key);	
+	err = nkfs_btree_insert_key(inode->blocks_tree, &key,
+		(struct nkfs_btree_value *)&ib.block, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant insert key inode %llu err %d",
 			inode->block, err);
@@ -570,8 +570,8 @@ static int ds_inode_block_alloc(struct ds_inode *inode,
 
 fail:
 	if (sum_block_inserted) {
-		btree_key_by_u64(ib.vsum_block, &key);	
-		btree_delete_key(inode->blocks_sum_tree, &key);
+		nkfs_btree_key_by_u64(ib.vsum_block, &key);	
+		nkfs_btree_delete_key(inode->blocks_sum_tree, &key);
 	}
 
 	if (sum_block_allocated)
@@ -586,10 +586,10 @@ static void
 ds_inode_block_erase(struct ds_inode *inode,
 	struct inode_block *ib)
 {
-	struct btree_key key;
+	struct nkfs_btree_key key;
 
-	btree_key_by_u64(ib->vblock, &key);
-	btree_delete_key(inode->blocks_tree, &key);
+	nkfs_btree_key_by_u64(ib->vblock, &key);
+	nkfs_btree_delete_key(inode->blocks_tree, &key);
 
 	__ds_inode_block_free(inode, ib->block);
 }
@@ -616,16 +616,16 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	struct inode_block *pib)
 {
 	int err;
-	struct btree_key key;
+	struct nkfs_btree_key key;
 	struct inode_block ib;
 	
 	ds_inode_block_zero(&ib);
 	ds_inode_block_zero(pib);
 
 	ib.vblock = vblock;
-	btree_key_by_u64(ib.vblock, &key);	
-	err = btree_find_key(inode->blocks_tree, &key,
-		(struct btree_value *)&ib.block);
+	nkfs_btree_key_by_u64(ib.vblock, &key);	
+	err = nkfs_btree_find_key(inode->blocks_tree, &key,
+		(struct nkfs_btree_value *)&ib.block);
 	if (err) {
 		return err;
 	}
@@ -633,9 +633,9 @@ ds_inode_block_read(struct ds_inode *inode, u64 vblock,
 	ds_inode_block_to_sum_block(ib.vblock, inode->sb->bsize,
 		&ib.vsum_block, &ib.sum_off);
 
-	btree_key_by_u64(ib.vsum_block, &key);
-	err = btree_find_key(inode->blocks_sum_tree, &key,
-		(struct btree_value *)&ib.sum_block);
+	nkfs_btree_key_by_u64(ib.vsum_block, &key);
+	err = nkfs_btree_find_key(inode->blocks_sum_tree, &key,
+		(struct nkfs_btree_value *)&ib.sum_block);
 	if (err) {
 		KLOG(KL_ERR, "cant find vb %llu", ib.vsum_block);
 		goto fail;
@@ -912,9 +912,9 @@ int ds_inode_init(void)
 		return -ENOMEM;
 	}
 
-	ds_inode_disk_cachep = kmem_cache_create("ds_inode_disk_cache",
-		sizeof(struct ds_inode_disk), 0, SLAB_MEM_SPREAD, NULL);
-	if (!ds_inode_disk_cachep) {
+	nkfs_inode_disk_cachep = kmem_cache_create("nkfs_inode_disk_cache",
+		sizeof(struct nkfs_inode_disk), 0, SLAB_MEM_SPREAD, NULL);
+	if (!nkfs_inode_disk_cachep) {
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
 		goto del_inode_cache;
@@ -928,6 +928,6 @@ del_inode_cache:
 
 void ds_inode_finit(void)
 {
-	kmem_cache_destroy(ds_inode_disk_cachep);
+	kmem_cache_destroy(nkfs_inode_disk_cachep);
 	kmem_cache_destroy(ds_inode_cachep);
 }

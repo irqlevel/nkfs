@@ -34,15 +34,15 @@
 #include <net/sock.h>
 #include <asm/ioctls.h>
 
-#include <include/ds_ctl.h>
-#include <include/ds_obj_id.h>
-#include <include/ds_image.h>
-#include <include/ds_net.h>
-#include <include/ds_obj_info.h>
+#include <include/nkfs_ctl.h>
+#include <include/nkfs_obj_id.h>
+#include <include/nkfs_image.h>
+#include <include/nkfs_net.h>
+#include <include/nkfs_obj_info.h>
 
 #include <crt/include/crt.h>
 
-#define DS_BUG_ON(cond)					\
+#define NKFS_BUG_ON(cond)				\
 	do {						\
 		if (cond) {				\
 			KLOG(KL_ERR, "BUG_ON()");	\
@@ -51,12 +51,7 @@
 		BUG_ON(cond);				\
 	} while (0);					\
 
-#define DS_BUG()				\
-	do {					\
-		KLOG(KL_ERR, "BUG()");		\
-		klog_sync();			\
-		BUG();				\
-	} while (0);				\
+#define NKFS_BUG()	NKFS_BUG_ON(1)
 
 #include <inc/helpers.h>
 #include <inc/ksocket.h>
