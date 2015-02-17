@@ -21,7 +21,7 @@ void klog_sync(void);
 int klog_init(void);
 void klog_release(void);
 
-#define KLOG_PATH "/var/log/ds.log"
+#define KLOG_PATH "/var/log/nkfs.log"
 #define KLOG_ENABLED		1
 #define KLOG_SRC		1
 #define KLOG_LEVEL		KL_DBG
