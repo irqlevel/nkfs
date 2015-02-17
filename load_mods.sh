@@ -1,5 +1,4 @@
 #!/bin/bash
 echo "load modules"
-sync
-insmod bin/ds_crt.ko
-insmod bin/ds.ko
+insmod bin/nkfs_crt.ko
+insmod bin/nkfs.ko

@@ -1,6 +1,6 @@
 from tests_lib import cmd
 from tests_lib import settings
-from ds_client import DsClient
+from nkfs_client import NkfsClient
 import tempfile
 import os
 import inspect
@@ -16,7 +16,7 @@ CURR_DIR = os.path.abspath(currentdir)
 
 log = logging.getLogger('main')
 
-class DsTest:
+class NkfsTest:
 	def __init__(self, env):
 		self.env = env
 		self.passed = False
@@ -57,7 +57,7 @@ class DsTest:
 	def get_uid(self):
 		return self.uid
 
-class DsTestList:
+class NkfsTestList:
 	def __init__(self):
 		self.tests = []
 	def addTests(self, tests):

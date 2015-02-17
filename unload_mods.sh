@@ -1,5 +1,4 @@
 #!/bin/bash
 echo "unload modules"
-sync
-rmmod ds
-rmmod ds_crt
+rmmod nkfs
+rmmod nkfs_crt

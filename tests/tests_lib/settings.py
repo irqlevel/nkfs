@@ -10,8 +10,8 @@ TESTS_LOGS_DIR = os.path.join(TESTS_DIR, "logs")
 PROJ_DIR = os.path.dirname(TESTS_DIR)
 
 BIN_DIR = os.path.join(PROJ_DIR, "bin")
-DS_CLIENT = os.path.join(BIN_DIR, "ds_client")
-DS_CTL = os.path.join(BIN_DIR, "ds_ctl")
+NKFS_CLIENT = os.path.join(BIN_DIR, "nkfs_client")
+NKFS_CTL = os.path.join(BIN_DIR, "nkfs_ctl")
 
 if not os.path.exists(TESTS_LOGS_DIR):
     os.mkdir(TESTS_LOGS_DIR)

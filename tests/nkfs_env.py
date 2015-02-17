@@ -1,6 +1,6 @@
 from tests_lib import cmd
 from tests_lib import settings
-from ds_client import DsClient
+from nkfs_client import NkfsClient
 import tempfile
 import os
 import inspect
@@ -30,14 +30,14 @@ class DsEnv:
 	def cleanup(self):
 		pass
 
-class DsLocalLoopEnv(DsEnv):
+class NkfsLocalLoopEnv(DsEnv):
 	def __init__(self):
 		DsEnv.__init__(self)
 		self.devs = []
 		self.srvs = []
 
 	def get_client(self):
-		return DsClient("0.0.0.0", 9111)
+		return NkfsClient("0.0.0.0", 9111)
 
 	def prepare(self):
 		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && ./load_mods.sh", throw = True)

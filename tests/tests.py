@@ -1,7 +1,7 @@
 from tests_lib import cmd
 from tests_lib import settings
-from ds_test import DsTest, DsTestList
-from ds_env import DsLocalLoopEnv
+from nkfs_test import NkfsTest, NkfsTestList
+from nkfs_env import NkfsLocalLoopEnv
 from file_put_get_test import FilePutGetTest
 from file_put_del_test import FilePutDelTest
 import tempfile
@@ -21,9 +21,9 @@ log = logging.getLogger('main')
 if __name__=="__main__":
 	env = None
 	try:
-		env = DsLocalLoopEnv()
+		env = NkfsLocalLoopEnv()
 		env.prepare()
-		ts = DsTestList()
+		ts = NkfsTestList()
 		ts.addTests([FilePutDelTest(env, 3, 10, 10, 10000000), FilePutGetTest(env, 3, 10, 10, 10000000)])
 		ts.run()
 	except Exception as e:

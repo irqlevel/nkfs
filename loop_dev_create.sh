@@ -1,6 +1,5 @@
 #!/bin/bash
 echo "create loop devs"
-sync
 rm -f lfile0
 rm -f lfile1
 rm -f lfile2

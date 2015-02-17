@@ -1,7 +1,7 @@
 from tests_lib import cmd
 from tests_lib import settings
-from ds_env import DsLocalLoopEnv
-from ds_test import DsTest
+from nkfs_env import NkfsLocalLoopEnv
+from nkfs_test import NkfsTest
 
 import tempfile
 import os
@@ -17,9 +17,9 @@ CURR_DIR = os.path.abspath(currentdir)
 
 log = logging.getLogger('main')
 
-class FilePutGetTest(DsTest):
+class FilePutGetTest(NkfsTest):
 	def __init__(self, env, proc_num, file_count, file_min_size, file_max_size):
-		DsTest.__init__(self, env)
+		NkfsTest.__init__(self, env)
 		self.proc_num = proc_num
 		self.file_count = file_count
 		self.file_min_size = file_min_size
@@ -115,7 +115,7 @@ class FilePutGetTest(DsTest):
 if __name__ == "__main__":
 	env = None
 	try:
-		env = DsLocalLoopEnv()
+		env = NkfsLocalLoopEnv()
 		env.prepare()
 		t = FilePutGetTest(env, 3, 10, 10, 10000000)
 		t.run()

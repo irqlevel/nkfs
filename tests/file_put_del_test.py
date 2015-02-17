@@ -1,7 +1,7 @@
 from tests_lib import cmd
 from tests_lib import settings
-from ds_env import DsLocalLoopEnv
-from ds_test import DsTest
+from nkfs_env import NkfsLocalLoopEnv
+from nkfs_test import NkfsTest
 from file_put_get_test import FilePutGetTest
 import tempfile
 import os
