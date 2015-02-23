@@ -49,13 +49,13 @@ void nkfs_release_user_pages(struct nkfs_user_pages *up)
 
 	if (up->write) {
 		for (i = 0; i < up->nr_pages; i++) {
-			BUG_ON(!up->pages[i]);
+			NKFS_BUG_ON(!up->pages[i]);
 			set_page_dirty_lock(up->pages[i]);	
 		}
 	}
 
 	for (i = 0; i < up->nr_pages; i++) {
-		BUG_ON(!up->pages[i]);
+		NKFS_BUG_ON(!up->pages[i]);
 		put_page(up->pages[i]);
 	}
 
@@ -133,7 +133,7 @@ int nkfs_pages_dsum(struct nkfs_pages *pages, struct csum *dsum, u32 len)
 
 	i = 0;
 	while (len > 0) {
-		BUG_ON(i >= pages->nr_pages);
+		NKFS_BUG_ON(i >= pages->nr_pages);
 		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
 		ibuf = kmap(pages->pages[i]);
 		csum_update(&ctx, ibuf, ilen);

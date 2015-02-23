@@ -52,13 +52,13 @@ static void nkfs_inode_release(struct nkfs_inode *inode)
 
 void nkfs_inode_ref(struct nkfs_inode *inode)
 {
-	BUG_ON(atomic_read(&inode->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&inode->ref) <= 0);
 	atomic_inc(&inode->ref);
 }
 
 void nkfs_inode_deref(struct nkfs_inode *inode)
 {
-	BUG_ON(atomic_read(&inode->ref) <= 0);	
+	NKFS_BUG_ON(atomic_read(&inode->ref) <= 0);	
 	if (atomic_dec_and_test(&inode->ref))
 		nkfs_inode_release(inode);	
 }
@@ -101,7 +101,7 @@ static void nkfs_inodes_remove(struct nkfs_sb *sb, struct nkfs_inode *inode)
 	write_lock_irq(&sb->inodes_lock);
 	found = __nkfs_inodes_lookup(sb, inode->block);
 	if (found) {
-		BUG_ON(found != inode);
+		NKFS_BUG_ON(found != inode);
 		rb_erase(&found->inodes_link, &sb->inodes);
 		sb->inodes_active--;
 	}
@@ -319,8 +319,8 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 	struct nkfs_inode_disk *idisk;
 	int err;
 
-	BUG_ON(!inode->block);
-	BUG_ON(!inode->sb);
+	NKFS_BUG_ON(!inode->block);
+	NKFS_BUG_ON(!inode->sb);
 
 	clu = dio_clu_get(inode->sb->ddev, inode->block);
 	if (!clu) {
@@ -387,7 +387,7 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino
 		KLOG(KL_ERR, "cant alloc block");
 		goto ifree;
 	}
-	BUG_ON(!inode->block);
+	NKFS_BUG_ON(!inode->block);
 
 	nkfs_obj_id_copy(&inode->ino, ino);
 
@@ -417,7 +417,7 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino
 	}
 
 	inserted = nkfs_inodes_insert(sb, inode);
-	BUG_ON(inserted != inode);
+	NKFS_BUG_ON(inserted != inode);
 	if (inserted != inode) {
 		KLOG(KL_DBG, "inode %p %llu exitst vs new %p %llu",
 			inserted, inserted->block, inode, inode->block);
@@ -450,7 +450,7 @@ static void nkfs_inode_block_to_sum_block(u64 block, u32 bsize,
 static int nkfs_inode_block_open_clus(struct nkfs_inode *inode,
 	struct inode_block *ib)
 {
-	BUG_ON(ib->clu || ib->sum_clu);
+	NKFS_BUG_ON(ib->clu || ib->sum_clu);
 
 	ib->clu = dio_clu_get(inode->sb->ddev, ib->block);
 	if (!ib->clu) {
@@ -483,7 +483,7 @@ static int nkfs_inode_block_write(struct nkfs_inode *inode,
 {
 	int err;
 
-	BUG_ON(!ib->clu || !ib->sum_clu);
+	NKFS_BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu,
 		(struct csum *)dio_clu_map(ib->sum_clu, ib->sum_off));
@@ -599,7 +599,7 @@ nkfs_inode_block_check_sum(struct nkfs_inode *inode,
 	struct inode_block *ib)
 {
 	struct csum sum;
-	BUG_ON(!ib->clu || !ib->sum_clu);
+	NKFS_BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu, &sum);
 	if (0 != memcmp(dio_clu_map(ib->sum_clu, ib->sum_off), &sum, sizeof(sum))) {
@@ -699,7 +699,7 @@ nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock,
 	u64 data_off;
 	u32 llen;
 
-	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
+	NKFS_BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
 	*pio_count = 0;
 	*peof = 0;
 
@@ -763,7 +763,7 @@ nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock,
 	u64 data_end;
 
 
-	BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
+	NKFS_BUG_ON(((u64)off + (u64)len) > inode->sb->bsize);
 	*peof = 0;
 	*pio_count = 0;
 
@@ -844,7 +844,7 @@ static int nkfs_inode_io_buf(struct nkfs_inode *inode, u64 off, void *buf, u32 l
 		io_count_sum+= io_count;
 		if (eof)
 			break;
-		BUG_ON(llen != io_count);
+		NKFS_BUG_ON(llen != io_count);
 		pos+= llen;
 		res-= llen;
 		loff = 0;
@@ -889,7 +889,7 @@ int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off, u32 pg_off, u32 len,
 		io_count_sum+= io_count;
 		if (eof)
 			break;
-		BUG_ON(io_count != llen);
+		NKFS_BUG_ON(io_count != llen);
 		pg_off = 0;
 		off+= llen;
 		len-= llen;

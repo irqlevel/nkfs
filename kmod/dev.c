@@ -25,7 +25,7 @@ void nkfs_dev_ref(struct nkfs_dev *dev)
 
 void nkfs_dev_deref(struct nkfs_dev *dev)
 {
-	BUG_ON(atomic_read(&dev->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&dev->ref) <= 0);
 	if (atomic_dec_and_test(&dev->ref))
 		nkfs_dev_free(dev);
 }
@@ -189,7 +189,7 @@ static int nkfs_dev_start(struct nkfs_dev *dev, int format)
 	int err;
 	struct nkfs_sb *sb;
 
-	BUG_ON(dev->sb);
+	NKFS_BUG_ON(dev->sb);
 	if (!format)
 		err = nkfs_sb_load(dev, &sb);
 	else

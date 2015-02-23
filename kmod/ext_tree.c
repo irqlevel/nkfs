@@ -183,5 +183,5 @@ void ext_tree_ext_free(struct ext_tree *tree, struct ext *ext)
 	ext_to_nkfs_btree_key_value(ext, &key, &value);
 
 	if (!nkfs_btree_insert_key(tree->btree, &key, &value, 0))
-		BUG();
+		NKFS_BUG();
 }

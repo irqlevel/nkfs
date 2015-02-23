@@ -204,7 +204,7 @@ static int nkfs_con_send_pages(struct nkfs_con *con,
 
 	i = 0;
 	while (len > 0) {
-		BUG_ON(i >= pages->nr_pages);
+		NKFS_BUG_ON(i >= pages->nr_pages);
 		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
 		ibuf = kmap(pages->pages[i]);
 		err = nkfs_con_send(con, ibuf, ilen);
@@ -413,7 +413,7 @@ static int nkfs_con_thread_routine(void *data)
 	struct nkfs_server *server = con->server;
 	int err;
 
-	BUG_ON(con->thread != current);
+	NKFS_BUG_ON(con->thread != current);
 
 	KLOG_SOCK(KL_DBG, con->sock, "con starting");
 
@@ -540,7 +540,7 @@ static int nkfs_server_thread_routine(void *data)
 	u32 listen_attempts = 3;
 
 	if (server->thread != current)
-		BUG_ON(1);
+		NKFS_BUG_ON(1);
 
 	while (!kthread_should_stop()) {
 		if (!server->sock) {

@@ -42,7 +42,7 @@ static int nkfs_neigh_connect(struct nkfs_neigh *neigh)
 {
 	int err;
 
-	BUG_ON(neigh->con);
+	NKFS_BUG_ON(neigh->con);
 	err = nkfs_con_connect(neigh->d_ip, neigh->d_port, &neigh->con);
 	return err;
 }
@@ -102,13 +102,13 @@ static void nkfs_neigh_release(struct nkfs_neigh *neigh)
 
 void nkfs_neigh_ref(struct nkfs_neigh *neigh)
 {
-	BUG_ON(atomic_read(&neigh->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&neigh->ref) <= 0);
 	atomic_inc(&neigh->ref);
 }
 
 void nkfs_neigh_deref(struct nkfs_neigh *neigh)
 {
-	BUG_ON(atomic_read(&neigh->ref) <= 0);	
+	NKFS_BUG_ON(atomic_read(&neigh->ref) <= 0);	
 	if (atomic_dec_and_test(&neigh->ref))
 		nkfs_neigh_release(neigh);	
 }
@@ -148,13 +148,13 @@ static void nkfs_host_id_release(struct nkfs_host_id *host_id)
 
 void nkfs_host_id_ref(struct nkfs_host_id *host_id)
 {
-	BUG_ON(atomic_read(&host_id->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&host_id->ref) <= 0);
 	atomic_inc(&host_id->ref);
 }
 
 void nkfs_host_id_deref(struct nkfs_host_id *host_id)
 {
-	BUG_ON(atomic_read(&host_id->ref) <= 0);	
+	NKFS_BUG_ON(atomic_read(&host_id->ref) <= 0);	
 	if (atomic_dec_and_test(&host_id->ref))
 		nkfs_host_id_release(host_id);	
 }
@@ -191,7 +191,7 @@ void __nkfs_host_inkfs_remove(struct nkfs_host *host,
 	found = __nkfs_host_inkfs_lookup(host, &host_id->host_id);
 	KLOG(KL_DBG, "found %p", found);
 	if (found) {
-		BUG_ON(found != host_id);
+		NKFS_BUG_ON(found != host_id);
 		rb_erase(&found->host_inkfs_link, &host->host_ids);
 		host->host_inkfs_active--;
 	}
@@ -284,7 +284,7 @@ static void __nkfs_neighs_remove(struct nkfs_host *host,
 
 	found = __nkfs_neighs_lookup(host, neigh->d_ip, neigh->d_port);
 	if (found) {
-		BUG_ON(found != neigh);
+		NKFS_BUG_ON(found != neigh);
 		rb_erase(&found->neighs_link, &host->neighs);
 		host->neighs_active--;
 	}
@@ -368,8 +368,8 @@ static int nkfs_neigh_queue_work(struct nkfs_neigh *neigh,
 static void nkfs_neigh_attach_host_id(struct nkfs_neigh *neigh,
 	struct nkfs_host_id *host_id)
 {
-	BUG_ON(neigh->host_id);
-	BUG_ON(!list_empty(&neigh->host_id_list));
+	NKFS_BUG_ON(neigh->host_id);
+	NKFS_BUG_ON(!list_empty(&neigh->host_id_list));
 
 	write_lock_irq(&host_id->neigh_list_lock);
 	neigh->host_id = host_id;	
@@ -383,7 +383,7 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	struct nkfs_net_pkt *req, *reply;
 	struct nkfs_host *host = neigh->host;
 	struct nkfs_host_id *hid;
-	BUG_ON(neigh->con);
+	NKFS_BUG_ON(neigh->con);
 
 	err = nkfs_neigh_connect(neigh);
 	if (err) {
@@ -633,7 +633,7 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 
 	write_lock_irq(&host->neighs_lock);
 	inserted = __nkfs_neighs_insert(host, neigh);
-	BUG_ON(!inserted);
+	NKFS_BUG_ON(!inserted);
 	if (inserted == neigh) {
 		list_add_tail(&neigh->neigh_list, &host->neigh_list);
 		err = 0;

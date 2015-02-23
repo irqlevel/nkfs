@@ -43,12 +43,12 @@ dio_pages_io(struct dio_pages *pages, void *buf,
 	unsigned long pg_off;
 	unsigned long pg_idx;
 
-	BUG_ON((off + len) > (pages->nr_pages*PAGE_SIZE));
+	NKFS_BUG_ON((off + len) > (pages->nr_pages*PAGE_SIZE));
 
 	pg_idx = off >> PAGE_SHIFT;
 	pg_off = off & (PAGE_SIZE - 1);
 	while (read < len) {
-		BUG_ON(pg_idx >= pages->nr_pages);
+		NKFS_BUG_ON(pg_idx >= pages->nr_pages);
 		step = len - read;
 		if (step > (PAGE_SIZE - pg_off)) 
 			step = PAGE_SIZE - pg_off;
@@ -165,9 +165,9 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 	u32 nr_pages;
 	int err;
 
-	BUG_ON(dev->clu_size & (PAGE_SIZE - 1));
-	BUG_ON(dev->clu_size < PAGE_SIZE);
-	BUG_ON(dev->clu_size > (DIO_CLU_MAX_PAGES * PAGE_SIZE));
+	NKFS_BUG_ON(dev->clu_size & (PAGE_SIZE - 1));
+	NKFS_BUG_ON(dev->clu_size < PAGE_SIZE);
+	NKFS_BUG_ON(dev->clu_size > (DIO_CLU_MAX_PAGES * PAGE_SIZE));
 
 	nr_pages = dev->clu_size >> PAGE_SHIFT;
 	cluster = kmem_cache_alloc(dio_clu_cachep, GFP_NOIO);
@@ -258,7 +258,7 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 	if (cluster && !dio_clu_pinned(cluster)) {
 		cluster = radix_tree_delete(&dev->clus_root, index);
 		if (cluster) {
-			BUG_ON(cluster->index != index);
+			NKFS_BUG_ON(cluster->index != index);
 			dev->nr_clus--;
 		}
 	} else 
@@ -293,7 +293,7 @@ static void dio_clus_release(struct dio_dev *dev)
 			cluster = batch[index];
 			atomic_set(&cluster->pin_count, 0);
 			removed = dio_clu_remove(dev, cluster->index);
-			BUG_ON(removed != cluster);
+			NKFS_BUG_ON(removed != cluster);
 			dio_clu_sync(cluster);
 			dio_clu_deref(cluster); /* was in tree */
 			dio_clu_deref(cluster); /* by alloc */
@@ -301,7 +301,7 @@ static void dio_clus_release(struct dio_dev *dev)
 		}
 	}
 
-	BUG_ON(dev->nr_clus);
+	NKFS_BUG_ON(dev->nr_clus);
 }
 
 static void dio_clus_dump(struct dio_dev *dev)
@@ -430,7 +430,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 		if ((dev->nr_clus > dev->nr_max_clus)) {
 			removed = dio_clu_remove(dev, node->index);
 			if (removed) {
-				BUG_ON(removed != node);
+				NKFS_BUG_ON(removed != node);
 				dio_clu_sync(node);
 				KLOG(KL_DBG3, "evicted c=%p a=%lx i=%lu r=%lu",
 					node, node->age, node->index,
@@ -494,7 +494,7 @@ static void dio_io_end_bio(struct bio *bio, int err)
 {
 	struct dio_io *io = bio->bi_private;
 
-	BUG_ON(io->bio != bio);
+	NKFS_BUG_ON(io->bio != bio);
  
 	io->err = err;
 	if (err) {
@@ -509,7 +509,7 @@ static void dio_io_end_bio(struct bio *bio, int err)
 
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
-			BUG_ON(test_bit(DIO_CLU_READ, &io->cluster->flags));
+			NKFS_BUG_ON(test_bit(DIO_CLU_READ, &io->cluster->flags));
 			set_bit(DIO_CLU_READ, &io->cluster->flags);
 		}
 	}
@@ -599,7 +599,7 @@ static int dio_clu_wait_read(struct dio_cluster *cluster)
 		dio_submit(READ, io);
 		wait_for_completion(&io->comp);
 		err = io->err;
-		BUG_ON(!err && !test_bit(DIO_CLU_READ, &cluster->flags));
+		NKFS_BUG_ON(!err && !test_bit(DIO_CLU_READ, &cluster->flags));
 		dio_io_deref(io);
 read_comp:
 		cluster->err = err;
@@ -637,7 +637,7 @@ int dio_clu_read(struct dio_cluster *cluster,
 {
 	int err;
 
-	BUG_ON((off + len) > cluster->clu_size);
+	NKFS_BUG_ON((off + len) > cluster->clu_size);
 
 	if (!test_bit(DIO_CLU_READ, &cluster->flags)) {
 		err = dio_clu_wait_read(cluster);
@@ -679,10 +679,10 @@ char *dio_clu_map(struct dio_cluster *cluster, unsigned long off)
 	unsigned long pg_idx;
 	unsigned long pg_off;
 
-	BUG_ON(off > cluster->clu_size);
+	NKFS_BUG_ON(off > cluster->clu_size);
 	pg_idx = off >> PAGE_SHIFT;
 	pg_off = off & (PAGE_SIZE - 1);
-	BUG_ON(pg_idx >= cluster->pages.nr_pages);
+	NKFS_BUG_ON(pg_idx >= cluster->pages.nr_pages);
 	return ((char *)page_address(cluster->pages.pages[pg_idx]) + pg_off);
 }
 
@@ -693,14 +693,14 @@ int dio_clu_write(struct dio_cluster *cluster,
 
 	down_read(&cluster->sync_rw_lock);
 
-	BUG_ON((off + len) > cluster->clu_size);
+	NKFS_BUG_ON((off + len) > cluster->clu_size);
 	if (!test_bit(DIO_CLU_READ, &cluster->flags)) {
 		err = dio_clu_wait_read(cluster);
 		if (err)
 			goto out;
 	}
 
-	BUG_ON(!test_bit(DIO_CLU_READ, &cluster->flags));
+	NKFS_BUG_ON(!test_bit(DIO_CLU_READ, &cluster->flags));
 	
 	down_write(&cluster->rw_lock);
 	set_bit(DIO_CLU_DIRTY, &cluster->flags);
@@ -800,26 +800,26 @@ static void dio_clu_release(struct dio_cluster *cluster)
 
 static void dio_clu_ref(struct dio_cluster *cluster)
 {
-	BUG_ON(atomic_read(&cluster->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&cluster->ref) <= 0);
 	atomic_inc(&cluster->ref);
 }
 
 static void dio_clu_deref(struct dio_cluster *cluster)
 {
-	BUG_ON(atomic_read(&cluster->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&cluster->ref) <= 0);
 	if (atomic_dec_and_test(&cluster->ref))
 		dio_clu_release(cluster);
 }
 
 void dio_dev_ref(struct dio_dev *dev)
 {
-	BUG_ON(atomic_read(&dev->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&dev->ref) <= 0);
 	atomic_inc(&dev->ref);
 }
 
 void dio_dev_deref(struct dio_dev *dev)
 {
-	BUG_ON(atomic_read(&dev->ref) <= 0);
+	NKFS_BUG_ON(atomic_read(&dev->ref) <= 0);
 	if (atomic_dec_and_test(&dev->ref))
 		dio_dev_release(dev);
 }

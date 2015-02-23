@@ -37,7 +37,7 @@ void nkfs_sb_stop(struct nkfs_sb *sb)
 	if (sb->inodes_tree)
 		nkfs_btree_stop(sb->inodes_tree);
 
-	BUG_ON(sb->inodes_active);
+	NKFS_BUG_ON(sb->inodes_active);
 	nkfs_sb_sync(sb);
 	KLOG(KL_INF, "sb %p used_blocks %llu",
 		sb, atomic64_read(&sb->used_blocks));
@@ -45,13 +45,13 @@ void nkfs_sb_stop(struct nkfs_sb *sb)
 
 void nkfs_sb_ref(struct nkfs_sb *sb)
 {
-	BUG_ON(atomic_read(&sb->refs) <= 0);
+	NKFS_BUG_ON(atomic_read(&sb->refs) <= 0);
 	atomic_inc(&sb->refs);
 }
 
 void nkfs_sb_deref(struct nkfs_sb *sb)
 {
-	BUG_ON(atomic_read(&sb->refs) <= 0);
+	NKFS_BUG_ON(atomic_read(&sb->refs) <= 0);
 	if (atomic_dec_and_test(&sb->refs))
 		nkfs_sb_delete(sb);
 }
@@ -74,7 +74,7 @@ struct nkfs_sb *nkfs_sb_lookup(struct nkfs_obj_id *id)
 
 static u64 nkfs_sb_free_blocks(struct nkfs_sb *sb)
 {
-	BUG_ON(sb->nr_blocks < atomic64_read(&sb->used_blocks));
+	NKFS_BUG_ON(sb->nr_blocks < atomic64_read(&sb->used_blocks));
 	return sb->nr_blocks - atomic64_read(&sb->used_blocks);	
 }
 
@@ -604,7 +604,7 @@ static int nkfs_sb_get_obj(struct nkfs_sb *sb,
 		KLOG(KL_ERR, "cant read inode %llu", iblock);
 		return -EIO;
 	}
-	BUG_ON(inode->block != iblock);
+	NKFS_BUG_ON(inode->block != iblock);
 
 	if (nkfs_obj_id_cmp(&inode->ino, id) != 0) {
 		KLOG(KL_ERR, "inode %llu has another id", iblock);
@@ -681,7 +681,7 @@ static int nkfs_sb_put_obj(struct nkfs_sb *sb,
 			iblock, off);
 		return -EIO;		
 	}
-	BUG_ON(inode->block != iblock);
+	NKFS_BUG_ON(inode->block != iblock);
 
 	err = nkfs_inode_io_pages(inode, off, pg_off, len,
 		pages, nr_pages, 1, &io_count);
@@ -700,8 +700,8 @@ static int nkfs_sb_delete_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id)
 	u64 iblock;
 	struct nkfs_inode *inode;
 
-	BUG_ON(!sb->inodes_tree);
-	BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
+	NKFS_BUG_ON(!sb->inodes_tree);
+	NKFS_BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
 	
 	if (sb->stopping)
 		return -EAGAIN;
@@ -734,7 +734,7 @@ int nkfs_sb_list_get_obj(struct nkfs_obj_id *obj_id, u64 off,
 	if (err)
 		return err;
 
-	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	NKFS_BUG_ON(nkfs_sb_list_count(&list) > 1);
 	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
@@ -760,7 +760,7 @@ int nkfs_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
 	if (err)
 		return err;
 
-	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	NKFS_BUG_ON(nkfs_sb_list_count(&list) > 1);
 	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
@@ -784,7 +784,7 @@ int nkfs_sb_list_delete_obj(struct nkfs_obj_id *obj_id)
 	if (err)
 		return err;
 
-	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	NKFS_BUG_ON(nkfs_sb_list_count(&list) > 1);
 	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;
@@ -821,8 +821,8 @@ static int nkfs_sb_query_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id,
 	u64 iblock;
 	struct nkfs_inode *inode;
 
-	BUG_ON(!sb->inodes_tree);
-	BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
+	NKFS_BUG_ON(!sb->inodes_tree);
+	NKFS_BUG_ON(sb->inodes_tree->sig1 != NKFS_BTREE_SIG1);
 	
 	if (sb->stopping)
 		return -EAGAIN;
@@ -861,7 +861,7 @@ int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *inf
 	if (err)
 		return err;
 
-	BUG_ON(nkfs_sb_list_count(&list) > 1);
+	NKFS_BUG_ON(nkfs_sb_list_count(&list) > 1);
 	sb = nkfs_sb_list_first(&list);
 	if (!sb) {
 		err = -ENOENT;

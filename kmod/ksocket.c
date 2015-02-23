@@ -165,7 +165,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 	u32 wrote = 0;
 	mm_segment_t oldmm = get_fs();
 
-	BUG_ON(nob <= 0);
+	NKFS_BUG_ON(nob <= 0);
 	for (;;) {
 		struct iovec iov = {
 			.iov_base = buffer,
@@ -221,8 +221,8 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 
 		
 		buffer = (void *)((unsigned long)buffer + error);
-		BUG_ON(error <= 0);
-		BUG_ON(nob < error);	
+		NKFS_BUG_ON(error <= 0);
+		NKFS_BUG_ON(nob < error);	
 		nob-= error;
 		if (nob == 0) {
 			error = 0;
@@ -251,7 +251,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 	u32 read = 0;
 	mm_segment_t oldmm = get_fs();
 
-	BUG_ON(nob <= 0);
+	NKFS_BUG_ON(nob <= 0);
 
 	for (;;) {
 		struct iovec iov = {
@@ -309,8 +309,8 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 			read+= error;
 
 		buffer = (void *)((unsigned long)buffer + error);
-		BUG_ON(error <= 0);
-		BUG_ON(nob < error);
+		NKFS_BUG_ON(error <= 0);
+		NKFS_BUG_ON(nob < error);
 		nob-= error;
 		if (nob == 0) {
 			error = 0;

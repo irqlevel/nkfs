@@ -81,11 +81,11 @@ int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 
 	dio_clu_read_lock(clu);
 	if (use) {
-		BUG_ON(test_bit_le(bit, dio_clu_map(clu, long_off)));
+		NKFS_BUG_ON(test_bit_le(bit, dio_clu_map(clu, long_off)));
 		set_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_inc(&sb->used_blocks);
 	} else {
-		BUG_ON(!test_bit_le(bit, dio_clu_map(clu, long_off)));
+		NKFS_BUG_ON(!test_bit_le(bit, dio_clu_map(clu, long_off)));
 		clear_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_dec(&sb->used_blocks);
 	}
@@ -123,7 +123,7 @@ static int nkfs_balloc_block_find_set_free_bit(struct nkfs_sb *sb,
 	char *page;
 	unsigned long *addr;
 
-	BUG_ON((clu->clu_size & (PAGE_SIZE - 1)));
+	NKFS_BUG_ON((clu->clu_size & (PAGE_SIZE - 1)));
 
 	dio_clu_read_lock(clu);
 	i = 0;
