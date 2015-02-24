@@ -395,7 +395,6 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	struct nkfs_net_pkt *req, *reply;
 	struct nkfs_host *host = neigh->host;
 	struct nkfs_host_id *hid;
-	NKFS_BUG_ON(neigh->con);
 
 	down_write(&neigh->rw_sem);
 	if (test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
@@ -480,9 +479,8 @@ static void nkfs_neigh_handshake_work(struct nkfs_host_work *work)
 {
 	struct nkfs_neigh *neigh = work->data;
 
-	if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state)) {
+	if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state))
 		nkfs_neigh_do_handshake(neigh);
-	}
 }
 
 static void nkfs_host_connect_work(struct nkfs_host_work *work)
@@ -499,11 +497,120 @@ static void nkfs_host_connect_work(struct nkfs_host_work *work)
 	read_unlock(&host->neighs_lock);
 }
 
+static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
+{
+	int err;
+	struct nkfs_net_pkt *req, *reply;
+	struct nkfs_host *host = neigh->host;
+	struct nkfs_host_id *hid;
+	u64 then;
+
+	down_write(&neigh->rw_sem);
+	if (!test_bit(NKFS_NEIGH_S_INITED, &neigh->state) ||
+		!test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
+		err = 0;
+		KLOG(KL_INF, "not ready");
+		goto unlock;
+	}
+
+	then = get_jiffies_64();
+	neigh->heartbeat_last = get_jiffies_64();
+	err = nkfs_neigh_connect(neigh);
+	if (err) {
+		KLOG(KL_ERR, "cant connect err %d", err);
+		goto unlock;
+	}
+
+	req = net_pkt_alloc();
+	if (!req) {
+		KLOG(KL_ERR, "no memory");
+		goto close_con;
+	}
+
+	reply = net_pkt_alloc();
+	if (!reply) {
+		KLOG(KL_ERR, "no memory");
+		goto free_req;
+	}
+
+	req->type = NKFS_NET_PKT_NEIGH_HEARTBEAT;
+	nkfs_obj_id_copy(&req->u.neigh_heartbeat.net_id, &host->net_id);
+	nkfs_obj_id_copy(&req->u.neigh_heartbeat.host_id, &host->host_id);
+
+	err = nkfs_con_send_pkt(neigh->con, req);
+	if (err) {
+		KLOG(KL_ERR, "send err %d", err);
+		goto free_reply;
+	}
+
+	err = nkfs_con_recv_pkt(neigh->con, reply);
+	if (err) {
+		KLOG(KL_ERR, "recv err %d", err);
+		goto free_reply;
+	}
+
+	if (reply->err) {
+		KLOG(KL_ERR, "reply err %d", reply->err);
+		err = reply->err;
+		goto free_reply;
+	}
+
+	neigh->heartbeat_delay = get_jiffies_64() - then;
+	hid = nkfs_host_id_lookup_or_create(neigh->host,
+		&reply->u.neigh_handshake.reply_host_id);
+	if (!hid) {
+		err = -ENOMEM;
+		KLOG(KL_ERR, "cant get host_id %d", err);
+		goto free_reply;
+	}
+	nkfs_neigh_attach_host_id(neigh, hid);
+	set_bit(NKFS_NEIGH_S_SHAKED, &neigh->state);
+	KLOG_NEIGH(KL_INF, neigh);
+
+free_reply:
+	crt_free(reply);
+free_req:
+	crt_free(req);
+close_con:
+	nkfs_neigh_close(neigh);
+unlock:
+	up_write(&neigh->rw_sem);
+
+	return err;
+}
+
+
+static void nkfs_neigh_heartbeat_work(struct nkfs_host_work *work)
+{
+	struct nkfs_neigh *neigh = work->data;
+
+	if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state) &&
+		test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state))
+		nkfs_neigh_do_heartbeat(neigh);
+}
+
+static void nkfs_host_heartbeat_work(struct nkfs_host_work *work)
+{
+	struct nkfs_host *host = work->host;
+	struct nkfs_neigh *neigh, *tmp;
+
+	read_lock(&host->neighs_lock);
+	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
+		if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state) &&
+			test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state))
+			nkfs_host_queue_work(host, nkfs_neigh_heartbeat_work, neigh);
+	}
+	read_unlock(&host->neighs_lock);
+}
+
+
 static void nkfs_host_timer_callback(unsigned long data)
 {
 	struct nkfs_host *host = (struct nkfs_host *)data;
 
 	nkfs_host_queue_work(host, nkfs_host_connect_work, NULL);
+	nkfs_host_queue_work(host, nkfs_host_heartbeat_work, NULL);
+
 	if (!host->stopping) {
 		mod_timer(&host->timer, jiffies +
 			msecs_to_jiffies(HOST_TIMER_TIMEOUT_MS));

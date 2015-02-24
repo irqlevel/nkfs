@@ -65,8 +65,8 @@ struct nkfs_net_pkt {
 		struct {
 			struct nkfs_obj_id	net_id;
 			struct nkfs_obj_id	host_id;
-			struct nkfs_obj_id	reply_host_id;
 			int			nr_neighs;
+			struct nkfs_obj_id	reply_host_id;
 			struct nkfs_net_peer	neighs[NKFS_NET_PKT_MAX_NEIGHS];
 		} neigh_heartbeat;
 	} u;
