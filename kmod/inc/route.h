@@ -24,8 +24,8 @@ struct nkfs_host {
 	int			neighs_active;
 	int			stopping;
 	struct rb_root		host_ids;
-	rwlock_t		host_inkfs_lock;
-	int			host_inkfs_active;
+	rwlock_t		host_ids_lock;
+	int			host_ids_active;
 };
 
 struct nkfs_host_id {
@@ -34,7 +34,7 @@ struct nkfs_host_id {
 	struct list_head	neigh_list;
 	rwlock_t		neigh_list_lock;
 	struct nkfs_obj_id	host_id;
-	struct rb_node		host_inkfs_link;
+	struct rb_node		host_ids_link;
 };
 
 struct nkfs_neigh {

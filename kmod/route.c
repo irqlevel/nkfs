@@ -35,7 +35,7 @@ struct kmem_cache *nkfs_host_id_cachep;
 static void __nkfs_neighs_remove(struct nkfs_host *host,
 	struct nkfs_neigh *neigh);
 
-void __nkfs_host_inkfs_remove(struct nkfs_host *host,
+void __nkfs_host_ids_remove(struct nkfs_host *host,
 	struct nkfs_host_id *host_id);
 
 static int nkfs_neigh_connect(struct nkfs_neigh *neigh)
@@ -139,9 +139,9 @@ static void nkfs_host_id_release(struct nkfs_host_id *host_id)
 	struct nkfs_host *host = host_id->host;
 	KLOG(KL_DBG, "hid %p, host %p", host_id, host);
 	if (host) {
-		write_lock_irq(&host->host_inkfs_lock);
-		__nkfs_host_inkfs_remove(host, host_id);
-		write_unlock_irq(&host->host_inkfs_lock);
+		write_lock_irq(&host->host_ids_lock);
+		__nkfs_host_ids_remove(host, host_id);
+		write_unlock_irq(&host->host_ids_lock);
 	}
 	nkfs_host_id_free(host_id);
 }
@@ -159,7 +159,7 @@ void nkfs_host_id_deref(struct nkfs_host_id *host_id)
 		nkfs_host_id_release(host_id);	
 }
 
-struct nkfs_host_id *__nkfs_host_inkfs_lookup(struct nkfs_host *host, struct nkfs_obj_id *host_id)
+struct nkfs_host_id *__nkfs_host_ids_lookup(struct nkfs_host *host, struct nkfs_obj_id *host_id)
 {
 	struct rb_node *n = host->host_ids.rb_node;
 	struct nkfs_host_id *found = NULL;
@@ -168,7 +168,7 @@ struct nkfs_host_id *__nkfs_host_inkfs_lookup(struct nkfs_host *host, struct nkf
 		struct nkfs_host_id *hid;
 		int cmp;
 
-		hid = rb_entry(n, struct nkfs_host_id, host_inkfs_link);
+		hid = rb_entry(n, struct nkfs_host_id, host_ids_link);
 		cmp = nkfs_obj_id_cmp(host_id, &hid->host_id);
 		KLOG(KL_DBG, "host_id %p, hid %p, cmp=%d", host_id, hid, cmp);
 		if (cmp < 0) {
@@ -183,17 +183,17 @@ struct nkfs_host_id *__nkfs_host_inkfs_lookup(struct nkfs_host *host, struct nkf
 	return found;
 }
 
-void __nkfs_host_inkfs_remove(struct nkfs_host *host,
+void __nkfs_host_ids_remove(struct nkfs_host *host,
 	struct nkfs_host_id *host_id)
 {
 	struct nkfs_host_id *found;
 
-	found = __nkfs_host_inkfs_lookup(host, &host_id->host_id);
+	found = __nkfs_host_ids_lookup(host, &host_id->host_id);
 	KLOG(KL_DBG, "found %p", found);
 	if (found) {
 		NKFS_BUG_ON(found != host_id);
-		rb_erase(&found->host_inkfs_link, &host->host_ids);
-		host->host_inkfs_active--;
+		rb_erase(&found->host_ids_link, &host->host_ids);
+		host->host_ids_active--;
 	}
 }
 
@@ -209,7 +209,7 @@ struct nkfs_host_id *__nkfs_host_id_insert(struct nkfs_host *host,
 		struct nkfs_host_id *found;
 		int cmp;
 		parent = *p;
-		found = rb_entry(parent, struct nkfs_host_id, host_inkfs_link);
+		found = rb_entry(parent, struct nkfs_host_id, host_ids_link);
 		cmp = nkfs_obj_id_cmp(&host_id->host_id, &found->host_id);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
@@ -222,10 +222,10 @@ struct nkfs_host_id *__nkfs_host_id_insert(struct nkfs_host *host,
 	}
 
 	if (!inserted) {
-		rb_link_node(&host_id->host_inkfs_link, parent, p);
-		rb_insert_color(&host_id->host_inkfs_link, &host->host_ids);
+		rb_link_node(&host_id->host_ids_link, parent, p);
+		rb_insert_color(&host_id->host_ids_link, &host->host_ids);
 		host_id->host = host;
-		host->host_inkfs_active++;
+		host->host_ids_active++;
 		inserted = host_id;
 	}
 	HOST_ID_REF(inserted);
@@ -241,9 +241,9 @@ struct nkfs_host_id *nkfs_host_id_lookup_or_create(struct nkfs_host *host,
 		return NULL;
 	
 	nkfs_obj_id_copy(&hid->host_id, host_id);
-	write_lock_irq(&host->host_inkfs_lock);
+	write_lock_irq(&host->host_ids_lock);
 	inserted = __nkfs_host_id_insert(host, hid);
-	write_unlock_irq(&host->host_inkfs_lock);
+	write_unlock_irq(&host->host_ids_lock);
 	if (inserted != hid) {
 		HOST_ID_DEREF(hid);
 		hid = inserted;
@@ -521,7 +521,7 @@ static struct nkfs_host *nkfs_host_create(void)
 	rwlock_init(&host->neighs_lock);
 
 	host->host_ids = RB_ROOT;
-	rwlock_init(&host->host_inkfs_lock);
+	rwlock_init(&host->host_ids_lock);
 
 	INIT_LIST_HEAD(&host->neigh_list);
 
@@ -574,10 +574,10 @@ static void nkfs_host_release(struct nkfs_host *host)
 	}
 
 	KLOG(KL_DBG, "neighs %d host_ids %d",
-		host->neighs_active, host->host_inkfs_active);
+		host->neighs_active, host->host_ids_active);
 
 	NKFS_BUG_ON(host->neighs_active);
-	NKFS_BUG_ON(host->host_inkfs_active);
+	NKFS_BUG_ON(host->host_ids_active);
 	nkfs_host_free(host);
 }
 
