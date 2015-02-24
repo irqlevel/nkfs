@@ -69,6 +69,8 @@ static struct nkfs_neigh *nkfs_neigh_alloc(void)
 	atomic_set(&neigh->ref, 1);
 	INIT_LIST_HEAD(&neigh->neigh_list);
 	INIT_LIST_HEAD(&neigh->host_id_list);
+	init_rwsem(&neigh->rw_sem);
+
 	return neigh;
 }
 
