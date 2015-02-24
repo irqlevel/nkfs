@@ -1,16 +1,23 @@
 #pragma once
 
 enum {
-	NKFS_NEIGH_INIT,
-	NKFS_NEIGH_VALID,
+	NKFS_NEIGH_S_INITED,
+	NKFS_NEIGH_S_SHAKED,
+	NKFS_NEIGH_S_ERROR
 };
 
 #pragma pack(push, 1)
 
+struct nkfs_host_work;
+
+typedef void (*nkfs_host_work_func_t)(struct nkfs_host_work *work);
+
 struct nkfs_host_work {
 	struct work_struct	work;
-	struct nkfs_host		*host;
+	struct nkfs_host	*host;
 	void			*data;
+	atomic_t		ref;
+	nkfs_host_work_func_t	func;
 };
 
 struct nkfs_host {
@@ -30,7 +37,7 @@ struct nkfs_host {
 
 struct nkfs_host_id {
 	atomic_t		ref;
-	struct nkfs_host		*host;
+	struct nkfs_host	*host;
 	struct list_head	neigh_list;
 	rwlock_t		neigh_list_lock;
 	struct nkfs_obj_id	host_id;
@@ -43,16 +50,16 @@ struct nkfs_neigh {
 	atomic_t		ref;
 	struct nkfs_host_id	*host_id;
 	struct rb_node		neighs_link;
-	struct nkfs_host		*host;
+	struct nkfs_host	*host;
 	struct nkfs_con		*con;
 	u32			d_ip;
 	int			d_port;
 	u32			s_ip;
 	int			s_port;
-	int			state;
-	struct work_struct	work;
-	atomic_t		work_used;
-	void			*work_data;
+	unsigned long		state;
+	struct rw_semaphore	rw_sem;	
+	u64			heartbeat_last_time;
+	u64			heartbeat_delay;
 };
 
 #pragma pack(pop)

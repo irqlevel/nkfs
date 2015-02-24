@@ -12,13 +12,23 @@ enum {
 	NKFS_NET_PKT_DELETE_OBJ,
 	NKFS_NET_PKT_QUERY_OBJ,
 	NKFS_NET_PKT_CREATE_OBJ,
-	NKFS_NET_PKT_NEIGH_HANDSHAKE
+	NKFS_NET_PKT_NEIGH_HANDSHAKE,
+	NKFS_NET_PKT_NEIGH_HEARTBEAT
 };
 
 #define NKFS_NET_PKT_SIGN1	((u32)0xBEDABEDA)
 #define NKFS_NET_PKT_SIGN2	((u32)0xCBADCBAD)
 
+#define NKFS_NET_PKT_MAX_NEIGHS 16
+
 #pragma pack(push, 1)
+
+struct nkfs_net_peer {
+	u32			s_ip;
+	int			s_port;
+	struct nkfs_obj_id	host_id;
+};
+
 struct nkfs_net_pkt {
 	u32			sign1;
 	u32			type;
@@ -52,6 +62,13 @@ struct nkfs_net_pkt {
 			int			s_port;
 			struct nkfs_obj_id	reply_host_id;
 		} neigh_handshake;
+		struct {
+			struct nkfs_obj_id	net_id;
+			struct nkfs_obj_id	host_id;
+			struct nkfs_obj_id	reply_host_id;
+			int			nr_neighs;
+			struct nkfs_net_peer	neighs[NKFS_NET_PKT_MAX_NEIGHS];
+		} neigh_heartbeat;
 	} u;
 	struct csum		dsum;
 	struct csum		sum;	

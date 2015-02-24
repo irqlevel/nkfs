@@ -31,6 +31,7 @@
 struct nkfs_host *nkfs_host;
 struct kmem_cache *nkfs_neigh_cachep;
 struct kmem_cache *nkfs_host_id_cachep;
+struct kmem_cache *nkfs_host_work_cachep;
 
 static void __nkfs_neighs_remove(struct nkfs_host *host,
 	struct nkfs_neigh *neigh);
@@ -66,10 +67,21 @@ static struct nkfs_neigh *nkfs_neigh_alloc(void)
 	}
 	memset(neigh, 0, sizeof(*neigh));
 	atomic_set(&neigh->ref, 1);
-	atomic_set(&neigh->work_used, 0);
 	INIT_LIST_HEAD(&neigh->neigh_list);
 	INIT_LIST_HEAD(&neigh->host_id_list);
 	return neigh;
+}
+
+static void nkfs_host_work_free(struct nkfs_host_work *work)
+{
+	kmem_cache_free(nkfs_host_work_cachep, work);
+}
+
+static void nkfs_host_work_deref(struct nkfs_host_work *work)
+{
+	NKFS_BUG_ON(atomic_read(&work->ref) <= 0);
+	if (atomic_dec_and_test(&work->ref))
+		nkfs_host_work_free(work);
 }
 
 static void nkfs_neigh_free(struct nkfs_neigh *neigh)
@@ -325,44 +337,42 @@ static struct nkfs_neigh *__nkfs_neighs_insert(struct nkfs_host *host,
 	return inserted;
 }
 
+
+static void nkfs_host_work_func(struct work_struct *wrk)
+{
+	struct nkfs_host_work *work = container_of(wrk,
+			struct nkfs_host_work, work);
+
+	work->func(work);
+	nkfs_host_work_deref(work);
+}
+
 static int nkfs_host_queue_work(struct nkfs_host *host,
-	work_func_t func, void *data)
+	nkfs_host_work_func_t func, void *data)
 {
 	struct nkfs_host_work *work = NULL;
 
-	work = kmalloc(sizeof(struct nkfs_host_work), GFP_ATOMIC);
+	work = kmem_cache_alloc(nkfs_host_work_cachep, GFP_ATOMIC);
 	if (!work) {
 		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
 	}
 
 	memset(work, 0, sizeof(*work));
-	INIT_WORK(&work->work, func);
+	INIT_WORK(&work->work, nkfs_host_work_func);
 	work->host = host;
 	work->data = data;
+	work->func = func;
+
+	atomic_set(&work->ref, 1);
 
 	if (!queue_work(host->wq, &work->work)) {
-		kfree(work);
+		nkfs_host_work_deref(work);
 		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}
 
 	return 0;
-}
-
-static int nkfs_neigh_queue_work(struct nkfs_neigh *neigh,
-	work_func_t func, void *data)
-{
-	if (0 == atomic_cmpxchg(&neigh->work_used, 0, 1)) {
-		neigh->work_data = data;
-		INIT_WORK(&neigh->work, func);
-		if (!queue_work(neigh->host->wq, &neigh->work)) {
-			atomic_set(&neigh->work_used, 0);
-			return -EFAULT;
-		}
-		return 0;
-	}
-	return -EAGAIN;
 }
 
 static void nkfs_neigh_attach_host_id(struct nkfs_neigh *neigh,
@@ -385,10 +395,17 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	struct nkfs_host_id *hid;
 	NKFS_BUG_ON(neigh->con);
 
+	down_write(&neigh->rw_sem);
+	if (test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
+		err = 0;
+		KLOG(KL_INF, "already shaked");
+		goto unlock;
+	}
+
 	err = nkfs_neigh_connect(neigh);
 	if (err) {
 		KLOG(KL_ERR, "cant connect err %d", err);
-		return err;
+		goto unlock;
 	}
 
 	req = net_pkt_alloc();
@@ -442,7 +459,7 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 		goto free_reply;
 	}
 	nkfs_neigh_attach_host_id(neigh, hid);
-	neigh->state = NKFS_NEIGH_VALID;
+	set_bit(NKFS_NEIGH_S_SHAKED, &neigh->state);
 	KLOG_NEIGH(KL_INF, neigh);
 
 free_reply:
@@ -451,33 +468,33 @@ free_req:
 	crt_free(req);
 close_con:
 	nkfs_neigh_close(neigh);
+unlock:
+	up_write(&neigh->rw_sem);
+
 	return err;
 }
 
-static void nkfs_neigh_handshake_work(struct work_struct *wrk)
+static void nkfs_neigh_handshake_work(struct nkfs_host_work *work)
 {
-	struct nkfs_neigh *neigh = container_of(wrk, struct nkfs_neigh, work);
-	if (neigh->state == NKFS_NEIGH_INIT) {
+	struct nkfs_neigh *neigh = work->data;
+
+	if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state)) {
 		nkfs_neigh_do_handshake(neigh);
 	}
-	atomic_set(&neigh->work_used, 0);	
 }
 
-static void nkfs_host_connect_work(struct work_struct *wrk)
+static void nkfs_host_connect_work(struct nkfs_host_work *work)
 {
-	struct nkfs_host_work *work = container_of(wrk,
-			struct nkfs_host_work, work);
 	struct nkfs_host *host = work->host;
 	struct nkfs_neigh *neigh, *tmp;
 
 	read_lock(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
-		if (neigh->state == NKFS_NEIGH_INIT)
-			nkfs_neigh_queue_work(neigh, nkfs_neigh_handshake_work,
-					NULL);
+		if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state) &&
+			!test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state))
+			nkfs_host_queue_work(host, nkfs_neigh_handshake_work, neigh);
 	}
 	read_unlock(&host->neighs_lock);
-	kfree(work);
 }
 
 static void nkfs_host_timer_callback(unsigned long data)
@@ -607,8 +624,19 @@ int nkfs_route_init(void)
 		goto del_neigh_cache;
 	}	
 
+	nkfs_host_work_cachep = kmem_cache_create("nkfs_host_work_cache",
+		sizeof(struct nkfs_host_work), 0, SLAB_MEM_SPREAD, NULL);
+	if (!nkfs_host_work_cachep) {
+		KLOG(KL_ERR, "cant create cache");
+		err = -ENOMEM;
+		goto del_host_cache;
+	}	
+
+
 	return 0;
 
+del_host_cache:
+	kmem_cache_destroy(nkfs_host_work_cachep);
 del_neigh_cache:
 	kmem_cache_destroy(nkfs_neigh_cachep);
 rel_host:
@@ -621,6 +649,7 @@ void nkfs_route_finit(void)
 	nkfs_host_release(nkfs_host);
 	kmem_cache_destroy(nkfs_neigh_cachep);
 	kmem_cache_destroy(nkfs_host_id_cachep);
+	kmem_cache_destroy(nkfs_host_work_cachep);
 }
 
 int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
@@ -686,7 +715,7 @@ int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	neigh->d_port = d_port;
 	neigh->s_ip = s_ip;
 	neigh->s_port = s_port;
-	neigh->state = NKFS_NEIGH_INIT;
+	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
 	err = nkfs_host_add_neigh(nkfs_host, neigh); 
 	if (err) {
 		KLOG(KL_ERR, "cant add neigh err %d", err);
@@ -734,7 +763,7 @@ int nkfs_neigh_handshake(struct nkfs_obj_id *net_id,
 		goto deref_neigh;
 	}
 	nkfs_neigh_attach_host_id(neigh, hid);
-	neigh->state = NKFS_NEIGH_VALID;
+	set_bit(NKFS_NEIGH_S_SHAKED, &neigh->state);
 
 	err = nkfs_host_add_neigh(nkfs_host, neigh);
 	if (err) {
