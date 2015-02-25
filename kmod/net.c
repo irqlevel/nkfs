@@ -339,23 +339,6 @@ static int nkfs_con_query_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	return nkfs_con_send_reply(con, reply, err);
 }
 
-static int nkfs_con_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
-	struct nkfs_net_pkt *reply)
-{
-	int err;
-
-	err = nkfs_neigh_handshake(&pkt->u.neigh_handshake.net_id,
-		&pkt->u.neigh_handshake.host_id,
-		pkt->u.neigh_handshake.d_ip,
-		pkt->u.neigh_handshake.d_port,
-		pkt->u.neigh_handshake.s_ip,
-		pkt->u.neigh_handshake.s_port,
-		&reply->u.neigh_handshake.reply_host_id);
-
-	return nkfs_con_send_reply(con, reply, err);
-}
-
-
 static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 {
 	struct nkfs_net_pkt *reply;
@@ -391,7 +374,10 @@ static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 			err = nkfs_con_query_obj(con, pkt, reply);
 			break;
 		case NKFS_NET_PKT_NEIGH_HANDSHAKE:
-			err = nkfs_con_neigh_handshake(con, pkt, reply);
+			err = nkfs_route_neigh_handshake(con, pkt, reply);
+			break;
+		case NKFS_NET_PKT_NEIGH_HEARTBEAT:
+			err = nkfs_route_neigh_heartbeat(con, pkt, reply);
 			break;
 		default:
 			err = nkfs_con_send_reply(con, reply, -EINVAL);

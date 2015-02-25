@@ -46,9 +46,9 @@ struct nkfs_host_id {
 
 struct nkfs_neigh {
 	struct list_head	neigh_list;
-	struct list_head	host_id_list;
+	struct list_head	hid_list;
 	atomic_t		ref;
-	struct nkfs_host_id	*host_id;
+	struct nkfs_host_id	*hid;
 	struct rb_node		neighs_link;
 	struct nkfs_host	*host;
 	struct nkfs_con		*con;
@@ -60,6 +60,7 @@ struct nkfs_neigh {
 	struct rw_semaphore	rw_sem;	
 	u64			heartbeat_last;
 	u64			heartbeat_delay;
+	int			heartbeat_err;
 };
 
 #pragma pack(pop)
@@ -73,12 +74,12 @@ void nkfs_neigh_deref(struct nkfs_neigh *neigh);
 #define NEIGH_DEREF(n)	\
 	nkfs_neigh_deref(n);
 
-void nkfs_host_id_ref(struct nkfs_host_id *host_id);
-void nkfs_host_id_deref(struct nkfs_host_id *host_id);
+void nkfs_hid_ref(struct nkfs_host_id *host_id);
+void nkfs_hid_deref(struct nkfs_host_id *host_id);
 
 #define HOST_ID_REF(hid)							\
 	do {									\
-		nkfs_host_id_ref((hid));						\
+		nkfs_hid_ref((hid));						\
 		KLOG(KL_DBG, "ref hid %p ref %d",				\
 			(hid), atomic_read(&(hid)->ref));			\
 	} while (0);
@@ -87,15 +88,17 @@ void nkfs_host_id_deref(struct nkfs_host_id *host_id);
 	do {									\
 		KLOG(KL_DBG, "deref hid %p ref %d",				\
 			(hid), atomic_read(&(hid)->ref));			\
-		nkfs_host_id_deref((hid));					\
+		nkfs_hid_deref((hid));						\
 	} while (0);
 
 int nkfs_route_init(void);
 void nkfs_route_finit(void);
 
-int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
-int nkfs_neigh_remove(u32 d_ip, int d_port);
+int nkfs_route_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
+int nkfs_route_neigh_remove(u32 d_ip, int d_port);
 
-int nkfs_neigh_handshake(struct nkfs_obj_id *net_id,
-	struct nkfs_obj_id *host_id, u32 d_ip, int d_port,
-	u32 s_ip, int s_port, struct nkfs_obj_id *reply_host_id);
+int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply);
+
+int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
+	struct nkfs_net_pkt *reply);

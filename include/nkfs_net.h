@@ -54,8 +54,8 @@ struct nkfs_net_pkt {
 			struct nkfs_obj_info	obj_info;
 		} query_obj;
 		struct {
-			struct nkfs_obj_id	net_id;
-			struct nkfs_obj_id	host_id;
+			struct nkfs_obj_id	src_net_id;
+			struct nkfs_obj_id	src_host_id;
 			u32			d_ip;
 			int			d_port;
 			u32			s_ip;
@@ -63,11 +63,12 @@ struct nkfs_net_pkt {
 			struct nkfs_obj_id	reply_host_id;
 		} neigh_handshake;
 		struct {
-			struct nkfs_obj_id	net_id;
-			struct nkfs_obj_id	host_id;
-			int			nr_neighs;
+			struct nkfs_obj_id	src_net_id;
+			struct nkfs_obj_id	src_host_id;
+			struct nkfs_obj_id	dst_host_id;
 			struct nkfs_obj_id	reply_host_id;
-			struct nkfs_net_peer	neighs[NKFS_NET_PKT_MAX_NEIGHS];
+			struct nkfs_net_peer	reply_neighs[NKFS_NET_PKT_MAX_NEIGHS];
+			int			reply_nr_neighs;
 		} neigh_heartbeat;
 	} u;
 	struct csum		dsum;
