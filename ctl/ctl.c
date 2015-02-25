@@ -180,6 +180,7 @@ out:
 
 int nkfs_neigh_remove(u32 d_ip, int d_port)
 {
+
 	int err = -EINVAL;
 	struct nkfs_ctl cmd;
 	int fd;
@@ -193,6 +194,32 @@ int nkfs_neigh_remove(u32 d_ip, int d_port)
 	cmd.u.neigh_remove.d_ip = d_ip;
 	cmd.u.neigh_remove.d_port = d_port;
 	err = ioctl(fd, IOCTL_NKFS_NEIGH_REMOVE, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+out:
+	close(fd);
+	return err;
+}
+
+int nkfs_klog_ctl(int level, int sync)
+{
+	int err = -EINVAL;
+	struct nkfs_ctl cmd;
+	int fd;
+
+	err = nkfs_ctl_open(&fd);
+	if (err)
+		return err;
+	
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.u.klog_ctl.level = level;
+	cmd.u.klog_ctl.sync = sync;
+	err = ioctl(fd, IOCTL_NKFS_KLOG_CTL, &cmd);
 	if (err)
 		goto out;
 

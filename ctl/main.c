@@ -14,7 +14,7 @@ static void usage(char *program)
 {
 	printf("Usage: %s [-d device] [-f format] [-r rem ip] [-t rem port] [-s srv ip] [-p srv port]"
 		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
-		" neigh_add, neigh_remove}\n",
+		" neigh_add, neigh_remove, klog_sync}\n",
 		program);
 }
 
@@ -217,6 +217,10 @@ static int do_cmd(char *prog, char *cmd, char *remote, int remote_port,
 			printf("cant remove neighbour %s:%d err %d\n",
 				remote, remote_port, err);
 		}
+	} else if (cmd_equal(cmd, "klog_sync")) {
+		err = nkfs_klog_ctl(0, 1);
+		if (err)
+			printf("can't sync klog err %d\n", err);		
 	} else {
 		printf("unknown cmd\n");
 		usage(prog);

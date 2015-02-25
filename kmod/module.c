@@ -19,6 +19,13 @@ static int nkfs_mod_put(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int nkfs_klog_ctl(int level, int sync)
+{
+	if (sync)
+		KLOG_SYNC();
+	return 0;
+}
+
 static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
@@ -64,6 +71,10 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		case IOCTL_NKFS_NEIGH_REMOVE:
 			err = nkfs_route_neigh_remove(cmd->u.neigh_remove.d_ip,
 				cmd->u.neigh_remove.d_port);
+			break;
+		case IOCTL_NKFS_KLOG_CTL:
+			err = nkfs_klog_ctl(cmd->u.klog_ctl.level,
+				cmd->u.klog_ctl.sync);
 			break;
 		default:
 			KLOG(KL_ERR, "unknown ioctl=%d", code);

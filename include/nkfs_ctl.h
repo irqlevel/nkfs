@@ -42,6 +42,10 @@ struct nkfs_ctl {
 			u32 d_ip;
 			int d_port;
 		} neigh_remove;
+		struct {
+			int sync;
+			int level;
+		} klog_ctl;
 	} u;
 };
 
@@ -56,3 +60,5 @@ struct nkfs_ctl {
 
 #define IOCTL_NKFS_NEIGH_ADD	_IOWR(NKFS_IOC_MAGIC, 6, struct nkfs_ctl *)
 #define IOCTL_NKFS_NEIGH_REMOVE	_IOWR(NKFS_IOC_MAGIC, 7, struct nkfs_ctl *)
+
+#define IOCTL_NKFS_KLOG_CTL	_IOWR(NKFS_IOC_MAGIC, 8, struct nkfs_ctl *)

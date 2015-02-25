@@ -42,11 +42,17 @@
 
 #include <crt/include/crt.h>
 
+#define KLOG_SYNC()					\
+	do {						\
+		KLOG(KL_INF, "klog sync requested");	\
+		klog_sync();				\
+	} while (0);
+
 #define NKFS_BUG_ON(cond)				\
 	do {						\
 		if (cond) {				\
 			KLOG(KL_ERR, "BUG_ON()");	\
-			klog_sync();			\
+			KLOG_SYNC();			\
 		}					\
 		BUG_ON(cond);				\
 	} while (0);					\
