@@ -903,7 +903,7 @@ int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 {
 	int err;
 
-	KLOG(KL_ERR, "peer %x", nkfs_con_peer_addr(con));
+	KLOG(KL_INF, "peer %x", nkfs_con_peer_addr(con));
 
 	err = nkfs_neigh_handshake(&pkt->u.neigh_handshake.src_net_id,
 		&pkt->u.neigh_handshake.src_host_id,
@@ -927,7 +927,6 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	int err;
 	struct nkfs_host_id *hid;
 
-	KLOG(KL_INF, "handler");
 	if (0 != nkfs_obj_id_cmp(src_net_id, &nkfs_host->net_id)) {
 		KLOG(KL_ERR, "diff net id");
 		err = -EINVAL;
@@ -961,7 +960,7 @@ int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 {
 	int err;
 
-	KLOG(KL_ERR, "peer %x", nkfs_con_peer_addr(con));
+	KLOG(KL_INF, "peer %x", nkfs_con_peer_addr(con));
 
 	err = nkfs_neigh_heartbeat(&pkt->u.neigh_heartbeat.src_net_id,
 			&pkt->u.neigh_heartbeat.src_host_id,
