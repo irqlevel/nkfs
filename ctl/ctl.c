@@ -6,10 +6,10 @@ static int nkfs_ctl_open(int *fd)
 	int dev_fd = -1;
 	int err = -EINVAL;
 
-	dev_fd = open("/dev/nkfs_ctl", 0);
+	dev_fd = open("/dev/"NKFS_CTL_DEV_NAME, 0);
 	if (dev_fd == -1) {
 		err = errno;
-		printf("cant open ds ctl device, err=%d\n", err);
+		printf("cant open nkfs ctl device, err=%d\n", err);
 		return err;
 	}
 	*fd = dev_fd;
