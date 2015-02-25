@@ -12,7 +12,7 @@ static void prepare_logging()
 
 static void usage(char *program)
 {
-	printf("Usage: %s [-d device] [-f format] [-s srv ip] [-p srv port]"
+	printf("Usage: %s [-d device] [-f format] [-r rem ip] [-t rem port] [-s srv ip] [-p srv port]"
 		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
 		" neigh_add, neigh_remove}\n",
 		program);
