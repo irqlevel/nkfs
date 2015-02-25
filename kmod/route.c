@@ -628,7 +628,7 @@ static void nkfs_host_timer_callback(unsigned long data)
 	}
 
 	if (time_after64(get_jiffies_64(),
-		host->last_handshake + msecs_to_jiffies(HOST_HBT_TIMEOUT_MS))) {
+		host->last_hbt + msecs_to_jiffies(HOST_HBT_TIMEOUT_MS))) {
 		nkfs_host_queue_work(host, nkfs_host_heartbeat_work, NULL);
 		host->last_hbt = get_jiffies_64();
 	}
