@@ -894,6 +894,8 @@ static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 		goto deref_neigh;
 	}
 	nkfs_neigh_attach_host_id(neigh, hid);
+
+	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
 	set_bit(NKFS_NEIGH_S_SHAKED, &neigh->state);
 
 	err = nkfs_host_add_neigh(nkfs_host, neigh);
