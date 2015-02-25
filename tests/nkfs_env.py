@@ -31,16 +31,19 @@ class DsEnv:
 		pass
 
 class NkfsLocalLoopEnv(DsEnv):
-	def __init__(self):
+	def __init__(self, load_mods = True):
 		DsEnv.__init__(self)
 		self.devs = []
 		self.srvs = []
+		self.load_mods = load_mods
 
 	def get_client(self):
 		return NkfsClient("0.0.0.0", 9111)
 
 	def prepare(self):
-		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/load_mods.sh", throw = True)
+		if self.load_mods:
+			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/load_mods.sh", throw = True)
+
 		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_create.sh", throw = True)
 
 		c = self.get_client()
@@ -71,7 +74,8 @@ class NkfsLocalLoopEnv(DsEnv):
 				log.error("EXCEPTION %s" % e)
 
 		try:
-			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True)
+			if self.load_mods:
+				cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True)
 		except Exception as e:
 			log.error("EXCEPTION %s" % e)
 

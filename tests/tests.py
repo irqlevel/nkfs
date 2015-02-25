@@ -12,6 +12,7 @@ import random
 import shutil
 import logging
 import multiprocessing
+import sys
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
@@ -21,7 +22,11 @@ log = logging.getLogger('main')
 if __name__=="__main__":
 	env = None
 	try:
-		env = NkfsLocalLoopEnv()
+		load_mods = True
+		for arg in sys.argv:
+			if arg.find("--noloadmods") == 0:
+				load_mods = False
+		env = NkfsLocalLoopEnv(load_mods = load_mods)
 		env.prepare()
 		ts = NkfsTestList()
 		ts.addTests([FilePutDelTest(env, 3, 10, 10, 10000000), FilePutGetTest(env, 3, 10, 10, 10000000)])
