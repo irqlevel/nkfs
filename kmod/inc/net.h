@@ -22,6 +22,11 @@ struct nkfs_con {
 	int			err;
 };
 
+u16 nkfs_con_peer_port(struct nkfs_con *con);
+u16 nkfs_con_self_port(struct nkfs_con *con);
+u32 nkfs_con_peer_addr(struct nkfs_con *con);
+u32 nkfs_con_self_addr(struct nkfs_con *con);
+
 int nkfs_server_start(u32 ip, int port);
 int nkfs_server_stop(u32 ip, int port);
 void nkfs_server_finit(void);

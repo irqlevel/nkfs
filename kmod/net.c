@@ -25,6 +25,26 @@ static void nkfs_con_free(struct nkfs_con *con)
 	kmem_cache_free(con_cachep, con);
 }
 
+u16 nkfs_con_peer_port(struct nkfs_con *con)
+{
+	return ksock_peer_port(con->sock);
+}
+
+u16 nkfs_con_self_port(struct nkfs_con *con)
+{
+	return ksock_self_port(con->sock);
+}
+
+u32 nkfs_con_peer_addr(struct nkfs_con *con)
+{
+	return ksock_peer_addr(con->sock);
+}
+
+u32 nkfs_con_self_addr(struct nkfs_con *con)
+{
+	return ksock_self_addr(con->sock);
+}
+
 void nkfs_con_close(struct nkfs_con *con)
 {
 	KLOG(KL_DBG, "releasing sock %p", con->sock);

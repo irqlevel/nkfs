@@ -58,9 +58,9 @@ struct nkfs_neigh {
 	int			s_port;
 	unsigned long		state;
 	struct rw_semaphore	rw_sem;	
-	u64			heartbeat_last;
-	u64			heartbeat_delay;
-	int			heartbeat_err;
+	u64			hbt_time;
+	u64			hbt_delay;
+	int			hbt_err;
 };
 
 #pragma pack(pop)
