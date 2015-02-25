@@ -1,7 +1,10 @@
 #include <inc/nkfs_priv.h>
 
 #define __SUBCOMPONENT__ "route"
-#define HOST_TIMER_TIMEOUT_MS 5000
+
+#define HOST_TIMER_TIMEOUT_MS 		1000
+#define HOST_HANDSHAKE_TIMEOUT_MS	1000
+#define HOST_HBT_TIMEOUT_MS		30000
 
 #define KLOG_HOST(lvl, h)					\
 	do {							\
@@ -618,8 +621,17 @@ static void nkfs_host_timer_callback(unsigned long data)
 {
 	struct nkfs_host *host = (struct nkfs_host *)data;
 
-	nkfs_host_queue_work(host, nkfs_host_handshake_work, NULL);
-	nkfs_host_queue_work(host, nkfs_host_heartbeat_work, NULL);
+	if (time_after64(get_jiffies_64(),
+		host->last_handshake + msecs_to_jiffies(HOST_HANDSHAKE_TIMEOUT_MS))) {
+		nkfs_host_queue_work(host, nkfs_host_handshake_work, NULL);
+		host->last_handshake = get_jiffies_64();
+	}
+
+	if (time_after64(get_jiffies_64(),
+		host->last_handshake + msecs_to_jiffies(HOST_HBT_TIMEOUT_MS))) {
+		nkfs_host_queue_work(host, nkfs_host_heartbeat_work, NULL);
+		host->last_hbt = get_jiffies_64();
+	}
 
 	if (!host->stopping) {
 		mod_timer(&host->timer, jiffies +

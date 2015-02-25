@@ -33,6 +33,8 @@ struct nkfs_host {
 	struct rb_root		host_ids;
 	rwlock_t		host_ids_lock;
 	int			host_ids_active;
+	u64			last_handshake;
+	u64			last_hbt;
 };
 
 struct nkfs_host_id {
