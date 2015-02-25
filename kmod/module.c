@@ -121,16 +121,10 @@ static int __init nkfs_init(void)
 		goto out_misc_release;
 	}
 	
-	err = ext_tree_init();
-	if (err) {
-		KLOG(KL_ERR, "ext_tree_init err %d", err);
-		goto out_btree_release;
-	}
-
 	err = nkfs_inode_init();
 	if (err) {
 		KLOG(KL_ERR, "inode_init err %d", err);
-		goto out_ext_tree_release;
+		goto out_btree_release;
 	}
 
 	err = nkfs_sb_init();
@@ -169,8 +163,6 @@ out_sb_release:
 	nkfs_sb_finit();
 out_inode_release:
 	nkfs_inode_finit();
-out_ext_tree_release:
-	ext_tree_finit();
 out_btree_release:
 	nkfs_btree_finit();
 out_misc_release:
@@ -190,7 +182,6 @@ static void __exit nkfs_exit(void)
 	nkfs_server_finit();
 	nkfs_dev_finit();
 	nkfs_sb_finit();
-	ext_tree_finit();
 	nkfs_btree_finit();
 	nkfs_inode_finit();
 	dio_finit();

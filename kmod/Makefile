@@ -7,7 +7,7 @@ obj-m = $(NKFS_MOD).o
 
 ccflags-y := -I$(src) -D __KERNEL__ $(COMMON_CFLAGS)
 
-$(NKFS_MOD)-y := ext_tree.o module.o dev.o net.o		\
+$(NKFS_MOD)-y := module.o dev.o net.o		\
 	super.o balloc.o inode.o btree.o	\
 	upages.o ksocket.o route.o dio.o	\
 
