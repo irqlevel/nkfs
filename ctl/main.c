@@ -12,7 +12,7 @@ static void prepare_logging()
 
 static void usage(char *program)
 {
-	printf("Usage: %s [-d device] [-f format] [-s srv ip] [-p srv port]"
+	printf("Usage: %s [-d device] [-f format] [-b bind ip] [-e ext ip] [-p port]"
 		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
 		" neigh_add, neigh_remove, klog_sync}\n",
 		program);
@@ -48,7 +48,7 @@ static int output_dev_info(struct nkfs_dev_info *info)
 	return 0;
 }
 
-static int do_cmd(char *prog, char *cmd, char *server, int server_port,
+static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int port,
 	char *dev_name, int format)
 {
 	int err;
@@ -89,120 +89,130 @@ static int do_cmd(char *prog, char *cmd, char *server, int server_port,
 			printf("cant output dev info err %d\n", err);
 		}
 	} else if (cmd_equal(cmd, "srv_start")) {
-		struct in_addr addr;	
-		u32 ip;
+		struct in_addr bind_addr, ext_addr;	
+		u32 bind_ip, ext_ip;
 
-		if (server_port <= 0 || server_port > 64000) {
-			printf("server port %d invalid\n", server_port);
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!server) {
-			printf("server ip not specified\n");
+		if (!bind_ip_s || !ext_ip_s) {
+			printf("bind and ext ip's not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!inet_aton(server, &addr)) {
-			printf("server ip %s is not valid\n", server);
+		if (!inet_aton(bind_ip_s, &bind_addr)) {
+			printf("bind ip %s is not valid\n", bind_ip_s);
 			usage(prog);
 			return -EINVAL;
 		}
-		ip = ntohl(addr.s_addr);
-
-		if (ip == 0) {
-			printf("please specify exact ip, your ip is %s\n", server);
+	
+		if (!inet_aton(ext_ip_s, &ext_addr)) {
+			printf("ext ip %s is not valid\n", ext_ip_s);
 			usage(prog);
 			return -EINVAL;
 		}
 
-		err = nkfs_server_start(ip, server_port);
+		ext_ip = ntohl(ext_addr.s_addr);
+		bind_ip = ntohl(bind_addr.s_addr);
+		if (ext_ip == 0) {
+			printf("please specify exact(not 0) ext ip, your ip is %s\n",
+					ext_ip_s);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		err = nkfs_server_start(bind_ip, ext_ip, port);
 		if (err) {
-			printf("cant start server %s:%d err %d\n",
-				server, server_port, err);
+			printf("cant start server at %s-%s:%d err %d\n",
+				bind_ip_s, ext_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "srv_stop")) {
+		struct in_addr bind_addr;	
+		u32 bind_ip;
+
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!bind_ip_s) {
+			printf("bind and ext ip's not specified\n");
+			usage(prog);
+			return -EINVAL;
+		}
+
+		if (!inet_aton(bind_ip_s, &bind_addr)) {
+			printf("bind ip %s is not valid\n", bind_ip_s);
+			usage(prog);
+			return -EINVAL;
+		}
+	
+		bind_ip = ntohl(bind_addr.s_addr);
+		err = nkfs_server_stop(bind_ip, port);
+		if (err) {
+			printf("cant stop server %s:%d err %d\n",
+				bind_ip_s, port, err);
+		}
+	} else if (cmd_equal(cmd, "neigh_add")) {
 		struct in_addr addr;	
 		u32 ip;
 
-		if (server_port <= 0 || server_port > 64000) {
-			printf("server port %d invalid\n", server_port);
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!server) {
-			printf("server ip not specified\n");
+		if (!ext_ip_s) {
+			printf("ip not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!inet_aton(server, &addr)) {
-			printf("server ip %s is not valid\n", server);
+		if (!inet_aton(ext_ip_s, &addr)) {
+			printf("ip %s is not valid\n", ext_ip_s);
 			usage(prog);
 			return -EINVAL;
 		}
+
 		ip = ntohl(addr.s_addr);
-		err = nkfs_server_stop(ip, server_port);
-		if (err) {
-			printf("cant stop server %s:%d err %d\n",
-				server, server_port, err);
-		}
-	} else if (cmd_equal(cmd, "neigh_add")) {
-		struct in_addr s_addr;	
-		u32 s_ip;
-
-		if (server_port <= 0 || server_port > 64000) {
-			printf("server port %d invalid\n", server_port);
-			usage(prog);
-			return -EINVAL;
-		}
-
-		if (!server) {
-			printf("server ip not specified\n");
-			usage(prog);
-			return -EINVAL;
-		}
-
-		if (!inet_aton(server, &s_addr)) {
-			printf("server ip %s is not valid\n", server);
-			usage(prog);
-			return -EINVAL;
-		}
-
-		s_ip = ntohl(s_addr.s_addr);
-		err = nkfs_neigh_add(s_ip, server_port);
+		err = nkfs_neigh_add(ip, port);
 		if (err) {
 			printf("cant add neighbour ->%s:%d err %d\n",
-				server, server_port, err);
+				ext_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "neigh_remove")) {
-		struct in_addr s_addr;	
-		u32 s_ip;
+		struct in_addr addr;	
+		u32 ip;
 
-		if (server_port <= 0 || server_port > 64000) {
-			printf("server port %d invalid\n", server_port);
+		if (port <= 0 || port > 64000) {
+			printf("port %d invalid\n", port);
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!server) {
-			printf("server ip not specified\n");
+		if (!ext_ip_s) {
+			printf("ip not specified\n");
 			usage(prog);
 			return -EINVAL;
 		}
 
-		if (!inet_aton(server, &s_addr)) {
-			printf("server ip %s is not valid\n", server);
+		if (!inet_aton(ext_ip_s, &addr)) {
+			printf("ip %s is not valid\n", ext_ip_s);
 			usage(prog);
 			return -EINVAL;
 		}
-		s_ip = ntohl(s_addr.s_addr);
-		err = nkfs_neigh_remove(s_ip, server_port);
+
+		ip = ntohl(addr.s_addr);
+		err = nkfs_neigh_remove(ip, port);
 		if (err) {
 			printf("cant remove neighbour %s:%d err %d\n",
-				server, server_port, err);
+				ext_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "klog_sync")) {
 		err = nkfs_klog_ctl(0, 1);
@@ -224,13 +234,14 @@ int main(int argc, char *argv[])
 	int opt;
 	char *dev_name = NULL;
 	char *cmd = NULL;
-	char *server = NULL;
+	char *bind_ip_s = NULL;
+	char *ext_ip_s = NULL;
 	char *prog = argv[0];
-	int server_port = NKFS_SRV_PORT;
+	int port = -1;
 
 	prepare_logging();
 
-	while ((opt = getopt(argc, argv, "r:t:s:p:fd:")) != -1) {
+	while ((opt = getopt(argc, argv, "b:e:p:fd:")) != -1) {
 		switch (opt) {
 			case 'f':
 				format = 1;
@@ -238,11 +249,14 @@ int main(int argc, char *argv[])
 			case 'd':
 				dev_name = optarg;
 				break;
-			case 's':
-				server = optarg;
+			case 'b':
+				bind_ip_s = optarg;
+				break;
+			case 'e':
+				ext_ip_s = optarg;
 				break;
 			case 'p':
-				server_port = atoi(optarg);				
+				port = atoi(optarg);				
 				break;
 			default:
 				usage(prog);
@@ -257,7 +271,7 @@ int main(int argc, char *argv[])
 	}	
 
 	cmd = argv[optind];
-	err = do_cmd(prog, cmd, server, server_port,
+	err = do_cmd(prog, cmd, bind_ip_s, ext_ip_s, port,
 		dev_name, format);
 	return err;
 }

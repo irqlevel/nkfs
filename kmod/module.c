@@ -55,11 +55,12 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 				&cmd->u.dev_query.info);
 			break;
 		case IOCTL_NKFS_SRV_START:
-			err = nkfs_server_start(cmd->u.server_start.ip,
+			err = nkfs_server_start(cmd->u.server_start.bind_ip,
+				cmd->u.server_start.ext_ip,
 				cmd->u.server_start.port);	
 			break;
 		case IOCTL_NKFS_SRV_STOP:
-			err = nkfs_server_stop(cmd->u.server_stop.ip,
+			err = nkfs_server_stop(cmd->u.server_stop.bind_ip,
 				cmd->u.server_stop.port);
 			break;
 		case IOCTL_NKFS_NEIGH_ADD:

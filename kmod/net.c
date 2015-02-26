@@ -550,9 +550,9 @@ static int nkfs_server_thread_routine(void *data)
 
 	while (!kthread_should_stop()) {
 		if (!server->sock) {
-			KLOG(KL_DBG, "start listening on ip %x port %d",
-				server->ip, server->port);
-			err = ksock_listen(&lsock, (server->ip) ? server->ip :
+			KLOG(KL_DBG, "start listening on ip %x:%x port %d",
+				server->bind_ip, server->ext_ip, server->port);
+			err = ksock_listen(&lsock, (server->bind_ip) ? server->bind_ip :
 				INADDR_ANY, server->port, 5);
 			if (err == -EADDRINUSE && listen_attempts) {
 				KLOG(KL_WRN, "csock_listen err=%d", err);
@@ -561,8 +561,9 @@ static int nkfs_server_thread_routine(void *data)
 					listen_attempts--;
 				continue;
 			} else if (!err) {
-				KLOG(KL_DBG, "listen done ip %x port %d",
-						server->ip, server->port);
+				KLOG(KL_DBG, "listen done ip %x:%x port %d",
+						server->bind_ip, server->ext_ip,
+						server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
 				KLOG_SOCK(KL_DBG, server->sock, "listened");
@@ -631,8 +632,8 @@ static int nkfs_server_thread_routine(void *data)
 static void nkfs_server_do_stop(struct nkfs_server *server)
 {
 	if (server->stopping) {
-		KLOG(KL_ERR, "server %p %u-%d already stopping",
-			server, server->ip, server->port);
+		KLOG(KL_ERR, "server %p %x-%x:%d already stopping",
+			server, server->bind_ip, server->ext_ip, server->port);
 		return;
 	}
 
@@ -643,11 +644,11 @@ static void nkfs_server_do_stop(struct nkfs_server *server)
 
 	kthread_stop(server->thread);
 	put_task_struct(server->thread);
-	KLOG(KL_INF, "stopped server on ip %x port %d",
-		server->ip, server->port);
+	KLOG(KL_INF, "stopped server on ip %x-%x port %d",
+		server->bind_ip, server->ext_ip, server->port);
 }
 
-static struct nkfs_server *nkfs_server_create_start(u32 ip, int port)
+static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip, int port)
 {
 	char thread_name[10];
 	int err;
@@ -665,7 +666,8 @@ static struct nkfs_server *nkfs_server_create_start(u32 ip, int port)
 	mutex_init(&server->lock);
 	mutex_init(&server->con_list_lock);
 	server->port = port;
-	server->ip = ip;
+	server->bind_ip = bind_ip;
+	server->ext_ip = ext_ip;
 	init_completion(&server->comp);
 
 	snprintf(thread_name, sizeof(thread_name), "%s-%d", "nkfs_srv", port);
@@ -684,30 +686,31 @@ static struct nkfs_server *nkfs_server_create_start(u32 ip, int port)
 	return server;
 }
 
-int nkfs_server_start(u32 ip, int port)
+int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port)
 {
 	int err;
 	struct nkfs_server *server;
 
-	if (ip == 0 || port == 0) {
-		KLOG(KL_ERR, "invalid ip %x or port %d", ip, port);
+	if (ext_ip == 0 || port == 0) {
+		KLOG(KL_ERR, "invalid ext ip %x or port %d", ext_ip, port);
 		return -EINVAL;
 	}
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
-		if (server->port == port && server->ip == ip) {
-			KLOG(KL_WRN, "server for ip %x port %d already exists",
-				ip, port);
+		if (server->port == port && server->bind_ip == bind_ip) {
+			KLOG(KL_WRN, "server bind_ip %x port %d already exists",
+				bind_ip, port);
 			err = -EEXIST;
 			mutex_unlock(&srv_list_lock);
 			return err;
 		}
 	}
-	server = nkfs_server_create_start(ip, port);
+
+	server = nkfs_server_create_start(bind_ip, ext_ip, port);
 	if (server && !server->err) {
-		KLOG(KL_INF, "started server on ip %x port %d",
-			ip, port);
+		KLOG(KL_INF, "started server on ip %x-%x port %d",
+			server->bind_ip, server->ext_ip, port);
 		list_add_tail(&server->srv_list, &srv_list);
 		err = 0;
 	} else {
@@ -730,7 +733,7 @@ int nkfs_server_select_one(u32 *pip, int *pport)
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (!server->err) {
-			*pip = server->ip;
+			*pip = server->ext_ip;
 			*pport = server->port;
 			err = 0;
 			break;
@@ -740,19 +743,19 @@ int nkfs_server_select_one(u32 *pip, int *pport)
 	return err;
 }
 
-int nkfs_server_stop(u32 ip, int port)
+int nkfs_server_stop(u32 bind_ip, int port)
 {
 	int err = -EINVAL;
 	struct nkfs_server *server;
 
-	if (ip == 0 || port == 0) {
-		KLOG(KL_ERR, "invalid ip %x or port %d", ip, port);
+	if (port <= 0 || port > 64000) {
+		KLOG(KL_ERR, "invalid port %d", port);
 		return -EINVAL;
 	}
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
-		if (server->port == port && server->ip == ip) {
+		if (server->port == port && server->bind_ip == bind_ip) {
 			nkfs_server_do_stop(server);
 			list_del(&server->srv_list);
 			nkfs_server_free(server);

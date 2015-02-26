@@ -25,11 +25,12 @@ struct nkfs_ctl {
 			struct nkfs_dev_info info;
 		} dev_query;
 		struct  {
-			u32 ip;
+			u32 bind_ip;
+			u32 ext_ip;
 			int port;
 		} server_start;
 		struct {
-			u32 ip;
+			u32 bind_ip;
 			int port;
 		} server_stop;
 		struct {

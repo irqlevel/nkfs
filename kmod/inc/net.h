@@ -7,7 +7,8 @@ struct nkfs_server {
 	struct list_head	srv_list;
 	struct list_head	con_list;
 	struct mutex		con_list_lock;
-	u32			ip;
+	u32			bind_ip;
+	u32			ext_ip;
 	int			port;
 	int			stopping;
 	int			err;
@@ -27,8 +28,8 @@ u16 nkfs_con_self_port(struct nkfs_con *con);
 u32 nkfs_con_peer_addr(struct nkfs_con *con);
 u32 nkfs_con_self_addr(struct nkfs_con *con);
 
-int nkfs_server_start(u32 ip, int port);
-int nkfs_server_stop(u32 ip, int port);
+int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port);
+int nkfs_server_stop(u32 bind_ip, int port);
 int nkfs_server_select_one(u32 *pip, int *pport);
 
 void nkfs_server_finit(void);

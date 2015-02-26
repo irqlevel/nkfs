@@ -97,7 +97,7 @@ out:
 	return err;
 }
 
-int nkfs_server_stop(u32 ip, int port)
+int nkfs_server_stop(u32 bind_ip, int port)
 {
 	int err = -EINVAL;
 	struct nkfs_ctl cmd;
@@ -108,7 +108,7 @@ int nkfs_server_stop(u32 ip, int port)
 		return err;
 	
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.u.server_stop.ip = ip;
+	cmd.u.server_stop.bind_ip = bind_ip;
 	cmd.u.server_stop.port = port;
 	err = ioctl(fd, IOCTL_NKFS_SRV_STOP, &cmd);
 	if (err)
@@ -123,7 +123,7 @@ out:
 	return err;
 }
 
-int nkfs_server_start(u32 ip, int port)
+int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port)
 {
 	int err = -EINVAL;
 	struct nkfs_ctl cmd;
@@ -135,7 +135,8 @@ int nkfs_server_start(u32 ip, int port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.u.server_start.ip = ip;
+	cmd.u.server_start.bind_ip = bind_ip;
+	cmd.u.server_start.ext_ip = ext_ip;
 	cmd.u.server_start.port = port;
 	err = ioctl(fd, IOCTL_NKFS_SRV_START, &cmd);
 	if (err)

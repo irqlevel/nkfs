@@ -28,10 +28,10 @@ class NkfsClient:
 	def query_dev(self, dev):
 		rc, std_out, std_err, c = cmd.exec_cmd2(self.ctl_cmd("dev_query") + " -d " + dev, throw = True)
 		return std_out
-	def start_srv(self, ip, port):
-		cmd.exec_cmd2(self.ctl_cmd("srv_start") + " -s " + ip + " -p " + str(port), throw = True)
-	def stop_srv(self, ip, port):
-		cmd.exec_cmd2(self.ctl_cmd("srv_stop") + " -s " + ip + " -p " + str(port), throw = True)
+	def start_srv(self, bind_ip, ext_ip, port):
+		cmd.exec_cmd2(self.ctl_cmd("srv_start") + " -b " + bind_ip + " -e " + ext_ip + " -p " + str(port), throw = True)
+	def stop_srv(self, bind_ip, port):
+		cmd.exec_cmd2(self.ctl_cmd("srv_stop") + " -b " + bind_ip + " -p " + str(port), throw = True)
 	def srv_args(self):
 		return " -s " + self.ip + " -p " + str(self.port)
 	def cli_cmd(self, cmd):

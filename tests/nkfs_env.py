@@ -31,11 +31,12 @@ class DsEnv:
 		pass
 
 class NkfsLocalLoopEnv(DsEnv):
-	def __init__(self, ip, load_mods = True):
+	def __init__(self, bind_ip, ext_ip, load_mods = True):
 		DsEnv.__init__(self)
 		self.devs = []
 		self.srvs = []
-		self.ip = ip
+		self.bind_ip = bind_ip
+		self.ext_ip = ext_ip
 		self.load_mods = load_mods
 
 	def get_client(self):
@@ -48,9 +49,9 @@ class NkfsLocalLoopEnv(DsEnv):
 		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_create.sh", throw = True)
 
 		c = self.get_client()
-		self.srvs = [(self.ip, PORT)]
-		for ip, port in self.srvs:
-			c.start_srv(ip, port)
+		self.srvs = [(self.bind_ip, self.ext_ip, PORT)]
+		for bind_ip, ext_ip, port in self.srvs:
+			c.start_srv(bind_ip, ext_ip, port)
 
 		for d in DEVS:
 			c.add_dev(d, True)
