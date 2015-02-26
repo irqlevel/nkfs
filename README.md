@@ -43,7 +43,7 @@ setting up "export NKFS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 ```sh
 $ sudo yum install python-pip
 $ sudo pip install ConcurrentLogHandler
-$ cd nkfs && sudo python tests/tests.py
+$ cd nkfs && sudo python tests/tests.py LOCAL_MACHINE_IPv4
 ```
 
 #### Usage:
@@ -69,7 +69,7 @@ device : /dev/loop0
 sb_id : c7a236270cfb5accb45edeeb64f18e88
 
 $ bin/nkfs_ctl dev_query -d /dev/loop0 #query info about attached device
-dev_name : /dev/loop0
+dev_name : /dev/sdb
 major : 7
 minor : 0
 sb_id : c7a236270cfb5accb45edeeb64f18e88

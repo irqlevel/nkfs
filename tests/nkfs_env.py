@@ -16,7 +16,7 @@ CURR_DIR = os.path.abspath(currentdir)
 log = logging.getLogger('main')
 
 DEVS = ["/dev/loop0", "/dev/loop1", "/dev/loop2"]
-SRVS = [("0.0.0.0", 9111), ("0.0.0.0", 9112)]
+PORT = 9111
 
 class DsEnv:
 	def __init__(self):
@@ -31,14 +31,15 @@ class DsEnv:
 		pass
 
 class NkfsLocalLoopEnv(DsEnv):
-	def __init__(self, load_mods = True):
+	def __init__(self, ip, load_mods = True):
 		DsEnv.__init__(self)
 		self.devs = []
 		self.srvs = []
+		self.ip = ip
 		self.load_mods = load_mods
 
 	def get_client(self):
-		return NkfsClient("0.0.0.0", 9111)
+		return NkfsClient(self.ip, PORT)
 
 	def prepare(self):
 		if self.load_mods:
@@ -47,9 +48,10 @@ class NkfsLocalLoopEnv(DsEnv):
 		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_create.sh", throw = True)
 
 		c = self.get_client()
-		for ip, port in SRVS:
+		self.srvs = [(self.ip, PORT)]
+		for ip, port in self.srvs:
 			c.start_srv(ip, port)
-			self.srvs.append((ip, port))
+
 		for d in DEVS:
 			c.add_dev(d, True)
 			self.devs.append(d)

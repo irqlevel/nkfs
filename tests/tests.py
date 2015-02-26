@@ -23,10 +23,11 @@ if __name__=="__main__":
 	env = None
 	try:
 		load_mods = True
+		ip = sys.argv[1]
 		for arg in sys.argv:
 			if arg.find("--noloadmods") == 0:
 				load_mods = False
-		env = NkfsLocalLoopEnv(load_mods = load_mods)
+		env = NkfsLocalLoopEnv(ip, load_mods = load_mods)
 		env.prepare()
 		ts = NkfsTestList()
 		ts.addTests([FilePutDelTest(env, 3, 10, 10, 10000000), FilePutGetTest(env, 3, 10, 10, 10000000)])
