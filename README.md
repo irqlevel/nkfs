@@ -65,10 +65,10 @@ obj_id : d963a52161d67bf9d1e7c09ce313b050
 size : 11
 block : 3
 bsize : 4096
-device : /dev/loop0
+device : /dev/sdb
 sb_id : c7a236270cfb5accb45edeeb64f18e88
 
-$ bin/nkfs_ctl dev_query -d /dev/loop0 #query info about attached device
+$ bin/nkfs_ctl dev_query -d /dev/sdb #query info about attached device
 dev_name : /dev/sdb
 major : 7
 minor : 0
