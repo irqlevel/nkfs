@@ -46,10 +46,10 @@ class AmznNode():
 		s.cmd('cd nkfs && make')
 	def start_nkfs(self):
 		s = self.get_ssh()
-		s.cmd('cd nkfs && sudo scripts/start.sh')
+		s.cmd('cd nkfs && sudo scripts/start.sh ' + self.ip)
 	def neigh_add(self, ip):
 		s = self.get_ssh()
-		s.cmd('cd nkfs && sudo bin/nkfs_ctl neigh_add -r ' + ip + ' -t 9111 -s ' + self.ip + ' -p 9111')
+		s.cmd('cd nkfs && sudo bin/nkfs_ctl neigh_add -s ' + ip + ' -p 9111')
 	def stop_nkfs(self):
 		s = self.get_ssh()
 		s.cmd('cd nkfs && sudo scripts/stop.sh')
@@ -75,7 +75,7 @@ def multi_process(fl):
 			raise Exception("process exitcode %d" % p.exitcode)
 
 
-def nodes_neighs_connect(nodes):
+def nodes_connect(nodes):
 	pairs = {}
 	for n in nodes:
 		for m in nodes:
