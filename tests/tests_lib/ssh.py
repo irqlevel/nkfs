@@ -19,17 +19,18 @@ dictconfig.dictConfig(settings.LOGGING)
 log = logging.getLogger('main')
 
 def ssh_cmd(ssh, cmd, throw = False, log = None):
-    log.info("SSH:" + cmd)
+    log.info(ssh.get_tag() + cmd)
     chan = None
     out_lines = []
     err_lines = []
     rc = 777
     try:
         chan = ssh.get_transport().open_session()
+        chan.get_pty()
         chan.exec_command(cmd)
-    
-        stdout = StdFp(chan.makefile(), "SSH:stdout", elog = log)
-        stderr = StdFp(chan.makefile_stderr(), "SSH:stderr", elog = log)
+
+        stdout = StdFp(chan.makefile(), ssh.get_tag() + "stdout", elog = log)
+        stderr = StdFp(chan.makefile_stderr(), ssh.get_tag() + "stderr", elog = log)
 
         stderr_t = StdThread(stderr)
         stdout_t = StdThread(stdout)
@@ -44,9 +45,9 @@ def ssh_cmd(ssh, cmd, throw = False, log = None):
         err_lines = stderr.lines
 
         if rc == 0:
-            log.info("SSH:" + cmd + ":rc:" + str(rc))
+            log.info(ssh.get_tag() + cmd + ":rc:" + str(rc))
         else:
-            log.error("SSH:" + cmd + ":rc:" + str(rc))
+            log.error(ssh.get_tag() + cmd + ":rc:" + str(rc))
     except Exception as e:
         log.exception(str(e))
     finally:
@@ -57,7 +58,7 @@ def ssh_cmd(ssh, cmd, throw = False, log = None):
                 log.exception(str(e))
 
     if rc != 0 and throw:
-        raise Exception("SSH:" + cmd + ":rc:" + str(rc))
+        raise Exception(ssh.get_tag() + cmd + ":rc:" + str(rc))
 
     return rc, out_lines, err_lines
 
@@ -85,19 +86,23 @@ class SshExec:
 
         self.ssh.exec_command('mkdir ' + self.rdir)
         self.ftp = self.ssh.open_sftp()
-        self.log.info('opened ssh to host ' + self.host + ' rdir=' + self.rdir)
-  
+        self.log.info(self.get_tag() + 'opened ssh to host ' + self.host + ' rdir=' + self.rdir)
+        self.ssh.get_tag = self.get_tag
+
     def cmd(self, cmd, throw = True):
         return ssh_cmd(self.ssh, cmd, throw = throw, log = self.log)
  
+    def get_tag(self):
+        return "SSH:" + self.host + ":"
+
     def file_get(self, remote_file, local_file):
-        self.log.info("SSH:GETFILE:" + str(self.host) + " remote:" + remote_file + " local:" + local_file)
+        self.log.info(self.get_tag() + "GETFILE:" + str(self.host) + " remote:" + remote_file + " local:" + local_file)
         self.ftp.get(remote_file, local_file)
-        self.log.info("SSH:GETFILE:completed")
+        self.log.info(self.get_tag() + "GETFILE:completed")
     def file_put(self, local_file, remote_file):
-        self.log.info("SSH:PUTFILE:" + str(self.host) + " local:" + local_file + " remote:" + remote_file)
+        self.log.info(self.get_tag() + "PUTFILE:" + str(self.host) + " local:" + local_file + " remote:" + remote_file)
         self.ftp.put(local_file, remote_file)
-        self.log.info("SSH:PUTFILE:completed")
+        self.log.info(self.get_tag() + "PUTFILE:completed")
     def file_getcwd(self):
         return self.ftp.getcwd()
     def file_chdir(self, path):
