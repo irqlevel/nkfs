@@ -40,7 +40,7 @@ class NkfsLocalLoopEnv(DsEnv):
 		self.load_mods = load_mods
 
 	def get_client(self):
-		return NkfsClient(self.ip, PORT)
+		return NkfsClient(self.bind_ip, PORT)
 
 	def prepare(self):
 		if self.load_mods:
@@ -64,9 +64,9 @@ class NkfsLocalLoopEnv(DsEnv):
 
 	def cleanup(self):
 		c = self.get_client()
-		for ip, port in self.srvs:
+		for bind_ip, _, port in self.srvs:
 			try:
-				c.stop_srv(ip, port)
+				c.stop_srv(bind_ip, port)
 			except Exception as e:
 				log.error("EXCEPTION %s" % e)
 
