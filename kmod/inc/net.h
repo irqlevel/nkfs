@@ -29,6 +29,8 @@ u32 nkfs_con_self_addr(struct nkfs_con *con);
 
 int nkfs_server_start(u32 ip, int port);
 int nkfs_server_stop(u32 ip, int port);
+int nkfs_server_select_one(u32 *pip, int *pport);
+
 void nkfs_server_finit(void);
 int nkfs_server_init(void);
 

@@ -24,10 +24,9 @@
 		char *host_id = NULL;						\
 		if ((n)->hid)							\
 			host_id = nkfs_obj_id_str(&((n)->hid)->host_id);	\
-		KLOG((lvl), "n %p hid %s s%d %x:%d -> %x:%d hbt %llu",		\
-			(n), host_id, (n)->state, (n)->s_ip,			\
-			(n)->s_port, (n)->d_ip, (n)->d_port,			\
-			(n)->hbt_delay);					\
+		KLOG((lvl), "n %p hid %s s%d -> %x:%d hbt %llu",		\
+			(n), host_id, (n)->state, (n)->ip,			\
+			(n)->port, (n)->hbt_delay);				\
 		if (host_id)							\
 			crt_free(host_id);					\
 	} while (0);								\
@@ -48,7 +47,7 @@ static int nkfs_neigh_connect(struct nkfs_neigh *neigh)
 	int err;
 
 	NKFS_BUG_ON(neigh->con);
-	err = nkfs_con_connect(neigh->d_ip, neigh->d_port, &neigh->con);
+	err = nkfs_con_connect(neigh->ip, neigh->port, &neigh->con);
 	return err;
 }
 
@@ -285,7 +284,7 @@ struct nkfs_host_id *nkfs_host_id_lookup(struct nkfs_host *host,
 	return hid;
 }
 
-static struct nkfs_neigh *__nkfs_neighs_lookup(struct nkfs_host *host, u32 d_ip, int d_port)
+static struct nkfs_neigh *__nkfs_neighs_lookup(struct nkfs_host *host, u32 ip, int port)
 {
 	struct rb_node *n = host->neighs.rb_node;
 	struct nkfs_neigh *found = NULL;
@@ -295,7 +294,7 @@ static struct nkfs_neigh *__nkfs_neighs_lookup(struct nkfs_host *host, u32 d_ip,
 		int cmp;
 
 		neigh = rb_entry(n, struct nkfs_neigh, neighs_link);
-		cmp = nkfs_ip_port_cmp(d_ip, d_port, neigh->d_ip, neigh->d_port);
+		cmp = nkfs_ip_port_cmp(ip, port, neigh->ip, neigh->port);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
@@ -313,7 +312,7 @@ static void __nkfs_neighs_remove(struct nkfs_host *host,
 {
 	struct nkfs_neigh *found;
 
-	found = __nkfs_neighs_lookup(host, neigh->d_ip, neigh->d_port);
+	found = __nkfs_neighs_lookup(host, neigh->ip, neigh->port);
 	if (found) {
 		NKFS_BUG_ON(found != neigh);
 		rb_erase(&found->neighs_link, &host->neighs);
@@ -334,8 +333,8 @@ static struct nkfs_neigh *__nkfs_neighs_insert(struct nkfs_host *host,
 		int cmp;
 		parent = *p;
 		found = rb_entry(parent, struct nkfs_neigh, neighs_link);
-		cmp = nkfs_ip_port_cmp(neigh->d_ip, neigh->d_port,
-			found->d_ip, found->d_port);
+		cmp = nkfs_ip_port_cmp(neigh->ip, neigh->port,
+			found->ip, found->port);
 		if (cmp < 0) {
 			p = &(*p)->rb_left;
 		} else if (cmp > 0) {
@@ -412,6 +411,8 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	struct nkfs_net_pkt *req, *reply;
 	struct nkfs_host *host = neigh->host;
 	struct nkfs_host_id *hid;
+	u32 src_ip;
+	int src_port;
 
 	down_write(&neigh->rw_sem);
 
@@ -424,6 +425,19 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	if (test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
 		err = 0;
 		KLOG(KL_INF, "already shaked");
+		goto unlock;
+	}
+
+	err = nkfs_server_select_one(&src_ip, &src_port);
+	if (err) {
+		KLOG(KL_ERR, "cant select server");
+		goto unlock;
+	}
+
+	if (src_ip == 0 || src_port == 0) {
+		KLOG(KL_ERR, "server ip %x or port %d invalid",
+			src_ip, src_port);
+		err = -EINVAL;
 		goto unlock;
 	}
 
@@ -449,14 +463,11 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	nkfs_obj_id_copy(&req->u.neigh_handshake.src_net_id, &host->net_id);
 	nkfs_obj_id_copy(&req->u.neigh_handshake.src_host_id, &host->host_id);
 
-	req->u.neigh_handshake.s_ip = neigh->d_ip;
-	req->u.neigh_handshake.s_port = neigh->d_port;
-	req->u.neigh_handshake.d_ip = neigh->s_ip;
-	req->u.neigh_handshake.d_port = neigh->s_port;
+	req->u.neigh_handshake.src_ip = src_ip;
+	req->u.neigh_handshake.src_port = src_port;
 
-	KLOG(KL_DBG, "send neigh %x:%d -> %x:%d", req->u.neigh_handshake.s_ip,
-		req->u.neigh_handshake.s_port, req->u.neigh_handshake.d_ip,
-		req->u.neigh_handshake.d_port);
+	KLOG(KL_DBG, "send neigh %x:%d -> %x:%d", src_ip, src_port,
+		neigh->ip, neigh->port);
 
 	err = nkfs_con_send_pkt(neigh->con, req);
 	if (err) {
@@ -788,8 +799,7 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 	struct nkfs_neigh *inserted;
 	int err = -EEXIST;
 
-	KLOG(KL_DBG, "adding neigh %x:%d -> %x:%d", neigh->s_ip, neigh->s_port,
-		neigh->d_ip, neigh->d_port);
+	KLOG(KL_DBG, "adding neigh %x:%d", neigh->ip, neigh->port);
 
 	write_lock_irq(&host->neighs_lock);
 	inserted = __nkfs_neighs_insert(host, neigh);
@@ -806,7 +816,7 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 	return err;
 }
 
-int nkfs_host_remove_neigh(struct nkfs_host *host, u32 d_ip, int d_port)
+int nkfs_host_remove_neigh(struct nkfs_host *host, u32 ip, int port)
 {
 	struct nkfs_neigh *neigh, *tmp;
 	struct list_head neigh_list;	
@@ -816,7 +826,7 @@ int nkfs_host_remove_neigh(struct nkfs_host *host, u32 d_ip, int d_port)
 
 	write_lock_irq(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
-		if (neigh->d_ip == d_ip && neigh->d_port == d_port) {
+		if (neigh->ip == ip && neigh->port == port) {
 			list_del_init(&neigh->neigh_list);
 			list_add_tail(&neigh->neigh_list, &neigh_list);
 		}
@@ -832,20 +842,23 @@ int nkfs_host_remove_neigh(struct nkfs_host *host, u32 d_ip, int d_port)
 	return (found) ? 0 : -ENOENT;
 }
 
-int nkfs_route_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
+int nkfs_route_neigh_add(u32 ip, int port)
 {
 	struct nkfs_neigh *neigh;
 	int err;
+
+	if (ip == 0 || port == 0) {
+		KLOG(KL_ERR, "ip %x or port %d invalid", ip, port);
+		return -EINVAL;
+	}
 
 	neigh = nkfs_neigh_alloc();
 	if (!neigh) {
 		KLOG(KL_ERR, "no mem");
 		return -ENOMEM;
 	}
-	neigh->d_ip = d_ip;
-	neigh->d_port = d_port;
-	neigh->s_ip = s_ip;
-	neigh->s_port = s_port;
+	neigh->ip = ip;
+	neigh->port = port;
 	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
 	err = nkfs_host_add_neigh(nkfs_host, neigh); 
 	if (err) {
@@ -856,15 +869,19 @@ int nkfs_route_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	return err;
 }
 
-int nkfs_route_neigh_remove(u32 d_ip, int d_port)
+int nkfs_route_neigh_remove(u32 ip, int port)
 {
-	return nkfs_host_remove_neigh(nkfs_host, d_ip, d_port);
+	if (ip == 0 || port == 0) {
+		KLOG(KL_ERR, "ip %x or port %d invalid", ip, port);
+		return -EINVAL;
+	}
+
+	return nkfs_host_remove_neigh(nkfs_host, ip, port);
 }
 
 static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 	struct nkfs_obj_id *src_host_id,
-	u32 d_ip, int d_port,
-	u32 s_ip, int s_port,
+	u32 src_ip, int src_port,
 	struct nkfs_obj_id *reply_host_id)
 {
 	struct nkfs_neigh *neigh;
@@ -876,16 +893,20 @@ static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 		return -EINVAL;
 	}
 
+	if (src_ip == 0 || src_port == 0) {
+		KLOG(KL_ERR, "src_ip %x or src_port %d invalid",
+			src_ip, src_port);
+		return -EINVAL;
+	}
+
 	neigh = nkfs_neigh_alloc();
 	if (!neigh) {
 		KLOG(KL_ERR, "no mem");
 		return -ENOMEM;
 	}
 
-	neigh->d_ip = d_ip;
-	neigh->d_port = d_port;
-	neigh->s_ip = s_ip;
-	neigh->s_port = s_port;
+	neigh->ip = src_ip;
+	neigh->port = src_port;
 
 	hid = nkfs_host_id_lookup_or_create(nkfs_host, src_host_id);
 	if (!hid) {
@@ -921,10 +942,8 @@ int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 
 	err = nkfs_neigh_handshake(&pkt->u.neigh_handshake.src_net_id,
 		&pkt->u.neigh_handshake.src_host_id,
-		pkt->u.neigh_handshake.d_ip,
-		pkt->u.neigh_handshake.d_port,
-		pkt->u.neigh_handshake.s_ip,
-		pkt->u.neigh_handshake.s_port,
+		pkt->u.neigh_handshake.src_ip,
+		pkt->u.neigh_handshake.src_port,
 		&reply->u.neigh_handshake.reply_host_id);
 
 	return nkfs_con_send_reply(con, reply, err);

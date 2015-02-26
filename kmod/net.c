@@ -689,6 +689,11 @@ int nkfs_server_start(u32 ip, int port)
 	int err;
 	struct nkfs_server *server;
 
+	if (ip == 0 || port == 0) {
+		KLOG(KL_ERR, "invalid ip %x or port %d", ip, port);
+		return -EINVAL;
+	}
+
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port && server->ip == ip) {
@@ -717,10 +722,33 @@ int nkfs_server_start(u32 ip, int port)
 	return err;
 }
 
+int nkfs_server_select_one(u32 *pip, int *pport)
+{
+	int err = -ENOENT;
+	struct nkfs_server *server;
+
+	mutex_lock(&srv_list_lock);
+	list_for_each_entry(server, &srv_list, srv_list) {
+		if (!server->err) {
+			*pip = server->ip;
+			*pport = server->port;
+			err = 0;
+			break;
+		}
+	}
+	mutex_unlock(&srv_list_lock);
+	return err;
+}
+
 int nkfs_server_stop(u32 ip, int port)
 {
 	int err = -EINVAL;
 	struct nkfs_server *server;
+
+	if (ip == 0 || port == 0) {
+		KLOG(KL_ERR, "invalid ip %x or port %d", ip, port);
+		return -EINVAL;
+	}
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {

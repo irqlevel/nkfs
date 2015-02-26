@@ -33,14 +33,12 @@ struct nkfs_ctl {
 			int port;
 		} server_stop;
 		struct {
-			u32 d_ip;
-			int d_port;
-			u32 s_ip;
-			int s_port;
+			u32 ip;
+			int port;
 		} neigh_add;
 		struct {
-			u32 d_ip;
-			int d_port;
+			u32 ip;
+			int port;
 		} neigh_remove;
 		struct {
 			int sync;

@@ -24,8 +24,8 @@ enum {
 #pragma pack(push, 1)
 
 struct nkfs_net_peer {
-	u32			s_ip;
-	int			s_port;
+	u32			ip;
+	int			port;
 	struct nkfs_obj_id	host_id;
 };
 
@@ -56,10 +56,8 @@ struct nkfs_net_pkt {
 		struct {
 			struct nkfs_obj_id	src_net_id;
 			struct nkfs_obj_id	src_host_id;
-			u32			d_ip;
-			int			d_port;
-			u32			s_ip;
-			int			s_port;
+			u32			src_ip;
+			int			src_port;
 			struct nkfs_obj_id	reply_host_id;
 		} neigh_handshake;
 		struct {

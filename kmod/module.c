@@ -63,14 +63,12 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 				cmd->u.server_stop.port);
 			break;
 		case IOCTL_NKFS_NEIGH_ADD:
-			err = nkfs_route_neigh_add(cmd->u.neigh_add.d_ip,
-				cmd->u.neigh_add.d_port,
-				cmd->u.neigh_add.s_ip,
-				cmd->u.neigh_add.s_port);
+			err = nkfs_route_neigh_add(cmd->u.neigh_add.ip,
+				cmd->u.neigh_add.port);
 			break;
 		case IOCTL_NKFS_NEIGH_REMOVE:
-			err = nkfs_route_neigh_remove(cmd->u.neigh_remove.d_ip,
-				cmd->u.neigh_remove.d_port);
+			err = nkfs_route_neigh_remove(cmd->u.neigh_remove.ip,
+				cmd->u.neigh_remove.port);
 			break;
 		case IOCTL_NKFS_KLOG_CTL:
 			err = nkfs_klog_ctl(cmd->u.klog_ctl.level,

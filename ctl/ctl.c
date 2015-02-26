@@ -150,7 +150,7 @@ out:
 	return err;
 }
 
-int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
+int nkfs_neigh_add(u32 ip, int port)
 {
 	int err = -EINVAL;
 	struct nkfs_ctl cmd;
@@ -162,10 +162,8 @@ int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.u.neigh_add.d_ip = d_ip;
-	cmd.u.neigh_add.d_port = d_port;
-	cmd.u.neigh_add.s_ip = s_ip;
-	cmd.u.neigh_add.s_port = s_port;
+	cmd.u.neigh_add.ip = ip;
+	cmd.u.neigh_add.port = port;
 	err = ioctl(fd, IOCTL_NKFS_NEIGH_ADD, &cmd);
 	if (err)
 		goto out;
@@ -178,7 +176,7 @@ out:
 	return err;
 }
 
-int nkfs_neigh_remove(u32 d_ip, int d_port)
+int nkfs_neigh_remove(u32 ip, int port)
 {
 
 	int err = -EINVAL;
@@ -191,8 +189,8 @@ int nkfs_neigh_remove(u32 d_ip, int d_port)
 	
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.u.neigh_remove.d_ip = d_ip;
-	cmd.u.neigh_remove.d_port = d_port;
+	cmd.u.neigh_remove.ip = ip;
+	cmd.u.neigh_remove.port = port;
 	err = ioctl(fd, IOCTL_NKFS_NEIGH_REMOVE, &cmd);
 	if (err)
 		goto out;

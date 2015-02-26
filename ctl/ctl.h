@@ -24,7 +24,7 @@ int nkfs_dev_query(const char *dev_name,
 int nkfs_server_stop(u32 ip, int port);
 int nkfs_server_start(u32 ip, int port);
 
-int nkfs_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
-int nkfs_neigh_remove(u32 d_ip, int d_port);
+int nkfs_neigh_add(u32 ip, int port);
+int nkfs_neigh_remove(u32 ip, int port);
 
 int nkfs_klog_ctl(int level, int sync);

@@ -54,10 +54,8 @@ struct nkfs_neigh {
 	struct rb_node		neighs_link;
 	struct nkfs_host	*host;
 	struct nkfs_con		*con;
-	u32			d_ip;
-	int			d_port;
-	u32			s_ip;
-	int			s_port;
+	u32			ip;
+	int			port;
 	unsigned long		state;
 	struct rw_semaphore	rw_sem;	
 	u64			hbt_time;
@@ -96,8 +94,8 @@ void nkfs_hid_deref(struct nkfs_host_id *host_id);
 int nkfs_route_init(void);
 void nkfs_route_finit(void);
 
-int nkfs_route_neigh_add(u32 d_ip, int d_port, u32 s_ip, int s_port);
-int nkfs_route_neigh_remove(u32 d_ip, int d_port);
+int nkfs_route_neigh_add(u32 ip, int port);
+int nkfs_route_neigh_remove(u32 ip, int port);
 
 int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply);
