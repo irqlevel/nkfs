@@ -40,7 +40,7 @@ class NkfsLocalLoopEnv(DsEnv):
 		self.load_mods = load_mods
 
 	def get_client(self):
-		return NkfsClient(self.bind_ip, PORT)
+		return NkfsClient(self.ext_ip, PORT)
 
 	def prepare(self):
 		if self.load_mods:

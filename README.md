@@ -43,7 +43,7 @@ setting up "export NKFS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
 ```sh
 $ sudo yum install python-pip
 $ sudo pip install ConcurrentLogHandler
-$ cd nkfs && sudo python tests/tests.py LOCAL_MACHINE_IPv4
+$ cd nkfs && sudo python tests/tests.py
 ```
 
 #### Usage:
@@ -55,12 +55,12 @@ $ sudo insmod bin/nkfs.ko #load core kernel module
 $ sudo bin/nkfs_ctl dev_add -d /dev/sdb -f #attach block device /dev/sdb to 
 file system and format(!!!) it.
 
-$ sudo bin/nkfs_ctl srv_start -b 0.0.0.0 -e 54.93.103.83 -p 8000 #run server at 54.93.103.83:8000
+$ sudo bin/nkfs_ctl srv_start -b 127.0.0.1 -e 127.0.0.1 -p 8000 #run server at 127.0.0.1:8000
 
-$ bin/nkfs_client put -s 54.93.103.83 -p 8000 -f myfile.txt #put already created file 'myfile.txt' inside storage
+$ bin/nkfs_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put already created file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
 
-$ bin/nkfs_client query -s 54.93.103.83 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file
+$ bin/nkfs_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file
 obj_id : d963a52161d67bf9d1e7c09ce313b050 
 size : 11
 block : 3
@@ -83,16 +83,16 @@ inodes_tree_block : 2
 bm_block : 1
 bm_blocks : 1
 
-$ bin/nkfs_client get -s 54.93.103.83 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
+$ bin/nkfs_client get -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
 
 $ md5sum myfile.txt output.txt #check files are equal
 40dca55eb18baafa452e43cb4a3cc5b5  myfile.txt
 40dca55eb18baafa452e43cb4a3cc5b5  output.txt
 
-$ bin/nkfs_client delete -s 54.93.103.83 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
+$ bin/nkfs_client delete -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
 
 $ sudo bin/nkfs_ctl dev_rem -d /dev/sdb #detach device from storage
-$ sudo bin/nkfs_ctl srv_stop -b 0.0.0.0 -p 8000 #stop server
+$ sudo bin/nkfs_ctl srv_stop -b 127.0.0.1 -p 8000 #stop server
 ```
 #### Shutdown:
 ```sh
