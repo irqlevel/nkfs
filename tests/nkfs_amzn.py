@@ -47,13 +47,19 @@ class AmznNode():
 	def start_nkfs(self):
 		s = self.get_ssh()
 		s.cmd('sudo iptables -F')
-		s.cmd('cd nkfs && sudo scripts/start.sh ' + self.ip)
+		s.cmd('sudo cd nkfs && insmod bin/nkfs_crt.ko')
+		s.cmd('sudo cd nkfs && insmod bin/nkfs.ko')
+		s.cmd('sudo cd nkfs && bin/nkfs_ctl dev_add -d /dev/sdb -f')
+		s.cmd('sudo cd nkfs && bin/nkfs_ctl srv_start -b 0.0.0.0 -e ' + self.ip + ' -p 9111')
+
 	def neigh_add(self, ip):
 		s = self.get_ssh()
 		s.cmd('cd nkfs && sudo bin/nkfs_ctl neigh_add -e ' + ip + ' -p 9111')
 	def stop_nkfs(self):
 		s = self.get_ssh()
-		s.cmd('cd nkfs && sudo scripts/stop.sh')
+		s.cmd('sudo rmmod nkfs.ko')
+		s.cmd('sudo rmmod nkfs_crt.ko')
+
 	def get_nkfs_log(self):
 		s = self.get_ssh()
 		lpath = os.path.join(s.rdir, 'nkfs.log')
