@@ -46,6 +46,7 @@ class AmznNode():
 		s.cmd('cd nkfs && make')
 	def start_nkfs(self):
 		s = self.get_ssh()
+		s.cmd('sudo iptables -F')
 		s.cmd('cd nkfs && sudo scripts/start.sh ' + self.ip)
 	def neigh_add(self, ip):
 		s = self.get_ssh()
