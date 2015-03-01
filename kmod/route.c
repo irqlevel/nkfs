@@ -588,6 +588,7 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 		goto free_reply;
 	}
 
+	set_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state);
 	neigh->hbt_delay = get_jiffies_64() - neigh->hbt_time;
 	KLOG_NEIGH(KL_DBG, neigh);
 
@@ -598,9 +599,10 @@ free_req:
 close_con:
 	nkfs_neigh_close(neigh);
 unlock:
-	if (err)
+	if (err) {
 		neigh->hbt_err = err;
-
+		clear_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state);
+	}
 	up_write(&neigh->rw_sem);
 
 	return err;

@@ -3,7 +3,7 @@
 enum {
 	NKFS_NEIGH_S_INITED,
 	NKFS_NEIGH_S_SHAKED,
-	NKFS_NEIGH_S_ERROR
+	NKFS_NEIGH_S_HBT_OK,
 };
 
 #pragma pack(push, 1)
