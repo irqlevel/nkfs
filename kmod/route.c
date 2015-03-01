@@ -961,14 +961,17 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 {
 	int err;
 	struct nkfs_host_id *hid;
+	struct nkfs_host *host = nkfs_host;
+	struct nkfs_neigh *neigh, *tmp;
+	int i;
 
-	if (0 != nkfs_obj_id_cmp(src_net_id, &nkfs_host->net_id)) {
+	if (0 != nkfs_obj_id_cmp(src_net_id, &host->net_id)) {
 		KLOG(KL_ERR, "diff net id");
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (0 != nkfs_obj_id_cmp(dst_host_id, &nkfs_host->host_id)) {
+	if (0 != nkfs_obj_id_cmp(dst_host_id, &host->host_id)) {
 		KLOG(KL_ERR, "diff host id");
 		err = -EINVAL;
 		goto out;
@@ -982,8 +985,26 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	}
 
 	err = 0;
-	nkfs_obj_id_copy(reply_host_id, &nkfs_host->host_id);
-	*preply_nr_neighs = 0;
+	nkfs_obj_id_copy(reply_host_id, &host->host_id);
+	
+	i = 0;
+	read_lock(&host->neighs_lock);
+	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
+		if (i >= reply_max_neighs)
+			break;
+		if (0 != nkfs_obj_id_cmp(&neigh->hid->host_id, &host->host_id) &&
+			0 != nkfs_obj_id_cmp(&neigh->hid->host_id, src_host_id) &&
+			test_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state)) {
+			reply_neighs[i].ip = neigh->ip;
+			reply_neighs[i].port = neigh->port;
+			nkfs_obj_id_copy(&reply_neighs[i].host_id,
+				&neigh->hid->host_id);		
+			i++;
+		}
+	}
+	read_unlock(&host->neighs_lock);
+	NKFS_BUG_ON(i > reply_max_neighs);
+	*preply_nr_neighs = i;
 
 	HOST_ID_DEREF(hid);
 out:
