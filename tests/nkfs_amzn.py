@@ -56,10 +56,14 @@ class AmznNode():
 	def get_nkfs_log(self):
 		s = self.get_ssh()
 		lpath = os.path.join(s.rdir, 'nkfs.log')
+		dpath = os.path.join(s.rdir, 'dmesg.out')
 		s.cmd('cd nkfs && sudo bin/nkfs_ctl klog_sync', throw = False)
 		s.cmd('sudo cp /var/log/nkfs.log ' + lpath)
-		s.cmd('sudo chown -R ec2-user:ec2-user ' + lpath)
+		s.cmd('sudo dmesg > ' + dpath)
+		s.cmd('sudo chown -R ec2-user:ec2-user ' + s.rdir)
 		s.file_get(lpath, os.path.join(self.wdir, 'nkfs.log'))
+		s.file_get(dpath, os.path.join(self.wdir, 'dmesg.out'))
+
 
 def multi_process(fl):
 	ps = []
@@ -97,7 +101,8 @@ if __name__=="__main__":
 		raise Exception("No ips specified")
 
 	rootdir = os.path.abspath('amzn_tests')
-	exec_cmd2('mkdir -p ' + rootdir, throw = True)
+	exec_cmd2('rm -rf ' + rootdir, throw = True)
+	exec_cmd2('mkdir ' + rootdir, throw = True)
 	nodes = []	
 	for ip in ips:
 		n = AmznNode(ip, AmznNodeKeyPath().get(), rootdir)
@@ -107,8 +112,8 @@ if __name__=="__main__":
 		multi_process([n.prepare_nkfs for n in nodes])
 		multi_process([n.start_nkfs for n in nodes])
 		nodes_connect(nodes)
-		log.info('will sleep 120 secs to simulate run')
-		time.sleep(120)	#catch hbt
+		log.info('will sleep 60 secs to simulate run')
+		time.sleep(60)	#catch hbt
 		multi_process([n.get_nkfs_log for n in nodes])
 	finally:
 		try:
