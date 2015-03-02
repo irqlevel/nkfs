@@ -67,6 +67,12 @@ void nkfs_obj_id_copy(struct nkfs_obj_id *dst, struct nkfs_obj_id *src)
 }
 EXPORT_SYMBOL(nkfs_obj_id_copy);
 
+void nkfs_obj_id_zero(struct nkfs_obj_id *dst)
+{
+	crt_memset(dst, 0, sizeof(*dst));
+}
+EXPORT_SYMBOL(nkfs_obj_id_zero);
+
 struct nkfs_obj_id *nkfs_obj_id_create(void)
 {
 	struct nkfs_obj_id *id;

@@ -97,6 +97,7 @@ static void nkfs_neigh_free(struct nkfs_neigh *neigh)
 static void nkfs_neigh_detach_hid(struct nkfs_neigh *neigh)
 {
 	struct nkfs_host_id *hid = neigh->hid;
+	neigh->hid = NULL;
 	if (hid) {
 		write_lock_irq(&hid->neigh_list_lock);
 		list_del_init(&neigh->hid_list);
@@ -345,6 +346,9 @@ static struct nkfs_neigh *__nkfs_neighs_insert(struct nkfs_host *host,
 		}
 	}
 	if (!inserted) {
+		if (host->neighs_active >= NKFS_ROUTE_MAX_NEIGHS)
+			return NULL;
+
 		rb_link_node(&neigh->neighs_link, parent, p);
 		rb_insert_color(&neigh->neighs_link, &host->neighs);
 		neigh->host = host;
@@ -816,15 +820,27 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 
 	write_lock_irq(&host->neighs_lock);
 	inserted = __nkfs_neighs_insert(host, neigh);
-	NKFS_BUG_ON(!inserted);
-	if (inserted == neigh) {
-		list_add_tail(&neigh->neigh_list, &host->neigh_list);
-		err = 0;
+	if (inserted) {
+		if (inserted == neigh) {
+			list_add_tail(&neigh->neigh_list, &host->neigh_list);
+			err = 0;
+		}
+		NEIGH_DEREF(inserted);
+	} else {
+		err = NKFS_E_LIMIT;
 	}
-	NEIGH_DEREF(inserted);
 	write_unlock_irq(&host->neighs_lock);
-	if (!err)
+	if (!err) {
 		KLOG_NEIGH(KL_DBG, neigh);
+	} else {
+		if (err == -EEXIST) {
+			KLOG(KL_DBG, "neigh %x:%d already exists",
+					neigh->ip, neigh->port);
+		} else {
+			KLOG(KL_ERR, "cant add neigh %x:%d err %d",
+					neigh->ip, neigh->port, err);
+		}
+	}
 
 	return err;
 }
@@ -973,9 +989,10 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	int err;
 	struct nkfs_host_id *hid;
 	struct nkfs_host *host = nkfs_host;
-	struct nkfs_neigh *neigh, *tmp;
+	struct nkfs_neigh *neigh;
 	int i;
 
+	*preply_nr_neighs = 0;
 	if (0 != nkfs_obj_id_cmp(src_net_id, &host->net_id)) {
 		KLOG(KL_ERR, "diff net id");
 		err = -EINVAL;
@@ -1000,7 +1017,7 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	
 	i = 0;
 	read_lock(&host->neighs_lock);
-	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
+	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {
 		if (i >= reply_max_neighs)
 			break;
 		if (0 != nkfs_obj_id_cmp(&neigh->hid->host_id, &host->host_id) &&
@@ -1036,4 +1053,37 @@ int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 			&reply->u.neigh_heartbeat.reply_nr_neighs);
 
 	return nkfs_con_send_reply(con, reply, err);
+}
+
+int nkfs_route_neigh_info(struct nkfs_neigh_info *neighs,
+			int max_nr_neighs, int *pnr_neighs)
+{
+	struct nkfs_host *host = nkfs_host;
+	struct nkfs_neigh *neigh;
+	int i;
+	int err;
+
+	*pnr_neighs = 0;
+	i = 0;
+	read_lock(&host->neighs_lock);
+	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {
+		if (i >= max_nr_neighs) {
+			err = -ERANGE;
+			break;
+		}
+		neighs[i].ip = neigh->ip;
+		neighs[i].port = neigh->port;
+		neighs[i].hbt_delay = neigh->hbt_delay;
+		neighs[i].hbt_time = neigh->hbt_time;
+		neighs[i].state = neigh->state;
+		nkfs_obj_id_zero(&neighs[i].host_id);
+		if (neigh->hid)
+			nkfs_obj_id_copy(&neighs[i].host_id,
+					&neigh->hid->host_id);
+	}
+	read_unlock(&host->neighs_lock);
+	if (!err)
+		*pnr_neighs = i;
+
+	return err;
 }

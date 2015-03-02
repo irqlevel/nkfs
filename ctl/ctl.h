@@ -26,5 +26,7 @@ int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port);
 
 int nkfs_neigh_add(u32 ip, int port);
 int nkfs_neigh_remove(u32 ip, int port);
+int nkfs_neigh_info(struct nkfs_neigh_info *neighs,
+		int max_nr_neighs, int *pnr_neighs);
 
 int nkfs_klog_ctl(int level, int sync);

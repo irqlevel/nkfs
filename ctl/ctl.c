@@ -204,6 +204,46 @@ out:
 	return err;
 }
 
+int nkfs_neigh_info(struct nkfs_neigh_info *neighs,
+		int max_nr_neighs, int *pnr_neighs)
+{
+
+	int err = -EINVAL;
+	struct nkfs_ctl cmd;
+	int fd;
+	int i;
+
+	*pnr_neighs = 0;
+	err = nkfs_ctl_open(&fd);
+	if (err)
+		return err;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	err = ioctl(fd, IOCTL_NKFS_NEIGH_INFO, &cmd);
+	if (err)
+		goto out;
+
+	err = cmd.err;
+	if (err)
+		goto out;
+
+	if (cmd.u.neigh_info.nr_neighs > max_nr_neighs) {
+		err = NKFS_E_LIMIT;
+		goto out;
+	}
+
+	for (i = 0; i < cmd.u.neigh_info.nr_neighs; i++) {
+		memcpy(&neighs[i], &cmd.u.neigh_info.neighs[i],
+				sizeof(neighs[i]));
+	}
+
+	*pnr_neighs = i;
+out:
+	close(fd);
+	return err;
+}
+
 int nkfs_klog_ctl(int level, int sync)
 {
 	int err = -EINVAL;

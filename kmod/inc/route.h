@@ -96,6 +96,8 @@ void nkfs_route_finit(void);
 
 int nkfs_route_neigh_add(u32 ip, int port);
 int nkfs_route_neigh_remove(u32 ip, int port);
+int nkfs_route_neigh_info(struct nkfs_neigh_info *neighs,
+			int max_nr_neighs, int *pnr_neighs);
 
 int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply);

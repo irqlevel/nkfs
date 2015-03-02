@@ -8,6 +8,7 @@ struct nkfs_obj_id *nkfs_obj_id_create(void);
 int nkfs_obj_id_cmp(struct nkfs_obj_id *id1,
 			struct nkfs_obj_id *id2);
 
+void nkfs_obj_id_zero(struct nkfs_obj_id *dst);
 void nkfs_obj_id_dist(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
 	struct nkfs_obj_id *result);
 

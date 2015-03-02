@@ -21,6 +21,8 @@ char *nkfs_error(int err)
 		return "failed to get object";
 	case NKFS_E_INVAL:
 		return "invalid value";
+	case NKFS_E_LIMIT:
+		return "limit reached";
 	default:
 		return "unknown err code";
 	}

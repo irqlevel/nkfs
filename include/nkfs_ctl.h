@@ -2,6 +2,7 @@
 #include <linux/ioctl.h>
 #include <include/nkfs_obj_id.h>
 #include <include/nkfs_dev_info.h>
+#include <include/nkfs_neigh_info.h>
 #include <include/nkfs_types.h>
 #include <include/nkfs_const.h>
 
@@ -42,6 +43,10 @@ struct nkfs_ctl {
 			int port;
 		} neigh_remove;
 		struct {
+			int			nr_neighs;
+			struct nkfs_neigh_info	neighs[NKFS_ROUTE_MAX_NEIGHS];
+		} neigh_info;
+		struct {
 			int sync;
 			int level;
 		} klog_ctl;
@@ -59,5 +64,6 @@ struct nkfs_ctl {
 
 #define IOCTL_NKFS_NEIGH_ADD	_IOWR(NKFS_IOC_MAGIC, 6, struct nkfs_ctl *)
 #define IOCTL_NKFS_NEIGH_REMOVE	_IOWR(NKFS_IOC_MAGIC, 7, struct nkfs_ctl *)
+#define IOCTL_NKFS_NEIGH_INFO	_IOWR(NKFS_IOC_MAGIC, 8, struct nkfs_ctl *)
 
-#define IOCTL_NKFS_KLOG_CTL	_IOWR(NKFS_IOC_MAGIC, 8, struct nkfs_ctl *)
+#define IOCTL_NKFS_KLOG_CTL	_IOWR(NKFS_IOC_MAGIC, 9, struct nkfs_ctl *)

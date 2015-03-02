@@ -14,7 +14,7 @@ static void usage(char *program)
 {
 	printf("Usage: %s [-d device] [-f format] [-b bind ip] [-e ext ip] [-p port]"
 		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
-		" neigh_add, neigh_remove, klog_sync}\n",
+		" neigh_add, neigh_remove, neigh_info, klog_sync}\n",
 		program);
 }
 
@@ -47,6 +47,28 @@ static int output_dev_info(struct nkfs_dev_info *info)
 	crt_free(hex_sb_id);
 	return 0;
 }
+
+static int output_neigh_info(struct nkfs_neigh_info *neigh)
+{
+	char *host_id;
+	struct in_addr addr;
+
+	host_id = nkfs_obj_id_str(&neigh->host_id);
+	if (!host_id)
+		return -ENOMEM;
+
+	addr.s_addr = neigh->ip;
+	printf("ip : %s\n", inet_ntoa(addr));
+	printf("port : %d\n", neigh->port);
+	printf("host_id : %s\n", host_id);
+	printf("state : %lx\n", neigh->state);
+	printf("hbt_delay : %llu\n", (unsigned long long)neigh->hbt_delay);
+	printf("hbt_time : %llu\n", (unsigned long long)neigh->hbt_time);
+
+	crt_free(host_id);
+	return 0;
+}
+
 
 static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int port,
 	char *dev_name, int format)
@@ -218,12 +240,26 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 		err = nkfs_klog_ctl(0, 1);
 		if (err)
 			printf("can't sync klog err %d\n", err);		
+	} else if (cmd_equal(cmd, "neigh_info")) {
+		struct nkfs_neigh_info neighs[NKFS_ROUTE_MAX_NEIGHS];
+		int nr_neighs, i;
+
+		err = nkfs_neigh_info(neighs, ARRAY_SIZE(neighs), &nr_neighs);
+		if (err) {
+			printf("cant get neigh info err %d\n", err);
+			goto out;
+		}
+
+		for (i = 0; i < nr_neighs; i++) {
+			output_neigh_info(&neighs[i]);
+			printf("\n");
+		}
 	} else {
 		printf("unknown cmd\n");
 		usage(prog);
 		return -EINVAL;
 	}
-
+out:
 	return err;	
 }
 
