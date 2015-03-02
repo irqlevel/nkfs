@@ -63,10 +63,10 @@ def ssh_cmd(ssh, cmd, throw = False, log = None):
     return rc, out_lines, err_lines
 
 class SshExec:
-    def __init__(self, log, host, user, passwd = None, key_file = None, timeout = None):
+    def __init__(self, log, host, user, password = None, key_file = None, timeout = None, ftp = False):
         self.host = host
         self.user = user
-        self.passwd = passwd
+        self.password = password
         self.key_file = key_file
         self.log = log
         self.timeout = timeout
@@ -78,15 +78,13 @@ class SshExec:
   
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(self.host, username=self.user, password = self.passwd, pkey=self.pkey, timeout = self.timeout)
-        if self.user == 'root':
-            self.rdir = os.path.join('/root', 'sshexec')
-        else:
-            self.rdir = os.path.join(os.path.join('/home', self.user), 'sshexec')
+        self.ssh.connect(self.host, username=self.user, password = self.password, pkey=self.pkey, timeout = self.timeout)
 
-        self.ssh.exec_command('mkdir ' + self.rdir)
-        self.ftp = self.ssh.open_sftp()
-        self.log.info(self.get_tag() + 'opened ssh to host ' + self.host + ' rdir=' + self.rdir)
+        if ftp:
+            self.ftp = self.ssh.open_sftp()
+        else:
+            self.ftp = None
+        self.log.info(self.get_tag() + 'opened ssh to host ' + self.host)
         self.ssh.get_tag = self.get_tag
 
     def cmd(self, cmd, throw = True):
@@ -107,6 +105,51 @@ class SshExec:
         return self.ftp.getcwd()
     def file_chdir(self, path):
         return self.ftp.chdir(path)
+    def close(self):
+        try:
+            if self.ftp != None:
+                self.ftp.close()
+        except:
+            pass
+        try:
+            self.ssh.close()
+        except:
+            pass
+
+class SshUser():
+    def __init__(self, log, host, user, password = None, key_file = None, timeout = None, ftp = False):
+        self.log = log
+        self.host = host
+        self.user = user
+        self.password = password
+        self.key_file = key_file
+        self.timeout = timeout
+        self.ftp = ftp
+
+def ssh_by_suser(suser):
+    s = SshExec(suser.log, suser.host, suser.user, password = suser.password, key_file = suser.key_file, timeout = suser.timeout, ftp = suser.ftp)
+    return s
+
+def ssh_exec(suser, cmd, throw = True):
+    s = ssh_by_suser(suser)
+    try:
+        s.cmd(cmd, throw = throw)
+    finally:
+        s.close()
+
+def ssh_file_get(suser, remote_file, local_file):
+    s = ssh_by_suser(suser)  
+    try:
+        s.file_get(remote_file, local_file)
+    finally:
+        s.close()
+
+def ssh_file_put(suser, local_file, remote_file):
+    s = ssh_by_suser(suser)
+    try:
+        s.file_put(local_file, remote_file)
+    finally:
+        s.close()
 
 if __name__ == '__main__':
     ssh = SshExec(log, "10.30.18.211", "root", "1q2w3es5")

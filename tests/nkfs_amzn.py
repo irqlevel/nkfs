@@ -1,6 +1,6 @@
 from tests_lib import cmd
 from tests_lib import settings
-from tests_lib.ssh import SshExec
+from tests_lib.ssh import SshUser, ssh_exec, ssh_file_put, ssh_file_get
 from tests_lib.cmd import exec_cmd2
 
 import tempfile
@@ -26,51 +26,58 @@ class AmznNodeKeyPath():
 		pass
 	def get(self):
 		path = os.path.join(os.path.expanduser('~'), 'nkfs_test')
-		path = os.path.join(path, 'nkfs_test_kp.pem')
+		path = os.path.join(path, 'nkfs_kp.pem')
 		return path
 
 class AmznNode():
-	def __init__(self, ip, key_path, rootdir):
+	def __init__(self, ip, key_path, rootdir, user='ec2-user'):
 		self.ip = ip
 		self.key_path = key_path
 		self.wdir = os.path.join(rootdir, 'node_' + ip)
 		exec_cmd2('mkdir -p ' + self.wdir, throw = True)
+		self.user = user
+	def ssh_exec(self, cmd, throw = True):
+		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = False)
+		ssh_exec(u, cmd, throw = throw)
+	def ssh_file_get(self, remote_file, local_file):
+		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		ssh_file_get(u, remote_file, local_file)
+	def ssh_file_put(self, local_file, remote_file):
+		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		ssh_file_get(u, local_file, remote_file)
 
-	def get_ssh(self):
-		return SshExec(log, self.ip, "ec2-user", key_file=self.key_path)
 	def prepare_nkfs(self):
-		s = self.get_ssh()
-		s.cmd('sudo rm -rf /var/log/nkfs.log')
-		s.cmd('rm -rf nkfs')
-		s.cmd('git clone https://github.com/irqlevel/nkfs.git')
-		s.cmd('cd nkfs && make')
+		self.ssh_exec('sudo rm -rf /var/log/nkfs.log')
+		self.ssh_exec('rm -rf nkfs')
+		self.ssh_exec('git clone https://github.com/irqlevel/nkfs.git')
+		self.ssh_exec('cd nkfs && make')
 	def start_nkfs(self):
-		s = self.get_ssh()
-		s.cmd('sudo iptables -F')
-		s.cmd('cd nkfs && sudo insmod bin/nkfs_crt.ko')
-		s.cmd('cd nkfs && sudo insmod bin/nkfs.ko')
-		s.cmd('cd nkfs && sudo bin/nkfs_ctl dev_add -d /dev/sdb -f')
-		s.cmd('cd nkfs && sudo bin/nkfs_ctl srv_start -b 0.0.0.0 -e ' + self.ip + ' -p 9111')
+		self.ssh_exec('sudo iptables -F')
+		self.ssh_exec('cd nkfs && sudo insmod bin/nkfs_crt.ko')
+		self.ssh_exec('cd nkfs && sudo insmod bin/nkfs.ko')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_add -d /dev/sdb -f')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl srv_start -b 0.0.0.0 -e ' + self.ip + ' -p 9111')
 
 	def neigh_add(self, ip):
-		s = self.get_ssh()
-		s.cmd('cd nkfs && sudo bin/nkfs_ctl neigh_add -e ' + ip + ' -p 9111')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl neigh_add -e ' + ip + ' -p 9111')
 	def stop_nkfs(self):
-		s = self.get_ssh()
-		s.cmd('sudo rmmod nkfs')
-		s.cmd('sudo rmmod nkfs_crt')
+		self.ssh_exec('sudo rmmod nkfs')
+		self.ssh_exec('sudo rmmod nkfs_crt')
 
 	def get_nkfs_log(self):
-		s = self.get_ssh()
-		lpath = os.path.join(s.rdir, 'nkfs.log')
-		dpath = os.path.join(s.rdir, 'dmesg.out')
-		s.cmd('cd nkfs && sudo bin/nkfs_ctl klog_sync', throw = False)
-		s.cmd('sudo cp /var/log/nkfs.log ' + lpath)
-		s.cmd('sudo dmesg > ' + dpath)
-		s.cmd('sudo chown -R ec2-user:ec2-user ' + s.rdir)
-		s.file_get(lpath, os.path.join(self.wdir, 'nkfs.log'))
-		s.file_get(dpath, os.path.join(self.wdir, 'dmesg.out'))
-
+		if self.user == 'root':
+			rdir = '/root/sshexec'
+		else:
+			rdir = '/home/' + self.user + '/sshexec'
+		self.ssh_exec('mkdir -p ' + rdir)
+		lpath = os.path.join(rdir, 'nkfs.log')
+		dpath = os.path.join(rdir, 'dmesg.out')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl klog_sync', throw = False)
+		self.ssh_exec('sudo cp /var/log/nkfs.log ' + lpath)
+		self.ssh_exec('sudo dmesg > ' + dpath)
+		self.ssh_exec('sudo chown -R ec2-user:ec2-user ' + rdir)
+		self.ssh_file_get(lpath, os.path.join(self.wdir, 'nkfs.log'))
+		self.ssh_file_get(dpath, os.path.join(self.wdir, 'dmesg.out'))
 
 def multi_process(fl):
 	ps = []
