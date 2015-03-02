@@ -592,10 +592,10 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 	for (i = 0; i < reply->u.neigh_heartbeat.reply_nr_neighs; i++) {
 		u32 ip = reply->u.neigh_heartbeat.reply_neigh[i].ip;
 		int port = reply->u.neigh_heartbeat.reply_neigh[i].port;
-		KLOG(KL_DBG, "add neigh from reply %x:%d\n", ip, port);
+		KLOG(KL_DBG, "add neigh from reply %x:%d", ip, port);
 		err = nkfs_route_neigh_add(ip, port);
 		if (err && err != -EEXIST)
-			KLOG(KL_ERR, "neigh add %x:%d\n", ip, port);
+			KLOG(KL_ERR, "neigh add %x:%d", ip, port);
 	}
 
 	err = 0;
