@@ -26,7 +26,6 @@ enum {
 struct nkfs_net_peer {
 	u32			ip;
 	int			port;
-	struct nkfs_obj_id	host_id;
 };
 
 struct nkfs_net_pkt {
@@ -65,7 +64,7 @@ struct nkfs_net_pkt {
 			struct nkfs_obj_id	src_host_id;
 			struct nkfs_obj_id	dst_host_id;
 			struct nkfs_obj_id	reply_host_id;
-			struct nkfs_net_peer	reply_neighs[NKFS_NET_PKT_MAX_NEIGHS];
+			struct nkfs_net_peer	reply_neigh[NKFS_NET_PKT_MAX_NEIGHS];
 			int			reply_nr_neighs;
 		} neigh_heartbeat;
 	} u;

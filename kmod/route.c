@@ -536,6 +536,7 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 	int err;
 	struct nkfs_net_pkt *req, *reply;
 	struct nkfs_host *host = neigh->host;
+	int i;
 
 	down_write(&neigh->rw_sem);
 	if (!test_bit(NKFS_NEIGH_S_INITED, &neigh->state) ||
@@ -588,6 +589,16 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 		goto free_reply;
 	}
 
+	for (i = 0; i < reply->u.neigh_heartbeat.reply_nr_neighs; i++) {
+		u32 ip = reply->u.neigh_heartbeat.reply_neigh[i].ip;
+		int port = reply->u.neigh_heartbeat.reply_neigh[i].port;
+		KLOG(KL_DBG, "add neigh from reply %x:%d\n", ip, port);
+		err = nkfs_route_neigh_add(ip, port);
+		if (err && err != -EEXIST)
+			KLOG(KL_ERR, "neigh add %x:%d\n", ip, port);
+	}
+
+	err = 0;
 	set_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state);
 	neigh->hbt_delay = get_jiffies_64() - neigh->hbt_time;
 	KLOG_NEIGH(KL_DBG, neigh);
@@ -955,7 +966,7 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	struct nkfs_obj_id *src_host_id,
 	struct nkfs_obj_id *dst_host_id,
 	struct nkfs_obj_id *reply_host_id,
-	struct nkfs_net_peer *reply_neighs,
+	struct nkfs_net_peer *reply_neigh,
 	int reply_max_neighs,
 	int *preply_nr_neighs)
 {
@@ -995,10 +1006,8 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 		if (0 != nkfs_obj_id_cmp(&neigh->hid->host_id, &host->host_id) &&
 			0 != nkfs_obj_id_cmp(&neigh->hid->host_id, src_host_id) &&
 			test_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state)) {
-			reply_neighs[i].ip = neigh->ip;
-			reply_neighs[i].port = neigh->port;
-			nkfs_obj_id_copy(&reply_neighs[i].host_id,
-				&neigh->hid->host_id);		
+			reply_neigh[i].ip = neigh->ip;
+			reply_neigh[i].port = neigh->port;
 			i++;
 		}
 	}
@@ -1022,8 +1031,8 @@ int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 			&pkt->u.neigh_heartbeat.src_host_id,
 			&pkt->u.neigh_heartbeat.dst_host_id,
 			&reply->u.neigh_heartbeat.reply_host_id,
-			reply->u.neigh_heartbeat.reply_neighs,
-			ARRAY_SIZE(reply->u.neigh_heartbeat.reply_neighs),
+			reply->u.neigh_heartbeat.reply_neigh,
+			ARRAY_SIZE(reply->u.neigh_heartbeat.reply_neigh),
 			&reply->u.neigh_heartbeat.reply_nr_neighs);
 
 	return nkfs_con_send_reply(con, reply, err);
