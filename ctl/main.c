@@ -57,7 +57,7 @@ static int output_neigh_info(struct nkfs_neigh_info *neigh)
 	if (!host_id)
 		return -ENOMEM;
 
-	addr.s_addr = neigh->ip;
+	addr.s_addr = htonl(neigh->ip);
 	printf("ip : %s\n", inet_ntoa(addr));
 	printf("port : %d\n", neigh->port);
 	printf("host_id : %s\n", host_id);
