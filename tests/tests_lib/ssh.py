@@ -14,12 +14,9 @@ import settings
 import dictconfig
 from cmd import StdFp, StdThread
 
-dictconfig.dictConfig(settings.LOGGING)
-
-log = logging.getLogger('main')
-
 def ssh_cmd(ssh, cmd, throw = False, log = None):
-    log.info(ssh.get_tag() + cmd)
+    if log:
+        log.info(ssh.get_tag() + cmd)
     chan = None
     out_lines = []
     err_lines = []
@@ -45,17 +42,21 @@ def ssh_cmd(ssh, cmd, throw = False, log = None):
         err_lines = stderr.lines
 
         if rc == 0:
-            log.info(ssh.get_tag() + cmd + ":rc:" + str(rc))
+            if log:
+                log.info(ssh.get_tag() + cmd + ":rc:" + str(rc))
         else:
-            log.error(ssh.get_tag() + cmd + ":rc:" + str(rc))
+            if log:
+                log.error(ssh.get_tag() + cmd + ":rc:" + str(rc))
     except Exception as e:
-        log.exception(str(e))
+        if log:
+            log.exception(str(e))
     finally:
         if chan != None:
             try:
                 chan.shutdown(2)
             except Exception as e:
-                log.exception(str(e))
+                if log:
+                    log.exception(str(e))
 
     if rc != 0 and throw:
         raise Exception(ssh.get_tag() + cmd + ":rc:" + str(rc))
@@ -152,6 +153,7 @@ def ssh_file_put(suser, local_file, remote_file):
         s.close()
 
 if __name__ == '__main__':
+    init_logging()
     ssh = SshExec(log, "10.30.18.211", "root", "1q2w3es5")
     ssh.cmd("ps aux")
 

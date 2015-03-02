@@ -19,8 +19,6 @@ import multiprocessing
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
 
-log = logging.getLogger('main')
-
 class AmznNodeKeyPath():
 	def __init__(self):
 		pass
@@ -30,20 +28,21 @@ class AmznNodeKeyPath():
 		return path
 
 class AmznNode():
-	def __init__(self, ip, key_path, rootdir, user='ec2-user'):
+	def __init__(self, log, ip, key_path, rootdir, user='ec2-user'):
 		self.ip = ip
+		self.log = log
 		self.key_path = key_path
 		self.wdir = os.path.join(rootdir, 'node_' + ip)
 		exec_cmd2('mkdir -p ' + self.wdir, throw = True)
 		self.user = user
 	def ssh_exec(self, cmd, throw = True):
-		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = False)
+		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = False)
 		ssh_exec(u, cmd, throw = throw)
 	def ssh_file_get(self, remote_file, local_file):
-		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = True)
 		ssh_file_get(u, remote_file, local_file)
 	def ssh_file_put(self, local_file, remote_file):
-		u = SshUser(log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = True)
 		ssh_file_get(u, local_file, remote_file)
 
 	def prepare_nkfs(self):
@@ -108,6 +107,7 @@ def nodes_connect(nodes):
 	for n, m in pairs.values():
 		n.neigh_add(m.ip)
 
+
 if __name__=="__main__":
 	i = 0
 	ips = []
@@ -122,9 +122,12 @@ if __name__=="__main__":
 	rootdir = os.path.abspath('amzn_tests')
 	exec_cmd2('rm -rf ' + rootdir, throw = True)
 	exec_cmd2('mkdir ' + rootdir, throw = True)
+	settings.init_logging(log_dir = rootdir, log_name = 'test.log')
+	log = logging.getLogger('main')
+	log.info('starting')
 	nodes = []	
 	for ip in ips:
-		n = AmznNode(ip, AmznNodeKeyPath().get(), rootdir)
+		n = AmznNode(log, ip, AmznNodeKeyPath().get(), rootdir)
 		nodes.append(n)
 
 	try:
@@ -143,4 +146,4 @@ if __name__=="__main__":
 			multi_process([n.stop_nkfs for n in nodes])
 		except:
 			pass
-
+	log.info('stopping')

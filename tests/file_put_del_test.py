@@ -15,7 +15,9 @@ from multiprocessing import Process
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
 
+settings.init_logging()
 log = logging.getLogger('main')
+
 
 class FilePutDelTest(FilePutGetTest):
 	def __init__(self, env, proc_num, file_count, file_min_size, file_max_size):

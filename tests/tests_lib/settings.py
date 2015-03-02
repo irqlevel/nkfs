@@ -1,6 +1,8 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 import os
 import inspect
+import copy
+import logging
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
@@ -51,3 +53,11 @@ LOGGING = {
     },
 }
 
+def init_logging(log_dir = None, log_name = None):
+        if log_dir == None:
+            log_dir = os.getcwd()
+        if log_name == None:
+            log_name = 'test.log'
+	d = copy.deepcopy(LOGGING)
+	d['handlers']['file']['filename'] = os.path.join(log_dir, log_name)
+	logging.config.dictConfig(d)

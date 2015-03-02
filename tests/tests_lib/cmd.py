@@ -18,15 +18,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 
 import settings
 
-logging.config.dictConfig(settings.LOGGING)
-
-log = logging.getLogger('main')
-
-  
-
-def exec_cmd(cmd, output = False):
+def exec_cmd(cmd, output = False, elog = None):
     args = cmd.split()
-    log.info("EXEC:" + cmd + ":" + str(args))
+    if elog:
+        elog.info("EXEC:" + cmd + ":" + str(args))
 
     if output:
         process = subprocess.Popen(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -36,9 +31,10 @@ def exec_cmd(cmd, output = False):
     stdout, stderr = process.communicate()
     process.wait()
 
-    log.info("EXEC:stdout:" + str(stdout))
-    log.info("EXEC:stderr:" + str(stderr))
-    log.info("EXEC:" + cmd + ":" + str(args) + ":rc=" + str(process.returncode))
+    if elog:
+        elog.info("EXEC:stdout:" + str(stdout))
+        elog.info("EXEC:stderr:" + str(stderr))
+        elog.info("EXEC:" + cmd + ":" + str(args) + ":rc=" + str(process.returncode))
     return (process.returncode, stdout, stderr)
 
 class StdFp():
@@ -53,12 +49,12 @@ class StdFp():
         self.lock.acquire()
         try:
             lp = l.replace("\n", "")
-            log.info(self.log_extra + ":" + lp)
-            if self.elog != None:
+            if self.elog:
                 self.elog.info(self.log_extra + ":" + lp)
             self.lines.append(lp)
         except Exception as e:
-            log.exception(str(e))
+            if self.elog:
+                self.elog.exception(str(e))
         finally:
             self.lock.release()
 
@@ -68,7 +64,8 @@ class StdFp():
         try:
             lines = copy.deepcopy(self.lines)
         except Exception as e:
-            log.exception(str(e))
+            if self.elog:
+                self.elog.exception(str(e))
         finally:
             self.lock.release()
 
@@ -95,7 +92,6 @@ class Cmd():
         self.elog = elog
 
     def run(self):
-        log.info("CMD:" + self.cmd)
         if self.elog != None:
             self.elog.info("CMD:" + self.cmd)
         
@@ -120,12 +116,10 @@ class Cmd():
         #log.info("CMD:" + self.cmd + ":stdout:" + self.stdout.out)
         #log.info("CMD:" + self.cmd + ":stderr:" + self.stderr.out)
         if self.rc == 0:
-            log.info("CMD:" + self.cmd + ":rc:" + str(self.rc))
-            if self.elog != None:
+           if self.elog != None:
                 self.elog.info("CMD:" + self.cmd + ":rc:" + str(self.rc))
         else:
-            log.error("CMD:" + self.cmd + ":rc:" + str(self.rc))
-            if self.elog != None:
+           if self.elog != None:
                 self.elog.error("CMD:" + self.cmd + ":rc:" + str(self.rc))
          
         if self.rc != 0 and self.throw:
