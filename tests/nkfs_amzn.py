@@ -33,7 +33,7 @@ class AmznNode():
 		self.log = log
 		self.key_path = key_path
 		self.wdir = os.path.join(rootdir, 'node_' + ip)
-		exec_cmd2('mkdir -p ' + self.wdir, throw = True)
+		exec_cmd2('mkdir -p ' + self.wdir, throw = True, elog = log)
 		self.user = user
 	def ssh_exec(self, cmd, throw = True):
 		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = False)

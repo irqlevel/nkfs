@@ -45,9 +45,9 @@ class NkfsLocalLoopEnv(DsEnv):
 
 	def prepare(self):
 		if self.load_mods:
-			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/load_mods.sh", throw = True)
+			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/load_mods.sh", throw = True, elog = log)
 
-		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_create.sh", throw = True)
+		cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_create.sh", throw = True, elog = log)
 
 		c = self.get_client()
 		self.srvs = [(self.bind_ip, self.ext_ip, PORT)]
@@ -79,12 +79,12 @@ class NkfsLocalLoopEnv(DsEnv):
 
 		try:
 			if self.load_mods:
-				cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True)
+				cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True, elog = log)
 		except Exception as e:
 			log.error("EXCEPTION %s" % e)
 
 		try:
-			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_del.sh", throw = True)
+			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/loop_dev_del.sh", throw = True, elog = log)
 		except Exception as e:
 			log.error("EXCEPTION %s" % e)
 
