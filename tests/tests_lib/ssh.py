@@ -11,7 +11,6 @@ import logging
 #sys.path.insert(0,parentdir) 
 
 import settings
-import dictconfig
 from cmd import StdFp, StdThread
 
 def ssh_cmd(ssh, cmd, throw = False, log = None):
