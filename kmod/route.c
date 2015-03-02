@@ -891,7 +891,6 @@ int nkfs_route_neigh_add(u32 ip, int port)
 	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
 	err = nkfs_host_add_neigh(nkfs_host, neigh); 
 	if (err) {
-		KLOG(KL_ERR, "cant add neigh err %d", err);
 		NEIGH_DEREF(neigh);
 	}
 
