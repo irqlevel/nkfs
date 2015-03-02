@@ -1080,6 +1080,7 @@ int nkfs_route_neigh_info(struct nkfs_neigh_info *neighs,
 		if (neigh->hid)
 			nkfs_obj_id_copy(&neighs[i].host_id,
 					&neigh->hid->host_id);
+		i++;
 	}
 	read_unlock(&host->neighs_lock);
 	if (!err)
