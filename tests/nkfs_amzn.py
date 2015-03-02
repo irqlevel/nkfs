@@ -60,6 +60,11 @@ class AmznNode():
 
 	def neigh_add(self, ip):
 		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl neigh_add -e ' + ip + ' -p 9111')
+
+	def query_nkfs(self):
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_query -d /dev/sdb')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl neigh_info')
+
 	def stop_nkfs(self):
 		self.ssh_exec('sudo rmmod nkfs')
 		self.ssh_exec('sudo rmmod nkfs_crt')
@@ -126,10 +131,14 @@ if __name__=="__main__":
 		multi_process([n.prepare_nkfs for n in nodes])
 		multi_process([n.start_nkfs for n in nodes])
 		nodes_connect(nodes)
-		log.info('will sleep 60 secs to simulate run')
-		time.sleep(60)	#catch hbt
-		multi_process([n.get_nkfs_log for n in nodes])
+		log.info('will sleep 20 secs to simulate run')
+		time.sleep(20)	#catch hbt
+		multi_process([n.query_nkfs for n in nodes])
 	finally:
+		try:
+			multi_process([n.get_nkfs_log for n in nodes])
+		except:
+			pass
 		try:
 			multi_process([n.stop_nkfs for n in nodes])
 		except:
