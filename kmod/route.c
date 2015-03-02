@@ -1065,9 +1065,11 @@ int nkfs_route_neigh_info(struct nkfs_neigh_info *neighs,
 
 	*pnr_neighs = 0;
 	i = 0;
+	err = 0;
 	read_lock(&host->neighs_lock);
 	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {
 		if (i >= max_nr_neighs) {
+			KLOG(KL_ERR, "i %d max_nr_neighs %d", i, max_nr_neighs);
 			err = -ERANGE;
 			break;
 		}
