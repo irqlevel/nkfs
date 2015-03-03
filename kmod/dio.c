@@ -285,7 +285,7 @@ static void dio_clus_release(struct dio_dev *dev)
 			cluster = batch[index];
 			dio_clu_ref(cluster);
 		}
-		spin_unlock(&dev->clus_lock);
+		spin_unlock_irq(&dev->clus_lock);
 		if (nr_found == 0)
 			break;
 
