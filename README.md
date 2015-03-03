@@ -34,10 +34,13 @@ and receive clients/other computer nodes requests.
 $ cd ~
 $ git clone https://github.com/irqlevel/nkfs.git
 $ cd nkfs
-$ make
+$ make -j4
 ```
-Note, that you can build nkfs for particular kernel by
-setting up "export NKFS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES" before make.
+```
+Note, -j4 specifies to build by 4 cpu cores if they are available. You can build nkfs
+for particular kernel by setting up "export NKFS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES"
+before execution of make.
+```
 
 #### Tests:
 ```sh
@@ -52,15 +55,14 @@ $ sudo insmod bin/nkfs_crt.ko #load runtime helper module
 
 $ sudo insmod bin/nkfs.ko #load core kernel module
 
-$ sudo bin/nkfs_ctl dev_add -d /dev/sdb -f #attach block device /dev/sdb to 
-file system and format(!!!) it.
+$ sudo bin/nkfs_ctl dev_add -d BDEV_NAME -f #attach block device BDEV_NAME to file system and format(!!!) it.
 
-$ sudo bin/nkfs_ctl srv_start -b 127.0.0.1 -e 127.0.0.1 -p 8000 #run server at 127.0.0.1:8000
-
-$ bin/nkfs_client put -s 127.0.0.1 -p 8000 -f myfile.txt #put already created file 'myfile.txt' inside storage
+$ sudo bin/nkfs_ctl srv_start -b BIND_IP -e EXT_IP -p PORT #run server at BIND_IP:PORT and EXT_IP:PORT available for other clients/servers.
+ 
+$ bin/nkfs_client put -s EXT_IP -p PORT -f myfile.txt #put already created file 'myfile.txt' inside storage
 d963a52161d67bf9d1e7c09ce313b050
 
-$ bin/nkfs_client query -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #query stored file
+$ bin/nkfs_client query -s EXT_IP -p PORT -i d963a52161d67bf9d1e7c09ce313b050 #query stored file
 obj_id : d963a52161d67bf9d1e7c09ce313b050 
 size : 11
 block : 3
@@ -68,7 +70,7 @@ bsize : 4096
 device : /dev/sdb
 sb_id : c7a236270cfb5accb45edeeb64f18e88
 
-$ bin/nkfs_ctl dev_query -d /dev/sdb #query info about attached device
+$ bin/nkfs_ctl dev_query -d BDEV_NAME #query info about attached device by it's name
 dev_name : /dev/sdb
 major : 7
 minor : 0
@@ -83,17 +85,24 @@ inodes_tree_block : 2
 bm_block : 1
 bm_blocks : 1
 
-$ bin/nkfs_client get -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
+$ bin/nkfs_client get -s EXT_IP -p PORT -i d963a52161d67bf9d1e7c09ce313b050 -f output.txt #read file back from storage
 
 $ md5sum myfile.txt output.txt #check files are equal
 40dca55eb18baafa452e43cb4a3cc5b5  myfile.txt
 40dca55eb18baafa452e43cb4a3cc5b5  output.txt
 
-$ bin/nkfs_client delete -s 127.0.0.1 -p 8000 -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
+$ bin/nkfs_client delete -s EXT_IP -p PORT -i d963a52161d67bf9d1e7c09ce313b050 #delete file from storage
 
-$ sudo bin/nkfs_ctl dev_rem -d /dev/sdb #detach device from storage
-$ sudo bin/nkfs_ctl srv_stop -b 127.0.0.1 -p 8000 #stop server
+$ sudo bin/nkfs_ctl dev_rem -d DEV_NAME #detach device from storage
+$ sudo bin/nkfs_ctl srv_stop -b BIND_IP -p PORT #stop server
 ```
+```
+Where DEV_NAME - name of your block device in format like /dev/sdb.
+BIND_IP - your machine ip address of interface to bind on. It can be 0.0.0.0
+EXT_IP - you external machine ip address associated with BIND_IP. EXT_IP used as
+destination ip address for other machines in nkfs network and for external clients.
+```
+
 #### Shutdown:
 ```sh
 $ sudo rmmod nkfs_crt
@@ -101,5 +110,5 @@ $ sudo rmmod nkfs
 ```
 #### Logs:
 ```sh
-$ tail -n 20 /var/log/nkfs.log
+$ tail /var/log/nkfs.log
 ```
