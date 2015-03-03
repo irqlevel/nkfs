@@ -1,7 +1,5 @@
 #pragma once
 
-#include <linux/types.h>
-
 #pragma pack(push, 1)
 
 struct nkfs_btree;

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <net/sock.h>
-
 u16 ksock_self_port(struct socket *sock);
 u16 ksock_peer_port(struct socket *sock);
 u32 ksock_peer_addr(struct socket *sock);

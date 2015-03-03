@@ -31,3 +31,14 @@ static inline u32 nkfs_mod(u64 x, u64 y)
 #define BIO_BI_SIZE(bio)	(bio)->bi_iter.bi_size
 
 #endif
+
+#define NKFS_BUG_ON(cond)				\
+	do {						\
+		if (cond) {				\
+			KLOG(KL_ERR, "BUG_ON()");	\
+			KLOG_SYNC();			\
+		}					\
+		BUG_ON(cond);				\
+	} while (0);					\
+
+#define NKFS_BUG()	NKFS_BUG_ON(1)

@@ -95,3 +95,9 @@ void klog_release(void);
 		if (en)						\
 			crt_free(en);				\
 	}
+
+#define KLOG_SYNC()					\
+	do {						\
+		KLOG(KL_INF, "klog sync requested");	\
+		klog_sync();				\
+	} while (0);

@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/in.h>
+#include <net/sock.h>
 #include <linux/delay.h>
 #include <linux/rbtree.h>
 #include <linux/completion.h>
@@ -42,31 +43,14 @@
 
 #include <crt/include/crt.h>
 
-#define KLOG_SYNC()					\
-	do {						\
-		KLOG(KL_INF, "klog sync requested");	\
-		klog_sync();				\
-	} while (0);
-
-#define NKFS_BUG_ON(cond)				\
-	do {						\
-		if (cond) {				\
-			KLOG(KL_ERR, "BUG_ON()");	\
-			KLOG_SYNC();			\
-		}					\
-		BUG_ON(cond);				\
-	} while (0);					\
-
-#define NKFS_BUG()	NKFS_BUG_ON(1)
-
-#include <inc/helpers.h>
-#include <inc/ksocket.h>
-#include <inc/btree.h>
-#include <inc/dev.h>
-#include <inc/net.h>
-#include <inc/super.h>
-#include <inc/balloc.h>
-#include <inc/inode.h>
-#include <inc/upages.h>
-#include <inc/route.h>
-#include <inc/dio.h>
+#include "inc/helpers.h"
+#include "inc/ksocket.h"
+#include "inc/btree.h"
+#include "inc/dev.h"
+#include "inc/net.h"
+#include "inc/super.h"
+#include "inc/balloc.h"
+#include "inc/inode.h"
+#include "inc/upages.h"
+#include "inc/route.h"
+#include "inc/dio.h"
