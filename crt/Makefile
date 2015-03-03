@@ -1,9 +1,15 @@
 include $(PROJ_ROOT)/Makefile.inc
 
-all:
-	cd kernel; make
-	cd user; make
-clean:
-	cd kernel; make clean
-	cd user; make clean
-	rm -rf *.o
+SUBDIRS = kernel user
+SUBCLEAN = $(addsuffix .clean,$(SUBDIRS))
+
+.PHONY: all clean $(SUBDIRS) $(SUBCLEAN)
+
+all: $(SUBDIRS)
+clean: $(SUBCLEAN)
+
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+$(SUBCLEAN): %.clean:
+	$(MAKE) -C $* clean

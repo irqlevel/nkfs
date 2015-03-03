@@ -1,18 +1,30 @@
 export PROJ_ROOT=$(CURDIR)
 export ARCH_BITS=$(shell getconf LONG_BIT)
-all:
-	@echo $(PROJ_ROOT)
-	rm -r -f bin/ obj/ lib/
-	mkdir bin
-	mkdir obj
-	mkdir lib
-	cd crt; make
-	cd client; make
-	cd ctl;	make
-	cd kmod; make
-clean:
-	cd crt; make clean
-	cd client; make clean
-	cd ctl; make clean
-	cd kmod; make clean
-	rm -rf bin/ obj/ lib/ *.log
+
+SOURCE_DIRS = crt client ctl kmod
+BUILD_DIRS = bin lib obj
+
+SOURCE_DIRS_CLEAN = $(addsuffix .clean,$(SOURCE_DIRS))
+BUILD_DIRS_CLEAN = $(addsuffix .clean,$(BUILD_DIRS))
+
+.PHONY: all clean $(BUILD_DIRS) $(BUILD_DIRS_CLEAN) $(SOURCE_DIRS) $(SOURCE_DIRS_CLEAN)
+
+all: $(BUILD_DIRS) $(SOURCE_DIRS)
+
+clean: $(BUILD_DIRS_CLEAN) $(SOURCE_DIRS_CLEAN)
+
+$(SOURCE_DIRS):
+	$(MAKE) -C $@
+
+$(BUILD_DIRS):
+	mkdir -p $@
+
+$(SOURCE_DIRS_CLEAN): %.clean:
+	$(MAKE) -C $* clean
+
+$(BUILD_DIRS_CLEAN): %.clean:
+	rm -rf $*
+
+client: crt $(BUILD_DIRS)
+ctl: crt $(BUILD_DIRS)
+kmod: crt $(BUILD_DIRS)
