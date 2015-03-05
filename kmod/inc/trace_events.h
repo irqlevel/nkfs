@@ -8,20 +8,22 @@
 #include <inc/nkfs_priv.h>
 
 DECLARE_EVENT_CLASS(nkfs_block_class,
-	TP_PROTO(u64 block),
-	TP_ARGS(block),
+	TP_PROTO(struct nkfs_inode *inode),
+	TP_ARGS(inode),
 	TP_STRUCT__entry(
 		__field(	u64,	block	)
 	),
 	TP_fast_assign(
-		__entry->block = block
+		__entry->block = inode->block
 	),
-	TP_printk("blk = %lld", __entry->block)
+	TP_printk("blk = %llu", __entry->block)
 );
+
 #define DEFINE_BLOCK_EVENT(name)	\
 DEFINE_EVENT(nkfs_block_class, name,	\
-	TP_PROTO(u64 block),		\
-	TP_ARGS(block))
+	TP_PROTO(struct nkfs_inode *inode),	\
+	TP_ARGS(inode))
+
 DEFINE_BLOCK_EVENT(balloc_block_free);
 DEFINE_BLOCK_EVENT(balloc_block_alloc);
 
@@ -36,56 +38,62 @@ DECLARE_EVENT_CLASS(nkfs_tree_class,
 		__entry->blocks_tree = inode->blocks_tree_block;
 		__entry->blocks_sum_tree = inode->blocks_sum_tree_block;
 	),
-	TP_printk("blk_t = %lld, blk_sum_t = %lld",
+	TP_printk("blk_t = %llu, blk_sum_t = %llu",
 		__entry->blocks_tree, __entry->blocks_sum_tree)
 );
+
 #define DEFINE_TREE_EVENT(name)		\
 DEFINE_EVENT(nkfs_tree_class, name,	\
 	TP_PROTO(struct nkfs_inode *inode),	\
 	TP_ARGS(inode))
+
 DEFINE_TREE_EVENT(inode_create);
 
 DECLARE_EVENT_CLASS(nkfs_write_class,
-	TP_PROTO(u64 block, struct inode_block *ib),
-	TP_ARGS(block, ib),
+	TP_PROTO(struct nkfs_inode *inode, struct inode_block *ib),
+	TP_ARGS(inode, ib),
 	TP_STRUCT__entry(
 		__field(	u64,	block)
 		__field(	u64,	clu_index)
 		__field(	u64,	sum_clu_index)
 	),
 	TP_fast_assign(
-		__entry->block = block;
+		__entry->block = inode->block;
 		__entry->clu_index = ib->clu->index;
 		__entry->sum_clu_index = ib->sum_clu->index;
 	),
-	TP_printk("blk = %lld, clu->i = %lld, sum_clu->i = %lld",
+	TP_printk("blk = %llu, clu->i = %llu, sum_clu->i = %llu",
 		__entry->block, __entry->clu_index, __entry->sum_clu_index)
 );
+
 #define DEFINE_WRITE_EVENT(name)	\
 DEFINE_EVENT(nkfs_write_class,name,	\
-	TP_PROTO(u64 block, struct inode_block *ib),	\
-	TP_ARGS(block, ib))
+	TP_PROTO(struct nkfs_inode *inode, struct inode_block *ib),	\
+	TP_ARGS(inode, ib))
+
 DEFINE_WRITE_EVENT(inode_write_block);
 
 DECLARE_EVENT_CLASS(nkfs_dio_class,
-	TP_PROTO(u64 index),
-	TP_ARGS(index),
+	TP_PROTO(struct dio_cluster *cluster),
+	TP_ARGS(cluster),
 	TP_STRUCT__entry(
 		__field(	u64,	index)
 	),
 	TP_fast_assign(
-		__entry->index = index;
+		__entry->index = cluster->index;
 	),
-	TP_printk("i = %lld", __entry->index)
+	TP_printk("i = %llu", __entry->index)
 );
+
 #define DEFINE_DIO_EVENT(name)		\
 DEFINE_EVENT(nkfs_dio_class, name,	\
-	TP_PROTO(u64 index),		\
-	TP_ARGS(index))
+	TP_PROTO(struct dio_cluster *cluster),		\
+	TP_ARGS(cluster))
+
 DEFINE_DIO_EVENT(dio_clu_sync);
 
 #endif /* _NKFS_TRACE_H */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ./inc
-#define TRACE_INCLUDE_FILE events
+#define TRACE_INCLUDE_FILE trace_events
 #include <trace/define_trace.h>
