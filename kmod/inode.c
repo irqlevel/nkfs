@@ -1,3 +1,5 @@
+#define CREATE_TRACE_POINTS
+
 #include "inc/nkfs_priv.h"
 
 #define __SUBCOMPONENT__ "inode"
@@ -308,6 +310,7 @@ void nkfs_inode_delete(struct nkfs_inode *inode)
 
 	nkfs_inodes_remove(inode->sb, inode);
 	nkfs_balloc_block_free(inode->sb, inode->block);
+	trace_balloc_block_free(inode);
 	inode->block = 0;
 	inode->size = 0;
 	up_write(&inode->rw_sem);
@@ -388,7 +391,7 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino
 		goto ifree;
 	}
 	NKFS_BUG_ON(!inode->block);
-
+	trace_balloc_block_alloc(inode);
 	nkfs_obj_id_copy(&inode->ino, ino);
 
 	inode->blocks_tree = nkfs_btree_create(sb, 0);
@@ -409,7 +412,7 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino
 		nkfs_btree_root_block(inode->blocks_tree);
 	inode->blocks_sum_tree_block =
 		nkfs_btree_root_block(inode->blocks_sum_tree);
-
+	trace_inode_create(inode);
 	err = nkfs_inode_write(inode);
 	if (err) {
 		KLOG(KL_ERR, "cant write inode %llu", inode->block);
@@ -484,6 +487,7 @@ static int nkfs_inode_block_write(struct nkfs_inode *inode,
 	int err;
 
 	NKFS_BUG_ON(!ib->clu || !ib->sum_clu);
+	trace_inode_write_block(inode, ib);
 
 	dio_clu_sum(ib->clu,
 		(struct csum *)dio_clu_map(ib->sum_clu, ib->sum_off));

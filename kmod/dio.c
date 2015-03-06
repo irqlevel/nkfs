@@ -754,6 +754,8 @@ int dio_clu_sync(struct dio_cluster *cluster)
 	int err;
 	struct dio_io *io;
 
+	trace_dio_clu_sync(cluster);
+	
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags))
 		return 0;
 	
