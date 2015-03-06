@@ -84,10 +84,12 @@ int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 		NKFS_BUG_ON(test_bit_le(bit, dio_clu_map(clu, long_off)));
 		set_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_inc(&sb->used_blocks);
+		trace_balloc_block_alloc(block);
 	} else {
 		NKFS_BUG_ON(!test_bit_le(bit, dio_clu_map(clu, long_off)));
 		clear_bit_le(bit, dio_clu_map(clu, long_off));
 		atomic64_dec(&sb->used_blocks);
+		trace_balloc_block_free(block);
 	}
 	dio_clu_read_unlock(clu);
 
@@ -189,7 +191,7 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 		if (!err) {
 			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off
 					+ bit;
-
+			trace_balloc_block_alloc(block);
 			KLOG(KL_DBG3, "alloc long_off %lu bit %u i %llu block %llu",
 				long_off, bit , i, block);
 			*pblock = block;

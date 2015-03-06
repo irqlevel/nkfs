@@ -12,6 +12,7 @@ Module.symvers
 *.ko
 *.pyc
 *.log
+*.lock
 tags
 tests/logs/
 bin/

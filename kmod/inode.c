@@ -1,5 +1,3 @@
-#define CREATE_TRACE_POINTS
-
 #include "inc/nkfs_priv.h"
 
 #define __SUBCOMPONENT__ "inode"
@@ -310,7 +308,6 @@ void nkfs_inode_delete(struct nkfs_inode *inode)
 
 	nkfs_inodes_remove(inode->sb, inode);
 	nkfs_balloc_block_free(inode->sb, inode->block);
-	trace_balloc_block_free(inode);
 	inode->block = 0;
 	inode->size = 0;
 	up_write(&inode->rw_sem);
@@ -391,7 +388,6 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino
 		goto ifree;
 	}
 	NKFS_BUG_ON(!inode->block);
-	trace_balloc_block_alloc(inode);
 	nkfs_obj_id_copy(&inode->ino, ino);
 
 	inode->blocks_tree = nkfs_btree_create(sb, 0);

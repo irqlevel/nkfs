@@ -9,7 +9,7 @@ ccflags-y := -I$(src) -D __KERNEL__ $(COMMON_CFLAGS)
 
 $(NKFS_MOD)-y := module.o dev.o net.o		\
 	super.o balloc.o inode.o btree.o	\
-	upages.o ksocket.o route.o dio.o	\
+	trace_events.o upages.o ksocket.o route.o dio.o	\
 
 KBUILD_EXTRA_SYMBOLS = $(PROJ_ROOT)/crt/kernel/Module.symvers
 
