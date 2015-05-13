@@ -172,16 +172,15 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 			.iov_len = nob
 		};
 
-		struct msghdr msg = {
-			.msg_name = NULL,
-			.msg_namelen = 0,
-			.msg_iov = &iov,
-			.msg_iovlen = 1,
-			.msg_control = NULL,
-			.msg_controllen = 0,
-			.msg_flags = (ticks == 0) ? MSG_DONTWAIT : 0
-		};
-		
+		struct msghdr msg;
+		memset(&msg, 0, sizeof(msg));
+		msg.msg_flags = (ticks == 0) ? MSG_DONTWAIT : 0;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+#else
+		iov_iter_init(&msg.msg_iter, WRITE, &iov, 1, nob);
+#endif
 		tv = (struct timeval) {
 			.tv_sec = ticks/HZ,
 			.tv_usec = ((ticks % HZ) * 1000000)/HZ
@@ -199,7 +198,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 
 		then = jiffies;
 		set_fs(KERNEL_DS);
-		error = sock_sendmsg(sock, &msg, iov.iov_len);
+		error = sock_sendmsg(sock, &msg, nob);
 		set_fs(oldmm);
 		delta = jiffies - then;
 		delta = (delta > ticks) ? ticks : delta;
@@ -259,17 +258,14 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 			.iov_len = nob
 		};
 
-		struct msghdr msg = {
-			.msg_name = NULL,
-			.msg_namelen = 0,
-			.msg_iov = &iov,
-			.msg_iovlen = 1,
-			.msg_control = NULL,
-			.msg_controllen = 0,
-			.msg_flags = 0
-		};
-		
-		
+		struct msghdr msg;
+		memset(&msg, 0, sizeof(msg));
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+#else
+		iov_iter_init(&msg.msg_iter, READ, &iov, 1, nob);
+#endif
 		tv = (struct timeval) {
 			.tv_sec = ticks/HZ,
 			.tv_usec = ((ticks % HZ) * 1000000)/HZ
@@ -288,7 +284,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 
 		then = jiffies;
 		set_fs(KERNEL_DS);
-		error = sock_recvmsg(sock, &msg, iov.iov_len, 0);
+		error = sock_recvmsg(sock, &msg, nob, 0);
 		set_fs(oldmm);
 		delta = (jiffies > then) ? jiffies - then : 0;
 		delta = (delta > ticks) ? ticks : delta;
