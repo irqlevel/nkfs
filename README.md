@@ -44,7 +44,8 @@ before execution of make.
 
 #### Tests:
 ```sh
-$ cd nkfs && sudo python tests/tests.py
+$ cd nkfs && sudo python tests/local_tests.py
+$ cd nkfs && python tests/cluster_tests.py 10.29.0.204:10.29.0.241:10.29.0.245 -d /dev/sda -p 1q2w3e -u root
 ```
 
 #### Usage:

@@ -13,55 +13,58 @@ import uuid
 import logging
 import sys
 import time
-
+import argparse
 import multiprocessing
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 CURR_DIR = os.path.abspath(currentdir)
 
-class AmznNodeKeyPath():
-	def __init__(self):
-		pass
-	def get(self):
-		path = os.path.join(os.path.expanduser('~'), 'nkfs_test')
-		path = os.path.join(path, 'nkfs_kp.pem')
-		return path
-
-class AmznNode():
-	def __init__(self, log, ip, key_path, rootdir, user='ec2-user'):
+class NkfsNode():
+	def __init__(self, log, ip, root_dir, dev=None, passwd=None, key_file=None, user=None):
 		self.ip = ip
 		self.log = log
-		self.key_path = key_path
-		self.wdir = os.path.join(rootdir, 'node_' + ip)
-		exec_cmd2('mkdir -p ' + self.wdir, throw = True, elog = log)
+		self.key_file = key_file
+		self.passwd = passwd
+		self.root_dir = root_dir
+		self.wdir = os.path.join(self.root_dir, 'node_' + ip)
 		self.user = user
+		self.dev = dev
+		exec_cmd2('mkdir -p ' + self.wdir, throw = True, elog = log)
+		if self.user == 'root':
+			self.rdir = '/root/sshexec'
+		else:
+			self.rdir = '/home/' + self.user + '/sshexec'
+		self.ssh_exec('mkdir -p ' + self.rdir)
+		self.cpus = int(self.ssh_exec('nproc')[1][0])
+
 	def ssh_exec(self, cmd, throw = True):
-		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = False)
-		ssh_exec(u, cmd, throw = throw)
+		u = SshUser(self.log, self.ip, self.user, password=self.passwd, key_file=self.key_file, ftp = False)
+		return ssh_exec(u, cmd, throw = throw)
+
 	def ssh_file_get(self, remote_file, local_file):
-		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		u = SshUser(self.log, self.ip, self.user, password=self.passwd, key_file=self.key_file, ftp = True)
 		ssh_file_get(u, remote_file, local_file)
 	def ssh_file_put(self, local_file, remote_file):
-		u = SshUser(self.log, self.ip, self.user, key_file=self.key_path, ftp = True)
+		u = SshUser(self.log, self.ip, self.user, password=self.passwd, key_file=self.key_file, ftp = True)
 		ssh_file_get(u, local_file, remote_file)
-
 	def prepare_nkfs(self):
 		self.ssh_exec('sudo rm -rf /var/log/nkfs.log')
 		self.ssh_exec('rm -rf nkfs')
 		self.ssh_exec('git clone https://github.com/irqlevel/nkfs.git')
-		self.ssh_exec('cd nkfs && make')
+		self.ssh_exec('cd nkfs && git checkout -b develb origin/devel')
+		self.ssh_exec('cd nkfs && make -j ' + str(self.cpus))
 	def start_nkfs(self):
 		self.ssh_exec('sudo iptables -F')
 		self.ssh_exec('cd nkfs && sudo insmod bin/nkfs_crt.ko')
 		self.ssh_exec('cd nkfs && sudo insmod bin/nkfs.ko')
-		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_add -d /dev/sdb -f')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_add -d ' + self.dev + ' -f')
 		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl srv_start -b 0.0.0.0 -e ' + self.ip + ' -p 9111')
 
 	def neigh_add(self, ip):
 		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl neigh_add -e ' + ip + ' -p 9111')
 
 	def query_nkfs(self):
-		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_query -d /dev/sdb')
+		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl dev_query -d ' + self.dev)
 		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl neigh_info')
 
 	def stop_nkfs(self):
@@ -69,17 +72,13 @@ class AmznNode():
 		self.ssh_exec('sudo rmmod nkfs_crt')
 
 	def get_nkfs_log(self):
-		if self.user == 'root':
-			rdir = '/root/sshexec'
-		else:
-			rdir = '/home/' + self.user + '/sshexec'
-		self.ssh_exec('mkdir -p ' + rdir)
-		lpath = os.path.join(rdir, 'nkfs.log')
-		dpath = os.path.join(rdir, 'dmesg.out')
+		self.ssh_exec('mkdir -p ' + self.rdir)
+		lpath = os.path.join(self.rdir, 'nkfs.log')
+		dpath = os.path.join(self.rdir, 'dmesg.out')
 		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl klog_sync', throw = False)
 		self.ssh_exec('sudo cp /var/log/nkfs.log ' + lpath)
 		self.ssh_exec('sudo dmesg > ' + dpath)
-		self.ssh_exec('sudo chown -R ec2-user:ec2-user ' + rdir)
+		self.ssh_exec('sudo chown -R ' + self.user + ':' + self.user + ' ' + self.rdir)
 		self.ssh_file_get(lpath, os.path.join(self.wdir, 'nkfs.log'))
 		self.ssh_file_get(dpath, os.path.join(self.wdir, 'dmesg.out'))
 
@@ -108,26 +107,16 @@ def nodes_connect(nodes):
 		n.neigh_add(m.ip)
 
 
-if __name__=="__main__":
-	i = 0
-	ips = []
-	for arg in sys.argv:
-		if i > 0:
-			ips.append(sys.argv[i])
-		i+= 1
-
-	if len(ips) == 0:
-		raise Exception("No ips specified")
-
-	rootdir = os.path.abspath('amzn_tests')
-	exec_cmd2('rm -rf ' + rootdir, throw = True)
-	exec_cmd2('mkdir ' + rootdir, throw = True)
-	settings.init_logging(log_dir = rootdir, log_name = 'test.log')
+def run_cluster_test(ips, user, passwd, dev):
+	root_dir = os.path.abspath('cluster_test')
+	exec_cmd2('rm -rf ' + root_dir, throw = True)
+	exec_cmd2('mkdir ' + root_dir, throw = True)
+	settings.init_logging(log_dir = root_dir, log_name = 'tests.log')
 	log = logging.getLogger('main')
 	log.info('starting')
 	nodes = []	
 	for ip in ips:
-		n = AmznNode(log, ip, AmznNodeKeyPath().get(), rootdir)
+		n = NkfsNode(log, ip, root_dir, dev=dev, passwd=passwd, user=user)
 		nodes.append(n)
 
 	try:
@@ -147,3 +136,13 @@ if __name__=="__main__":
 		except:
 			pass
 	log.info('stopping')
+
+if __name__=="__main__":
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-d", "--device", type=str, default='/dev/sdx', help="node storage device")
+	parser.add_argument("-p", "--password", type=str, default='1q2w3e', help="node user password")
+	parser.add_argument("-u", "--user", type=str, default='root', help="node user")
+	parser.add_argument("ips", type=str, help="nodes ips")
+	args = parser.parse_args()
+	ips = args.ips.split(':')
+	run_cluster_test(ips, args.user, args.password, args.device)

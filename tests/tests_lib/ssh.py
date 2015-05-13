@@ -132,10 +132,12 @@ def ssh_by_suser(suser):
 
 def ssh_exec(suser, cmd, throw = True):
     s = ssh_by_suser(suser)
+    rs = None
     try:
-        s.cmd(cmd, throw = throw)
+        rs = s.cmd(cmd, throw = throw)
     finally:
         s.close()
+    return rs
 
 def ssh_file_get(suser, remote_file, local_file):
     s = ssh_by_suser(suser)  
