@@ -1,7 +1,7 @@
 ### NKFS - distributed decentralized fault-tolerant file system.
 
 #### Build status:
-[![build status](https://travis-ci.org/irqlevel/nkfs.svg?branch=master)](https://travis-ci.org/irqlevel/nkfs)
+[![build status](https://travis-ci.org/irqlevel/nkfs.svg?branch=devel)](https://travis-ci.org/irqlevel/nkfs)
 
 #### Features:
 1. Distributed - system consists of unlimited number of computer nodes connected in
