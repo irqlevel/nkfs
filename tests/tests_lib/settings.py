@@ -32,7 +32,7 @@ LOGGING = {
     'handlers' : {
         'file' : {
             'level' : 'DEBUG',
-            'class' : 'cloghandler.ConcurrentRotatingFileHandler',
+            'class' : 'logging.handlers.RotatingFileHandler',
             'formatter' : 'verbose',
             'filename' : os.path.join(TESTS_LOGS_DIR, 'tests.log'),
             'maxBytes' : 10000000,

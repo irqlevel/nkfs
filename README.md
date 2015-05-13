@@ -44,8 +44,6 @@ before execution of make.
 
 #### Tests:
 ```sh
-$ sudo yum install python-pip
-$ sudo pip install ConcurrentLogHandler
 $ cd nkfs && sudo python tests/tests.py
 ```
 
