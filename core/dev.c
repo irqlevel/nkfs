@@ -96,7 +96,8 @@ int nkfs_dev_query(char *dev_name, struct nkfs_dev_info *info)
 		return -ENOENT;
 
 	memset(info, 0, sizeof(*info));
-	if ((sb = dev->sb)) {
+	sb = dev->sb;
+	if (sb) {
 		nkfs_obj_id_copy(&info->sb_id, &sb->id);
 		info->size = sb->size;
 		info->blocks = sb->nr_blocks;
@@ -163,7 +164,8 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 
 	dev->bdev = blkdev_get_by_path(dev->dev_name,
 		fmode, dev);
-	if ((err = IS_ERR(dev->bdev))) {
+	err = IS_ERR(dev->bdev);
+	if (err) {
 		dev->bdev = NULL;
 		KLOG(KL_ERR, "bkdev_get_by_path failed err %d", err);
 		nkfs_dev_deref(dev);
@@ -224,9 +226,8 @@ int nkfs_dev_add(char *dev_name, int format)
 
 	KLOG(KL_DBG, "inserting dev %s", dev_name);
 	dev = nkfs_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-	if (!dev) {
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	err = nkfs_dev_insert(dev);
 	if (err) {
@@ -276,6 +277,7 @@ static void nkfs_dev_release_all(void)
 {
 	struct nkfs_dev *dev;
 	struct nkfs_dev *tmp;
+
 	mutex_lock(&dev_list_lock);
 	list_for_each_entry_safe(dev, tmp, &dev_list, dev_list) {
 		nkfs_dev_stop(dev);

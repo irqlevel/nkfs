@@ -43,48 +43,47 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	}
 
 	switch (code) {
-		case IOCTL_NKFS_DEV_ADD:
-			err = nkfs_dev_add(cmd->u.dev_add.dev_name,
-					cmd->u.dev_add.format);
-			break;
-		case IOCTL_NKFS_DEV_REMOVE:
-			err = nkfs_dev_remove(cmd->u.dev_remove.dev_name);
-			break;
-		case IOCTL_NKFS_DEV_QUERY:
-			err = nkfs_dev_query(cmd->u.dev_query.dev_name,
-				&cmd->u.dev_query.info);
-			break;
-		case IOCTL_NKFS_SRV_START:
-			err = nkfs_server_start(cmd->u.server_start.bind_ip,
-				cmd->u.server_start.ext_ip,
-				cmd->u.server_start.port);
-			break;
-		case IOCTL_NKFS_SRV_STOP:
-			err = nkfs_server_stop(cmd->u.server_stop.bind_ip,
-				cmd->u.server_stop.port);
-			break;
-		case IOCTL_NKFS_NEIGH_ADD:
-			err = nkfs_route_neigh_add(cmd->u.neigh_add.ip,
-				cmd->u.neigh_add.port);
-			break;
-		case IOCTL_NKFS_NEIGH_REMOVE:
-			err = nkfs_route_neigh_remove(cmd->u.neigh_remove.ip,
-				cmd->u.neigh_remove.port);
-			break;
-		case IOCTL_NKFS_NEIGH_INFO:
-			err = nkfs_route_neigh_info(
-					cmd->u.neigh_info.neighs,
+	case IOCTL_NKFS_DEV_ADD:
+		err = nkfs_dev_add(cmd->u.dev_add.dev_name,
+				   cmd->u.dev_add.format);
+		break;
+	case IOCTL_NKFS_DEV_REMOVE:
+		err = nkfs_dev_remove(cmd->u.dev_remove.dev_name);
+		break;
+	case IOCTL_NKFS_DEV_QUERY:
+		err = nkfs_dev_query(cmd->u.dev_query.dev_name,
+				     &cmd->u.dev_query.info);
+		break;
+	case IOCTL_NKFS_SRV_START:
+		err = nkfs_server_start(cmd->u.server_start.bind_ip,
+					cmd->u.server_start.ext_ip,
+					cmd->u.server_start.port);
+		break;
+	case IOCTL_NKFS_SRV_STOP:
+		err = nkfs_server_stop(cmd->u.server_stop.bind_ip,
+				       cmd->u.server_stop.port);
+		break;
+	case IOCTL_NKFS_NEIGH_ADD:
+		err = nkfs_route_neigh_add(cmd->u.neigh_add.ip,
+					   cmd->u.neigh_add.port);
+		break;
+	case IOCTL_NKFS_NEIGH_REMOVE:
+		err = nkfs_route_neigh_remove(cmd->u.neigh_remove.ip,
+					      cmd->u.neigh_remove.port);
+		break;
+	case IOCTL_NKFS_NEIGH_INFO:
+		err = nkfs_route_neigh_info(cmd->u.neigh_info.neighs,
 					ARRAY_SIZE(cmd->u.neigh_info.neighs),
 					&cmd->u.neigh_info.nr_neighs);
-			break;
-		case IOCTL_NKFS_KLOG_CTL:
-			err = nkfs_klog_ctl(cmd->u.klog_ctl.level,
-				cmd->u.klog_ctl.sync);
-			break;
-		default:
-			KLOG(KL_ERR, "unknown ioctl=%d", code);
-			err = NKFS_E_UNK_IOCTL;
-			break;
+		break;
+	case IOCTL_NKFS_KLOG_CTL:
+		err = nkfs_klog_ctl(cmd->u.klog_ctl.level,
+				    cmd->u.klog_ctl.sync);
+		break;
+	default:
+		KLOG(KL_ERR, "unknown ioctl=%d", code);
+		err = NKFS_E_UNK_IOCTL;
+		break;
 	}
 	cmd->err = err;
 	if (copy_to_user((void *)arg, cmd, sizeof(struct nkfs_ctl))) {

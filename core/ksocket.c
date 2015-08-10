@@ -171,11 +171,11 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 			.iov_base = buffer,
 			.iov_len = nob
 		};
-
 		struct msghdr msg;
+
 		memset(&msg, 0, sizeof(msg));
 		msg.msg_flags = (ticks == 0) ? MSG_DONTWAIT : 0;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 18, 0)
 		msg.msg_iov = &iov;
 		msg.msg_iovlen = 1;
 #else
@@ -206,7 +206,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		set_fs(oldmm);
 		delta = jiffies - then;
 		delta = (delta > ticks) ? ticks : delta;
-		ticks-= delta;
+		ticks -= delta;
 
 		if (error < 0) {
 			KLOG(KL_ERR, "send err=%d", error);
@@ -220,12 +220,12 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		}
 
 		if (error > 0)
-			wrote+= error;
+			wrote += error;
 
 		buffer = (void *)((unsigned long)buffer + error);
 		NKFS_BUG_ON(error <= 0);
 		NKFS_BUG_ON(nob < error);
-		nob-= error;
+		nob -= error;
 		if (nob == 0) {
 			error = 0;
 			goto out;
@@ -262,8 +262,9 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		};
 
 		struct msghdr msg;
+
 		memset(&msg, 0, sizeof(msg));
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,18,0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 18, 0)
 		msg.msg_iov = &iov;
 		msg.msg_iovlen = 1;
 #else
@@ -291,7 +292,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		set_fs(oldmm);
 		delta = (jiffies > then) ? jiffies - then : 0;
 		delta = (delta > ticks) ? ticks : delta;
-		ticks-= delta;
+		ticks -= delta;
 
 		if (error < 0) {
 			KLOG(KL_ERR, "recv err=%d", error);
@@ -305,12 +306,12 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		}
 
 		if (error > 0)
-			read+= error;
+			read += error;
 
 		buffer = (void *)((unsigned long)buffer + error);
 		NKFS_BUG_ON(error <= 0);
 		NKFS_BUG_ON(nob < error);
-		nob-= error;
+		nob -= error;
 		if (nob == 0) {
 			error = 0;
 			goto out;
@@ -336,7 +337,7 @@ int ksock_read(struct socket *sock, void *buffer, u32 nob, u32 *pread)
 	while (off < nob) {
 		err = ksock_read_timeout(sock, (char *)buffer + off,
 				nob - off, ~((unsigned long)0), &read);
-		off+= read;
+		off += read;
 		if (err)
 			break;
 	}
@@ -353,7 +354,7 @@ int ksock_write(struct socket *sock, void *buffer, u32 nob, u32 *pwrote)
 	while (off < nob) {
 		err = ksock_write_timeout(sock, (char *)buffer + off,
 				nob - off, ~((unsigned long)0), &wrote);
-		off+= wrote;
+		off += wrote;
 		if (err)
 			break;
 	}
@@ -411,11 +412,10 @@ int ksock_accept(struct socket **newsockp, struct socket *sock)
 	remove_wait_queue(sk_sleep(sock->sk), &wait);
 	set_current_state(TASK_RUNNING);
 	if (error) {
-		if (error == -EAGAIN) {
+		if (error == -EAGAIN)
 			KLOG(KL_DBG, "accept error=%d", error);
-		} else {
+		else
 			KLOG(KL_ERR, "accept error=%d", error);
-		}
 		goto out;
 	}
 

@@ -64,9 +64,9 @@ dio_pages_io(struct dio_pages *pages, void *buf,
 			(char *)buf + read,
 			step);
 
-		read+= step;
+		read += step;
 		pg_off = 0;
-		pg_idx+= 1;
+		pg_idx += 1;
 	}
 }
 
@@ -82,6 +82,7 @@ static int dio_pages_alloc(struct dio_pages *buf, int nr_pages)
 		buf->pages[i] = alloc_page(GFP_KERNEL);
 		if (!buf->pages[i]) {
 			int j;
+
 			for (j = 0; j < i; j++)
 				put_page(buf->pages[j]);
 			dio_pages_zero(buf);
@@ -208,6 +209,7 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 	spin_unlock_irq(&dev->clus_lock);
 	if (!cluster) {
 		struct dio_cluster *new;
+
 		new = dio_clu_alloc(dev);
 		if (!new)
 			return NULL;
@@ -279,8 +281,8 @@ static void dio_clus_release(struct dio_dev *dev)
 
 	for (;;) {
 		spin_lock_irq(&dev->clus_lock);
-		nr_found = radix_tree_gang_lookup(&dev->clus_root, (void **)batch,
-				0, ARRAY_SIZE(batch));
+		nr_found = radix_tree_gang_lookup(&dev->clus_root,
+				(void **)batch, 0, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
 			cluster = batch[index];
 			dio_clu_ref(cluster);
@@ -313,8 +315,8 @@ static void dio_clus_dump(struct dio_dev *dev)
 
 	for (;;) {
 		spin_lock(&dev->clus_lock);
-		nr_found = radix_tree_gang_lookup(&dev->clus_root, (void **)batch,
-				first_index, ARRAY_SIZE(batch));
+		nr_found = radix_tree_gang_lookup(&dev->clus_root,
+				(void **)batch, first_index, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
 			dio_clu_ref(node);
@@ -322,9 +324,8 @@ static void dio_clus_dump(struct dio_dev *dev)
 				first_index = node->index + 1;
 		}
 		spin_unlock(&dev->clus_lock);
-		if (nr_found == 0) {
+		if (nr_found == 0)
 			break;
-		}
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
@@ -427,7 +428,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 
 	for (index = 0; index < nr_nodes; index++) {
 		node = nodes[index];
-		if ((dev->nr_clus > dev->nr_max_clus)) {
+		if (dev->nr_clus > dev->nr_max_clus) {
 			removed = dio_clu_remove(dev, node->index);
 			if (removed) {
 				NKFS_BUG_ON(removed != node);
@@ -453,15 +454,14 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 static void dio_clus_shrink(struct dio_dev *dev)
 {
 	for (;;) {
-		if (dev->nr_clus > dev->nr_max_clus) {
+		if (dev->nr_clus > dev->nr_max_clus)
 			dio_clus_lru_frees(dev);
-		} else {
+		else
 			break;
-		}
 	}
 }
 
-static struct dio_cluster * __dio_clu_get(struct dio_dev *dev, u64 index)
+static struct dio_cluster *__dio_clu_get(struct dio_dev *dev, u64 index)
 {
 	return dio_clu_lookup_create(dev, index);
 }
@@ -509,7 +509,8 @@ static void dio_io_end_bio(struct bio *bio, int err)
 
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
-			NKFS_BUG_ON(test_bit(DIO_CLU_READ, &io->cluster->flags));
+			NKFS_BUG_ON(test_bit(DIO_CLU_READ,
+				    &io->cluster->flags));
 			set_bit(DIO_CLU_READ, &io->cluster->flags);
 		}
 	}
@@ -654,7 +655,7 @@ out:
 	return err;
 }
 
-struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index)
+struct dio_cluster *dio_clu_get(struct dio_dev *dev, u64 index)
 {
 	struct dio_cluster *clu;
 
@@ -664,6 +665,7 @@ struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index)
 
 	if (!test_bit(DIO_CLU_READ, &clu->flags)) {
 		int err;
+
 		err = dio_clu_wait_read(clu);
 		if (err) {
 			dio_clu_put(clu);
@@ -733,7 +735,7 @@ int dio_clu_zero(struct dio_cluster *cluster)
 			PAGE_SIZE, off);
 		if (err)
 			goto out;
-		off+= PAGE_SIZE;
+		off += PAGE_SIZE;
 	}
 	err = 0;
 
@@ -847,8 +849,8 @@ static void dio_clus_age(struct dio_dev *dev)
 
 	for (;;) {
 		spin_lock(&dev->clus_lock);
-		nr_found = radix_tree_gang_lookup(&dev->clus_root, (void **)batch,
-				first_index, ARRAY_SIZE(batch));
+		nr_found = radix_tree_gang_lookup(&dev->clus_root,
+				(void **)batch, first_index, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
 			dio_clu_ref(node);
@@ -856,9 +858,8 @@ static void dio_clus_age(struct dio_dev *dev)
 				first_index = node->index + 1;
 		}
 		spin_unlock(&dev->clus_lock);
-		if (nr_found == 0) {
+		if (nr_found == 0)
 			break;
-		}
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];

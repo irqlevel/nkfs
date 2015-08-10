@@ -65,7 +65,7 @@ struct dio_io {
 int dio_init(void);
 void dio_finit(void);
 
-struct dio_cluster * dio_clu_get(struct dio_dev *dev, u64 index);
+struct dio_cluster *dio_clu_get(struct dio_dev *dev, u64 index);
 
 void dio_clu_put(struct dio_cluster *cluster);
 

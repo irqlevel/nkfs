@@ -131,8 +131,8 @@ static int nkfs_balloc_block_find_set_free_bit(struct nkfs_sb *sb,
 	i = 0;
 	for (pg_idx = 0; pg_idx < (clu->clu_size/PAGE_SIZE); pg_idx++) {
 		page = dio_clu_map(clu, i);
-		for (j = 0; j < PAGE_SIZE; j+= sizeof(unsigned long),
-			i+= sizeof(unsigned long)) {
+		for (j = 0; j < PAGE_SIZE; j += sizeof(unsigned long),
+			i += sizeof(unsigned long)) {
 			block = 8*(bm_block - sb->bm_block)*sb->bsize + 8*i;
 			if (block >= sb->nr_blocks)
 				goto nospace;
@@ -194,7 +194,7 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 					+ bit;
 			trace_balloc_block_alloc(block);
 			KLOG(KL_DBG3, "long_off %lu bit %u i %llu block %llu",
-				      long_off, bit , i, block);
+				      long_off, bit, i, block);
 			*pblock = block;
 			dio_clu_put(clu);
 			return 0;

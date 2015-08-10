@@ -10,7 +10,7 @@ DECLARE_EVENT_CLASS(balloc_block_alloc_class,
 	TP_PROTO(u64 block),
 	TP_ARGS(block),
 	TP_STRUCT__entry(
-		__field(	u64,	block	)
+		__field(u64, block)
 	),
 	TP_fast_assign(
 		__entry->block = block
@@ -30,9 +30,9 @@ DECLARE_EVENT_CLASS(inode_class,
 	TP_PROTO(struct nkfs_inode *inode),
 	TP_ARGS(inode),
 	TP_STRUCT__entry(
-		__field(	u64,	block		)
-		__field(	u64,	blocks_tree	)
-		__field(	u64,	blocks_sum_tree	)
+		__field(u64, block)
+		__field(u64, blocks_tree)
+		__field(u64, blocks_sum_tree)
 	),
 	TP_fast_assign(
 		__entry->block = inode->block;
@@ -54,9 +54,9 @@ DECLARE_EVENT_CLASS(inode_write_block_class,
 	TP_PROTO(struct nkfs_inode *inode, struct inode_block *ib),
 	TP_ARGS(inode, ib),
 	TP_STRUCT__entry(
-		__field(	u64,	block)
-		__field(	u64,	clu_index)
-		__field(	u64,	sum_clu_index)
+		__field(u64, block)
+		__field(u64, clu_index)
+		__field(u64, sum_clu_index)
 	),
 	TP_fast_assign(
 		__entry->block = inode->block;
@@ -78,7 +78,7 @@ DECLARE_EVENT_CLASS(dio_clu_class,
 	TP_PROTO(struct dio_cluster *cluster),
 	TP_ARGS(cluster),
 	TP_STRUCT__entry(
-		__field(	u64,	index)
+		__field(u64, index)
 	),
 	TP_fast_assign(
 		__entry->index = cluster->index;

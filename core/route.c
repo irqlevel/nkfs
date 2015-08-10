@@ -17,7 +17,7 @@ do {							\
 		crt_free(host_id);			\
 	if (net_id)					\
 		crt_free(net_id);			\
-} while (0);						\
+} while (0)						\
 
 #define KLOG_NEIGH(lvl, n)						\
 do {									\
@@ -29,7 +29,7 @@ do {									\
 		(n)->port, (n)->hbt_delay);				\
 	if (host_id)							\
 		crt_free(host_id);					\
-} while (0);								\
+} while (0)								\
 
 struct nkfs_host *nkfs_host;
 struct kmem_cache *nkfs_neigh_cachep;
@@ -39,7 +39,7 @@ struct kmem_cache *nkfs_host_work_cachep;
 static void __nkfs_neighs_remove(struct nkfs_host *host,
 	struct nkfs_neigh *neigh);
 
-void __nkfs_host_ids_remove(struct nkfs_host *host,
+static void __nkfs_host_ids_remove(struct nkfs_host *host,
 	struct nkfs_host_id *host_id);
 
 static int nkfs_neigh_connect(struct nkfs_neigh *neigh)
@@ -97,6 +97,7 @@ static void nkfs_neigh_free(struct nkfs_neigh *neigh)
 static void nkfs_neigh_detach_hid(struct nkfs_neigh *neigh)
 {
 	struct nkfs_host_id *hid = neigh->hid;
+
 	neigh->hid = NULL;
 	if (hid) {
 		write_lock_irq(&hid->neigh_list_lock);
@@ -155,6 +156,7 @@ void nkfs_hid_free(struct nkfs_host_id *hid)
 static void nkfs_hid_release(struct nkfs_host_id *hid)
 {
 	struct nkfs_host *host = hid->host;
+
 	KLOG(KL_DBG, "hid %p, host %p", hid, host);
 	if (host) {
 		write_lock_irq(&host->host_ids_lock);
@@ -227,6 +229,7 @@ struct nkfs_host_id *__nkfs_host_id_insert(struct nkfs_host *host,
 	while (*p) {
 		struct nkfs_host_id *found;
 		int cmp;
+
 		parent = *p;
 		found = rb_entry(parent, struct nkfs_host_id, host_ids_link);
 		cmp = nkfs_obj_id_cmp(&host_id->host_id, &found->host_id);
@@ -255,6 +258,7 @@ struct nkfs_host_id *nkfs_host_id_lookup_or_create(struct nkfs_host *host,
 	struct nkfs_obj_id *host_id)
 {
 	struct nkfs_host_id *hid, *inserted;
+
 	hid = nkfs_hid_alloc();
 	if (!hid)
 		return NULL;
@@ -334,6 +338,7 @@ static struct nkfs_neigh *__nkfs_neighs_insert(struct nkfs_host *host,
 	while (*p) {
 		struct nkfs_neigh *found;
 		int cmp;
+
 		parent = *p;
 		found = rb_entry(parent, struct nkfs_neigh, neighs_link);
 		cmp = nkfs_ip_port_cmp(neigh->ip, neigh->port,
@@ -600,6 +605,7 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 	for (i = 0; i < reply->u.neigh_heartbeat.nr_neighs; i++) {
 		u32 ip = reply->u.neigh_heartbeat.neigh[i].ip;
 		int port = reply->u.neigh_heartbeat.neigh[i].port;
+
 		KLOG(KL_DBG, "add neigh from reply %x:%d", ip, port);
 		err = nkfs_route_neigh_add(ip, port);
 		if (err && err != -EEXIST)
@@ -896,9 +902,8 @@ int nkfs_route_neigh_add(u32 ip, int port)
 	neigh->port = port;
 	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
 	err = nkfs_host_add_neigh(nkfs_host, neigh);
-	if (err) {
+	if (err)
 		NEIGH_DEREF(neigh);
-	}
 
 	return err;
 }

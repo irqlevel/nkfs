@@ -7,7 +7,7 @@
 #define KLOG_SOCK(lvl, s, msg)						\
 	KLOG((lvl), "%s socket %p self %08x:%u peer %08x:%u",		\
 		(msg), (s), ksock_self_addr(s), ksock_self_port(s),	\
-			ksock_peer_addr(s), ksock_peer_port(s));
+			ksock_peer_addr(s), ksock_peer_port(s))
 
 static struct kmem_cache *server_cachep;
 static struct kmem_cache *con_cachep;
@@ -116,9 +116,9 @@ int nkfs_con_send_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 
 	net_pkt_sign(pkt);
 	err = nkfs_con_send(con, pkt, sizeof(*pkt));
-	if (err) {
+	if (err)
 		KLOG(KL_ERR, "pkt send err %d", err);
-	}
+
 	return err;
 }
 
@@ -133,13 +133,13 @@ int nkfs_con_recv_pkt(struct nkfs_con *con,
 		struct nkfs_net_pkt *pkt)
 {
 	int err;
+
 	err = nkfs_con_recv(con, pkt, sizeof(*pkt));
 	if (err) {
-		if (err == -ECONNRESET) {
+		if (err == -ECONNRESET)
 			KLOG(KL_DBG, "recv err %d", err);
-		} else {
+		else
 			KLOG(KL_ERR, "recv err %d", err);
-		}
 		return err;
 	}
 
@@ -189,7 +189,7 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 			goto free_pages;
 		}
 		i++;
-		read-= llen;
+		read -= llen;
 	}
 
 	err = nkfs_pages_dsum(&pages, &dsum, pkt->dsize);
@@ -233,7 +233,7 @@ static int nkfs_con_send_pages(struct nkfs_con *con,
 			nkfs_con_fail(con, err);
 			goto out;
 		}
-		len-= ilen;
+		len -= ilen;
 		i++;
 	}
 	err = 0;
@@ -285,9 +285,8 @@ static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	reply->dsize = read;
 
 	err = nkfs_con_send_reply(con, reply, 0);
-	if (err) {
+	if (err)
 		goto free_pages;
-	}
 
 	if (read)
 		err = nkfs_con_send_pages(con, &pages, read);
@@ -375,33 +374,33 @@ static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 	KLOG(KL_DBG1, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
-		case NKFS_NET_PKT_ECHO:
-			err = nkfs_con_echo(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_PUT_OBJ:
-			err = nkfs_con_put_obj(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_GET_OBJ:
-			err = nkfs_con_get_obj(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_DELETE_OBJ:
-			err = nkfs_con_delete_obj(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_CREATE_OBJ:
-			err = nkfs_con_create_obj(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_QUERY_OBJ:
-			err = nkfs_con_query_obj(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_NEIGH_HANDSHAKE:
-			err = nkfs_route_neigh_handshake(con, pkt, reply);
-			break;
-		case NKFS_NET_PKT_NEIGH_HEARTBEAT:
-			err = nkfs_route_neigh_heartbeat(con, pkt, reply);
-			break;
-		default:
-			err = nkfs_con_send_reply(con, reply, -EINVAL);
-			break;
+	case NKFS_NET_PKT_ECHO:
+		err = nkfs_con_echo(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_PUT_OBJ:
+		err = nkfs_con_put_obj(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_GET_OBJ:
+		err = nkfs_con_get_obj(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_DELETE_OBJ:
+		err = nkfs_con_delete_obj(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_CREATE_OBJ:
+		err = nkfs_con_create_obj(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_QUERY_OBJ:
+		err = nkfs_con_query_obj(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_NEIGH_HANDSHAKE:
+		err = nkfs_route_neigh_handshake(con, pkt, reply);
+		break;
+	case NKFS_NET_PKT_NEIGH_HEARTBEAT:
+		err = nkfs_route_neigh_heartbeat(con, pkt, reply);
+		break;
+	default:
+		err = nkfs_con_send_reply(con, reply, -EINVAL);
+		break;
 	}
 	KLOG(KL_DBG1, "pkt %d err %d reply.err %d",
 			pkt->type, err, reply->err);
@@ -425,6 +424,7 @@ static int nkfs_con_thread_routine(void *data)
 
 	while (!kthread_should_stop() && !con->err) {
 		struct nkfs_net_pkt *pkt = net_pkt_alloc();
+
 		if (!pkt) {
 			nkfs_con_fail(con, -ENOMEM);
 			KLOG(KL_ERR, "no memory");
@@ -432,11 +432,10 @@ static int nkfs_con_thread_routine(void *data)
 		}
 		err = nkfs_con_recv_pkt(con, pkt);
 		if (err) {
-			if (err == -ECONNRESET) {
+			if (err == -ECONNRESET)
 				KLOG(KL_DBG, "pkt recv err %d", err);
-			} else {
+			else
 				KLOG(KL_ERR, "pkt recv err %d", err);
-			}
 			crt_free(pkt);
 			break;
 		}
@@ -553,7 +552,7 @@ static int nkfs_server_thread_routine(void *data)
 			KLOG(KL_DBG, "start listening on ip %x:%x port %d",
 				server->bind_ip, server->ext_ip, server->port);
 			err = ksock_listen(&lsock, (server->bind_ip) ?
-					   server->bind_ip :INADDR_ANY,
+					   server->bind_ip : INADDR_ANY,
 					   server->port, 5);
 			if (err == -EADDRINUSE && listen_attempts) {
 				KLOG(KL_WRN, "csock_listen err=%d", err);
@@ -582,11 +581,10 @@ static int nkfs_server_thread_routine(void *data)
 			KLOG(KL_DBG, "accepting");
 			err = ksock_accept(&con_sock, server->sock);
 			if (err) {
-				if (err == -EAGAIN) {
+				if (err == -EAGAIN)
 					KLOG(KL_DBG, "accept err=%d", err);
-				} else {
+				else
 					KLOG(KL_ERR, "accept err=%d", err);
-				}
 				continue;
 			}
 			KLOG_SOCK(KL_DBG, con_sock, "accepted");
@@ -639,9 +637,8 @@ static void nkfs_server_do_stop(struct nkfs_server *server)
 	}
 
 	server->stopping = 1;
-	if (server->sock) {
+	if (server->sock)
 		ksock_abort_accept(server->sock);
-	}
 
 	kthread_stop(server->thread);
 	put_task_struct(server->thread);
@@ -774,6 +771,7 @@ static void nkfs_server_stop_all(void)
 {
 	struct nkfs_server *server;
 	struct nkfs_server *tmp;
+
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry_safe(server, tmp, &srv_list, srv_list) {
 		nkfs_server_do_stop(server);

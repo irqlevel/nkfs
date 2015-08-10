@@ -57,7 +57,7 @@ struct nkfs_neigh {
 	u32			ip;
 	int			port;
 	unsigned long		state;
-	struct rw_semaphore	rw_sem;	
+	struct rw_semaphore	rw_sem;
 	u64			hbt_time;
 	u64			hbt_delay;
 	int			hbt_err;
@@ -69,27 +69,27 @@ void nkfs_neigh_ref(struct nkfs_neigh *neigh);
 void nkfs_neigh_deref(struct nkfs_neigh *neigh);
 
 #define NEIGH_REF(n)	\
-	nkfs_neigh_ref(n);
+	nkfs_neigh_ref(n)
 
 #define NEIGH_DEREF(n)	\
-	nkfs_neigh_deref(n);
+	nkfs_neigh_deref(n)
 
 void nkfs_hid_ref(struct nkfs_host_id *host_id);
 void nkfs_hid_deref(struct nkfs_host_id *host_id);
 
-#define HOST_ID_REF(hid)							\
-	do {									\
-		nkfs_hid_ref((hid));						\
-		KLOG(KL_DBG, "ref hid %p ref %d",				\
-			(hid), atomic_read(&(hid)->ref));			\
-	} while (0);
+#define HOST_ID_REF(hid)						\
+do {									\
+	nkfs_hid_ref((hid));						\
+	KLOG(KL_DBG, "ref hid %p ref %d",				\
+		(hid), atomic_read(&(hid)->ref));			\
+} while (0)
 
-#define HOST_ID_DEREF(hid)							\
-	do {									\
-		KLOG(KL_DBG, "deref hid %p ref %d",				\
-			(hid), atomic_read(&(hid)->ref));			\
-		nkfs_hid_deref((hid));						\
-	} while (0);
+#define HOST_ID_DEREF(hid)						\
+do {									\
+	KLOG(KL_DBG, "deref hid %p ref %d",				\
+		(hid), atomic_read(&(hid)->ref));			\
+	nkfs_hid_deref((hid));						\
+} while (0)
 
 int nkfs_route_init(void);
 void nkfs_route_finit(void);

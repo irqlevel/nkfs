@@ -64,8 +64,9 @@ void nkfs_btree_read_unlock(struct nkfs_btree *tree);
 void nkfs_btree_write_lock(struct nkfs_btree *tree);
 void nkfs_btree_write_unlock(struct nkfs_btree *tree);
 
-typedef void (*nkfs_btree_key_erase_clb_t)(struct nkfs_btree_key *key, struct nkfs_btree_value *value,
-	void *ctx);
+typedef void (*nkfs_btree_key_erase_clb_t)(struct nkfs_btree_key *key,
+					   struct nkfs_btree_value *value,
+					   void *ctx);
 
 void nkfs_btree_erase(struct nkfs_btree *tree,
 	nkfs_btree_key_erase_clb_t key_erase_clb,

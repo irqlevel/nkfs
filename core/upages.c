@@ -8,21 +8,18 @@ int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
 	struct nkfs_user_pages up;
 	int ret, err;
 
-	if (uaddr & (PAGE_SIZE -1))
+	if (uaddr & (PAGE_SIZE - 1))
 		return -EINVAL;
 	if (nr_pages == 0)
 		return -EINVAL;
 
 	memset(&up, 0, sizeof(up));
 	up.nr_pages = nr_pages;
-	up.pages = kmalloc(up.nr_pages*sizeof(struct page *), GFP_NOIO);
+	up.pages = kcalloc(up.nr_pages, sizeof(struct page *), GFP_NOIO);
 	if (!up.pages)
 		return -ENOMEM;
 
-	memset(up.pages, 0, up.nr_pages*sizeof(struct page *));
-
 	up.write = !!write;
-
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm, uaddr, up.nr_pages,
 		(up.write) ? WRITE : READ, 0, up.pages, NULL);
@@ -70,7 +67,7 @@ void nkfs_pages_region(unsigned long buf, u32 len,
 	u64 buf_page, end_page, pages_delta;
 
 	pg_off = buf & (PAGE_SIZE - 1);
-	pg_addr = buf & ~(PAGE_SIZE -1);
+	pg_addr = buf & ~(PAGE_SIZE - 1);
 
 	buf_page = buf >> PAGE_SHIFT;
 	end_page = (buf + len) >> PAGE_SHIFT;
@@ -100,11 +97,10 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 		pages.nr_pages, len, PAGE_SIZE);
 
 	pages.len = len;
-	pages.pages = kmalloc(pages.nr_pages*sizeof(struct page *), GFP_NOIO);
+	pages.pages = kcalloc(pages.nr_pages, sizeof(struct page *), GFP_NOIO);
 	if (!pages.pages)
 		return -ENOMEM;
 
-	memset(pages.pages, 0, pages.nr_pages*sizeof(struct page *));
 	for (i = 0; i < pages.nr_pages; i++) {
 		pages.pages[i] = alloc_page(GFP_NOIO);
 		if (!pages.pages[i])
@@ -138,7 +134,7 @@ int nkfs_pages_dsum(struct nkfs_pages *pages, struct csum *dsum, u32 len)
 		ibuf = kmap(pages->pages[i]);
 		csum_update(&ctx, ibuf, ilen);
 		kunmap(pages->pages[i]);
-		len-= ilen;
+		len -= ilen;
 		i++;
 	}
 
@@ -149,6 +145,7 @@ int nkfs_pages_dsum(struct nkfs_pages *pages, struct csum *dsum, u32 len)
 void nkfs_pages_release(struct nkfs_pages *pages)
 {
 	u32 i;
+
 	for (i = 0; i < pages->nr_pages; i++)
 		put_page(pages->pages[i]);
 	kfree(pages->pages);

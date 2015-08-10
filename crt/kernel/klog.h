@@ -34,23 +34,25 @@ void klog_release(void);
 
 #if KLOG_SRC
 
-#define KLOG(level, fmt, ...) {					\
+#define KLOG(level, fmt, ...)					\
+do {								\
 	if ((level) >= KLOG_LEVEL) {				\
 		klog((level), __SUBCOMPONENT__,			\
 		__FILE__, __LINE__, __FUNCTION__,		\
 		(fmt), ##__VA_ARGS__);				\
 	}							\
-}
+} while (0)
 
 #else
 
-#define KLOG(level, fmt, ...) {					\
+#define KLOG(level, fmt, ...)					\
+do {								\
 	if ((level) >= KLOG_LEVEL) {				\
 		klog((level), __SUBCOMPONENT__,			\
 		" ", " ", " ",					\
 		(fmt), ##__VA_ARGS__);				\
 	}							\
-}
+} while (0)
 
 #endif
 

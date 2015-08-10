@@ -18,8 +18,8 @@ NKFS_KERNEL_PATH=/lib/modules/$(shell uname -r)/build
 endif
 
 all:
-	$(MAKE) -C $(NKFS_KERNEL_PATH) M=$(PROJ_ROOT)/kmod modules
+	$(MAKE) -C $(NKFS_KERNEL_PATH) M=$(PROJ_ROOT)/core modules
 	cp $(NKFS_MOD_KO) ../bin/$(NKFS_MOD_KO)
 clean:
-	$(MAKE) -C $(NKFS_KERNEL_PATH) M=$(PROJ_ROOT)/kmod clean
+	$(MAKE) -C $(NKFS_KERNEL_PATH) M=$(PROJ_ROOT)/core clean
 	rm -r -f *.o

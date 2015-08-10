@@ -70,6 +70,7 @@ static struct nkfs_inode *__nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
 
 	while (n) {
 		struct nkfs_inode *inode;
+
 		inode = rb_entry(n, struct nkfs_inode, inodes_link);
 		if (block < inode->block) {
 			n = n->rb_left;
@@ -83,9 +84,10 @@ static struct nkfs_inode *__nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
 	return found;
 }
 
-static struct nkfs_inode * nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
+static struct nkfs_inode *nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
 {
 	struct nkfs_inode *inode;
+
 	read_lock_irq(&sb->inodes_lock);
 	inode = __nkfs_inodes_lookup(sb, block);
 	if (inode != NULL)
@@ -118,6 +120,7 @@ static struct nkfs_inode *nkfs_inodes_insert(struct nkfs_sb *sb,
 	write_lock_irq(&sb->inodes_lock);
 	while (*p) {
 		struct nkfs_inode *found;
+
 		parent = *p;
 		found = rb_entry(parent, struct nkfs_inode, inodes_link);
 		if (inode->block < found->block) {
@@ -176,6 +179,7 @@ static int nkfs_inode_parse_on_disk(struct nkfs_inode *inode,
 	struct nkfs_inode_disk *on_disk)
 {
 	struct csum sum;
+
 	if (be32_to_cpu(on_disk->sig1) != NKFS_INODE_SIG1 ||
 		be32_to_cpu(on_disk->sig2) != NKFS_INODE_SIG2) {
 		KLOG(KL_ERR, "invalid inode %llu sig",
@@ -209,9 +213,8 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 	int err;
 
 	inode =	nkfs_inodes_lookup(sb, block);
-	if (inode) {
+	if (inode)
 		return inode;
-	}
 
 	inode = nkfs_inode_alloc();
 	if (!inode) {
@@ -271,10 +274,9 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 		dio_clu_put(clu);
 		nkfs_inode_free(inode);
 		return inserted;
-	} else {
-		INODE_DEREF(inserted);
 	}
 
+	INODE_DEREF(inserted);
 	kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
 	dio_clu_put(clu);
 	return inode;
@@ -293,6 +295,7 @@ static void inode_block_erase(struct nkfs_btree_key *key,
 {
 	struct nkfs_inode *inode = (struct nkfs_inode *)ctx;
 	u64 block = value->val;
+
 	__nkfs_inode_block_free(inode, block);
 }
 
@@ -359,14 +362,17 @@ cleanup:
 
 static int nkfs_inode_write_dirty(struct nkfs_inode *inode)
 {
-	if (!inode->dirty) {
+	int err;
+
+	if (!inode->dirty)
 		return 0;
-	} else {
-		int err;
-		err = nkfs_inode_write(inode);
+
+	err = nkfs_inode_write(inode);
+	if (err)
+		KLOG(KL_ERR, "inode write err %d\n", err);
+	if (!err)
 		inode->dirty = 0;
-		return err;
-	}
+	return err;
 }
 
 struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
@@ -453,12 +459,13 @@ static int nkfs_inode_block_open_clus(struct nkfs_inode *inode,
 	NKFS_BUG_ON(ib->clu || ib->sum_clu);
 
 	ib->clu = dio_clu_get(inode->sb->ddev, ib->block);
-	if (!ib->clu) {
+	if (!ib->clu)
 		return -EIO;
-	}
 
 	ib->sum_clu = dio_clu_get(inode->sb->ddev, ib->sum_block);
 	if (!ib->sum_clu) {
+		dio_clu_put(ib->clu);
+		ib->clu = NULL;
 		return -EIO;
 	}
 
@@ -599,6 +606,7 @@ nkfs_inode_block_check_sum(struct nkfs_inode *inode,
 	struct inode_block *ib)
 {
 	struct csum sum;
+
 	NKFS_BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu, &sum);
@@ -627,9 +635,8 @@ nkfs_inode_block_read(struct nkfs_inode *inode, u64 vblock,
 	nkfs_btree_key_by_u64(ib.vblock, &key);
 	err = nkfs_btree_find_key(inode->blocks_tree, &key,
 		(struct nkfs_btree_value *)&ib.block);
-	if (err) {
+	if (err)
 		return err;
-	}
 
 	nkfs_inode_block_to_sum_block(ib.vblock, inode->sb->bsize,
 		&ib.vsum_block, &ib.sum_off);
@@ -845,12 +852,12 @@ static int nkfs_inode_io_buf(struct nkfs_inode *inode, u64 off,
 		}
 		if (err)
 			goto out;
-		io_count_sum+= io_count;
+		io_count_sum += io_count;
 		if (eof)
 			break;
 		NKFS_BUG_ON(llen != io_count);
-		pos+= llen;
-		res-= llen;
+		pos += llen;
+		res -= llen;
 		loff = 0;
 		vblock++;
 	}
@@ -893,13 +900,13 @@ int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off, u32 pg_off, u32 len,
 		kunmap(pages[i]);
 		if (err)
 			goto fail;
-		io_count_sum+= io_count;
+		io_count_sum += io_count;
 		if (eof)
 			break;
 		NKFS_BUG_ON(io_count != llen);
 		pg_off = 0;
-		off+= llen;
-		len-= llen;
+		off += llen;
+		len -= llen;
 		i++;
 	}
 
@@ -912,6 +919,7 @@ fail:
 int nkfs_inode_init(void)
 {
 	int err;
+
 	nkfs_inode_cachep = kmem_cache_create("nkfs_inode_cache",
 		sizeof(struct nkfs_inode), 0, SLAB_MEM_SPREAD, NULL);
 	if (!nkfs_inode_cachep) {

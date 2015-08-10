@@ -187,6 +187,7 @@ static struct nkfs_btree_node *__nkfs_btree_nodes_lookup(
 
 	while (n) {
 		struct nkfs_btree_node *node;
+
 		node = rb_entry(n, struct nkfs_btree_node, nodes_link);
 		if (block < node->block) {
 			n = n->rb_left;
@@ -200,10 +201,11 @@ static struct nkfs_btree_node *__nkfs_btree_nodes_lookup(
 	return found;
 }
 
-static struct nkfs_btree_node * nkfs_btree_nodes_lookup(struct nkfs_btree *tree,
+static struct nkfs_btree_node *nkfs_btree_nodes_lookup(struct nkfs_btree *tree,
 	u64 block)
 {
 	struct nkfs_btree_node *node;
+
 	read_lock_irq(&tree->nodes_lock);
 	node = __nkfs_btree_nodes_lookup(tree, block);
 	if (node)
@@ -216,6 +218,7 @@ static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node)
 {
 	struct nkfs_btree_node *found;
+
 	if (!node->block)
 		return;
 
@@ -239,6 +242,7 @@ static struct nkfs_btree_node *nkfs_btree_nodes_insert(struct nkfs_btree *tree,
 	write_lock_irq(&tree->nodes_lock);
 	while (*p) {
 		struct nkfs_btree_node *found;
+
 		parent = *p;
 		found = rb_entry(parent, struct nkfs_btree_node, nodes_link);
 		if (node->block < found->block) {
@@ -397,6 +401,7 @@ static void nkfs_btree_node_to_ondisk(struct nkfs_btree_node *node,
 static struct csum *nkfs_btree_node_map_sum(struct nkfs_btree_node *node)
 {
 	struct nkfs_btree_header_page *header;
+
 	header = page_address(node->header);
 	return &header->sum;
 }
@@ -550,9 +555,8 @@ int nkfs_btree_node_write(struct nkfs_btree_node *node)
 
 	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
-	if (err) {
+	if (err)
 		KLOG(KL_ERR, "sync err %d", err);
-	}
 
 	dio_clu_put(clu);
 	return err;
@@ -578,6 +582,7 @@ void nkfs_btree_key_by_u64(u64 val, struct nkfs_btree_key *key)
 u64 nkfs_btree_key_to_u64(struct nkfs_btree_key *key)
 {
 	u64 val;
+
 	memcpy(&val, key, sizeof(val));
 	return val;
 }
@@ -653,9 +658,8 @@ void nkfs_btree_ref(struct nkfs_btree *tree)
 void nkfs_btree_deref(struct nkfs_btree *tree)
 {
 	NKFS_BUG_ON(atomic_read(&tree->ref) <= 0);
-	if (atomic_dec_and_test(&tree->ref)) {
+	if (atomic_dec_and_test(&tree->ref))
 		nkfs_btree_release(tree);
-	}
 }
 
 u64 nkfs_btree_root_block(struct nkfs_btree *tree)
@@ -836,9 +840,8 @@ static void nkfs_btree_node_put_child_val(struct nkfs_btree_node *dst,
 	int i;
 
 	/* free space for dst_index */
-	for (i = dst->nr_keys; i >= dst_index; i--) {
+	for (i = dst->nr_keys; i >= dst_index; i--)
 		nkfs_btree_node_copy_child(dst, i + 1, dst, i);
-	}
 
 	nkfs_btree_node_set_child_val(dst, dst_index, val);
 }
@@ -851,9 +854,8 @@ static void nkfs_btree_node_put_child(struct nkfs_btree_node *dst,
 	int i;
 
 	/* free space for dst_index */
-	for (i = dst->nr_keys; i >= dst_index; i--) {
+	for (i = dst->nr_keys; i >= dst_index; i--)
 		nkfs_btree_node_copy_child(dst, i + 1, dst, i);
-	}
 
 	nkfs_btree_node_copy_child(dst, dst_index, src, src_index);
 }
@@ -866,9 +868,8 @@ static void nkfs_btree_node_put_key_value(struct nkfs_btree_node *dst,
 	int i;
 
 	/* free space for dst_index */
-	for (i = dst->nr_keys - 1; i >= dst_index; i--) {
+	for (i = dst->nr_keys - 1; i >= dst_index; i--)
 		nkfs_btree_node_copy_kv(dst, i + 1, dst, i);
-	}
 
 	nkfs_btree_node_copy_key_value(dst, dst_index, key, value);
 }
@@ -879,9 +880,8 @@ static void nkfs_btree_node_put_kv(struct nkfs_btree_node *dst, int dst_index,
 	int i;
 
 	/* free space for dst_index */
-	for (i = dst->nr_keys - 1; i >= dst_index; i--) {
+	for (i = dst->nr_keys - 1; i >= dst_index; i--)
 		nkfs_btree_node_copy_kv(dst, i + 1, dst, i);
-	}
 
 	nkfs_btree_node_copy_kv(dst, dst_index, src, src_index);
 }
@@ -913,9 +913,8 @@ static void nkfs_btree_node_split_child(struct nkfs_btree_node *node,
 
 	/* copy T childs from child to new */
 	if (!child->leaf) {
-		for (i = 0; i < new->t; i++) {
+		for (i = 0; i < new->t; i++)
 			nkfs_btree_node_copy_child(new, i, child, i + new->t);
-		}
 	}
 
 	/* shift node childs to the right by one */
@@ -953,7 +952,7 @@ static int nkfs_btree_node_has_key(struct nkfs_btree_node *node,
 	u32 mid;
 	int cmp;
 
-	if (!nkfs_btree_node_key_probably_inside(node, key));
+	if (!nkfs_btree_node_key_probably_inside(node, key))
 		return -1;
 
 	while (start < end) {
@@ -1010,7 +1009,7 @@ static int nkfs_btree_node_insert_nonfull(
 	int replace)
 {
 	int i;
-	struct nkfs_btree_node *node = first;
+	struct nkfs_btree_node *node = first, *child;
 
 	while (1) {
 		KLOG(KL_DBG1, "node [%p %d] leaf %d",
@@ -1026,11 +1025,11 @@ static int nkfs_btree_node_insert_nonfull(
 				if (node != first)
 					NKFS_BTREE_NODE_DEREF(node);
 				return 0;
-			} else {
-				if (node != first)
-					NKFS_BTREE_NODE_DEREF(node);
-				return -EEXIST;
 			}
+
+			if (node != first)
+				NKFS_BTREE_NODE_DEREF(node);
+			return -EEXIST;
 		}
 
 		if (node->leaf) {
@@ -1046,40 +1045,40 @@ static int nkfs_btree_node_insert_nonfull(
 			if (node != first)
 				NKFS_BTREE_NODE_DEREF(node);
 			return 0;
-		} else {
-			struct nkfs_btree_node *child;
-			i = nkfs_btree_node_find_key_index(node, key);
-			child = nkfs_btree_node_read(node->tree,
+		}
+
+		i = nkfs_btree_node_find_key_index(node, key);
+		child = nkfs_btree_node_read(node->tree,
 				nkfs_btree_node_get_child_val(node, i));
-			if (!child) {
-				if (node != first)
-					NKFS_BTREE_NODE_DEREF(node);
-				return -EIO;
-			}
-
-			if (nkfs_btree_node_is_full(child)) {
-				struct nkfs_btree_node *new;
-				new = nkfs_btree_node_create(node->tree);
-				if (!new) {
-					if (node != first)
-						NKFS_BTREE_NODE_DEREF(node);
-					NKFS_BTREE_NODE_DEREF(child);
-					return -EIO;
-				}
-				nkfs_btree_node_split_child(node, child, i,
-							    new);
-				nkfs_btree_node_write(node);
-				nkfs_btree_node_write(child);
-				nkfs_btree_node_write(new);
-
-				NKFS_BTREE_NODE_DEREF(new);
-				NKFS_BTREE_NODE_DEREF(child);
-				continue; /* restart */
-			}
+		if (!child) {
 			if (node != first)
 				NKFS_BTREE_NODE_DEREF(node);
-			node = child;
+			return -EIO;
 		}
+
+		if (nkfs_btree_node_is_full(child)) {
+			struct nkfs_btree_node *new;
+
+			new = nkfs_btree_node_create(node->tree);
+			if (!new) {
+				if (node != first)
+					NKFS_BTREE_NODE_DEREF(node);
+				NKFS_BTREE_NODE_DEREF(child);
+				return -EIO;
+			}
+			nkfs_btree_node_split_child(node, child, i, new);
+			nkfs_btree_node_write(node);
+			nkfs_btree_node_write(child);
+			nkfs_btree_node_write(new);
+
+			NKFS_BTREE_NODE_DEREF(new);
+			NKFS_BTREE_NODE_DEREF(child);
+			continue; /* restart */
+		}
+
+		if (node != first)
+			NKFS_BTREE_NODE_DEREF(node);
+		node = child;
 	}
 }
 
@@ -1157,7 +1156,7 @@ struct nkfs_btree_node *nkfs_btree_node_find_key(struct nkfs_btree_node *first,
 		struct nkfs_btree_key *key, int *pindex)
 {
 	int i;
-	struct nkfs_btree_node *node = first;
+	struct nkfs_btree_node *node = first, *prev;
 
 	while (1) {
 		if (node->nr_keys == 0) {
@@ -1177,14 +1176,13 @@ struct nkfs_btree_node *nkfs_btree_node_find_key(struct nkfs_btree_node *first,
 			if (node != first)
 				NKFS_BTREE_NODE_DEREF(node);
 			return NULL;
-		} else {
-			struct nkfs_btree_node *prev = node;
-			node = nkfs_btree_node_read(node->tree,
-				nkfs_btree_node_get_child_val(node, i));
-			NKFS_BUG_ON(!node);
-			if (prev != first)
-				NKFS_BTREE_NODE_DEREF(prev);
 		}
+		prev = node;
+		node = nkfs_btree_node_read(node->tree,
+				nkfs_btree_node_get_child_val(node, i));
+		NKFS_BUG_ON(!node);
+		if (prev != first)
+			NKFS_BTREE_NODE_DEREF(prev);
 	}
 }
 
@@ -1223,9 +1221,8 @@ static void __nkfs_btree_node_delete_child_index(struct nkfs_btree_node *node,
 	int i;
 
 	/* do shift to the left by one */
-	for (i = (index + 1); i < node->nr_keys + 1; i++) {
+	for (i = (index + 1); i < node->nr_keys + 1; i++)
 		node->childs[i-1] = node->childs[i];
-	}
 	/* zero last slot */
 	node->childs[i-1] = 0;
 }
@@ -1237,9 +1234,8 @@ static void __nkfs_btree_node_delete_key_index(struct nkfs_btree_node *node,
 
 	NKFS_BUG_ON(node->nr_keys < 1);
 	/* do shift to the left by one */
-	for (i = (index + 1); i < node->nr_keys; i++) {
+	for (i = (index + 1); i < node->nr_keys; i++)
 		nkfs_btree_node_copy_kv(node, i-1, node, i);
-	}
 	/* zero last slot */
 	nkfs_btree_node_zero_kv(node, i-1);
 }
@@ -1248,6 +1244,7 @@ static void nkfs_btree_node_leaf_delete_key(struct nkfs_btree_node *node,
 		struct nkfs_btree_key *key)
 {
 	int index;
+
 	NKFS_BUG_ON(!node->leaf);
 	index = nkfs_btree_node_has_key(node, key);
 	NKFS_BUG_ON(index < 0 || index >= node->nr_keys);
@@ -1344,6 +1341,7 @@ static void nkfs_btree_node_copy(struct nkfs_btree_node *dst,
 				 struct nkfs_btree_node *src)
 {
 	int i;
+
 	for (i = 0; i < src->nr_keys; i++) {
 		nkfs_btree_node_copy_kv(dst, i, src, i);
 		nkfs_btree_node_copy_child(dst, i, src, i);
@@ -1388,22 +1386,23 @@ static void nkfs_btree_node_child_give_key(struct nkfs_btree_node *node,
 	nkfs_btree_node_write(node);
 }
 
-static struct nkfs_btree_node * nkfs_btree_node_child_merge(
+static struct nkfs_btree_node *nkfs_btree_node_child_merge(
 					struct nkfs_btree_node *node,
 					struct nkfs_btree_node *child,
 					int child_index,
 					struct nkfs_btree_node *sib, int left)
 {
 	struct nkfs_btree_node *merged;
+
 	/* merge child with left, which involves
-	* moving a key from node down into the new 
-	* merged node to become the median key for
-	* that node.
-	*/
+	 * moving a key from node down into the new
+	 * merged node to become the median key for
+	 * that node.
+	 */
 
 	/* k0 k1 k2	k0 k2
-	* c0 c1 c2 c3  c0 c1c2 c3
-	*/
+	 * c0 c1 c2 c3  c0 c1c2 c3
+	 */
 
 	if (left) {
 		nkfs_btree_node_merge(sib, child,
@@ -1518,116 +1517,116 @@ int nkfs_btree_node_delete_key(struct nkfs_btree_node *first,
 restart:
 	nkfs_btree_copy_key(&key_copy, key);
 	key = &key_copy;
+	i = nkfs_btree_node_has_key(node, key);
+	if (i >= 0) {
+		struct nkfs_btree_node *pre_child = NULL;
+		struct nkfs_btree_node *suc_child = NULL;
+		int index;
 
-	if ((i = nkfs_btree_node_has_key(node, key)) >= 0) {
 		if (node->leaf) {
 			nkfs_btree_node_leaf_delete_key(node, key);
 			nkfs_btree_node_write(node);
 			if (node != first)
 				NKFS_BTREE_NODE_DEREF(node);
 			return 0;
-		} else {
-			struct nkfs_btree_node *pre_child = NULL;
-			struct nkfs_btree_node *suc_child = NULL;
-			int index;
+		}
 
-			index = nkfs_btree_node_has_key(node, key);
-			NKFS_BUG_ON(index < 0);
+		index = nkfs_btree_node_has_key(node, key);
+		NKFS_BUG_ON(index < 0);
 
-			pre_child = nkfs_btree_node_read(node->tree,
+		pre_child = nkfs_btree_node_read(node->tree,
 					nkfs_btree_node_get_child_val(node,
 								      index));
-			suc_child = nkfs_btree_node_read(node->tree,
+		suc_child = nkfs_btree_node_read(node->tree,
 					nkfs_btree_node_get_child_val(node,
 								      index+1));
-			NKFS_BUG_ON(!pre_child);
-			NKFS_BUG_ON(!suc_child);
+		NKFS_BUG_ON(!pre_child);
+		NKFS_BUG_ON(!suc_child);
 
-			if (pre_child->nr_keys >= pre_child->t) {
-				struct nkfs_btree_node *pre;
-				int pre_index;
+		if (pre_child->nr_keys >= pre_child->t) {
+			struct nkfs_btree_node *pre;
+			int pre_index;
 
-				pre = nkfs_btree_node_find_left_most(pre_child,
+			pre = nkfs_btree_node_find_left_most(pre_child,
 					&pre_index);
-				nkfs_btree_node_copy_kv(node, index,
+			nkfs_btree_node_copy_kv(node, index,
 					pre, pre_index);
-				nkfs_btree_node_write(node);
-				if (node != first)
-					NKFS_BTREE_NODE_DEREF(node);
-				NKFS_BTREE_NODE_DEREF(pre_child);
-				NKFS_BTREE_NODE_DEREF(suc_child);
-				node = pre;
-				key = nkfs_btree_node_key(pre, pre_index);
-				goto restart;
-			} else if (suc_child->nr_keys >= suc_child->t) {
-				struct nkfs_btree_node *suc;
-				int suc_index;
+			nkfs_btree_node_write(node);
+			if (node != first)
+				NKFS_BTREE_NODE_DEREF(node);
+			NKFS_BTREE_NODE_DEREF(pre_child);
+			NKFS_BTREE_NODE_DEREF(suc_child);
+			node = pre;
+			key = nkfs_btree_node_key(pre, pre_index);
+			goto restart;
+		} else if (suc_child->nr_keys >= suc_child->t) {
+			struct nkfs_btree_node *suc;
+			int suc_index;
 
-				suc = nkfs_btree_node_find_right_most(suc_child,
+			suc = nkfs_btree_node_find_right_most(suc_child,
 					&suc_index);
-				nkfs_btree_node_copy_kv(node, index,
+			nkfs_btree_node_copy_kv(node, index,
 					suc, suc_index);
-				nkfs_btree_node_write(node);
-				if (node != first)
-					NKFS_BTREE_NODE_DEREF(node);
-				NKFS_BTREE_NODE_DEREF(suc_child);
-				NKFS_BTREE_NODE_DEREF(pre_child);
-				node = suc;
-				key = nkfs_btree_node_key(suc, suc_index);
-				goto restart;
-			} else {
-				/* merge key and all of suc_child
-				* into pre_child
-				* node loses key and pointer to suc_child
-				*/
-				int key_index = pre_child->nr_keys;
+			nkfs_btree_node_write(node);
+			if (node != first)
+				NKFS_BTREE_NODE_DEREF(node);
+			NKFS_BTREE_NODE_DEREF(suc_child);
+			NKFS_BTREE_NODE_DEREF(pre_child);
+			node = suc;
+			key = nkfs_btree_node_key(suc, suc_index);
+			goto restart;
+		} else {
+			/* merge key and all of suc_child
+			 * into pre_child
+			 * node loses key and pointer to suc_child
+			 */
+			int key_index = pre_child->nr_keys;
 
-				nkfs_btree_node_merge(pre_child, suc_child,
+			nkfs_btree_node_merge(pre_child, suc_child,
 					nkfs_btree_node_key(node, index),
 					nkfs_btree_node_value(node, index));
-				/* delete key from node */
-				__nkfs_btree_node_delete_key_index(node,
+			/* delete key from node */
+			__nkfs_btree_node_delete_key_index(node,
 						index);
-				__nkfs_btree_node_delete_child_index(node,
+			__nkfs_btree_node_delete_child_index(node,
 						index+1);
-				node->nr_keys--;
+			node->nr_keys--;
+			nkfs_btree_node_write(node);
+			nkfs_btree_node_write(pre_child);
+			/* delete suc_child */
+			nkfs_btree_node_delete(suc_child);
+			if (node->nr_keys == 0) {
+				nkfs_btree_node_copy(node, pre_child);
+				nkfs_btree_node_delete(pre_child);
 				nkfs_btree_node_write(node);
-				nkfs_btree_node_write(pre_child);
-				/* delete suc_child */
-				nkfs_btree_node_delete(suc_child);
-				if (node->nr_keys == 0) {
-					nkfs_btree_node_copy(node, pre_child);
-					nkfs_btree_node_delete(pre_child);
-					nkfs_btree_node_write(node);
 
-					NKFS_BTREE_NODE_DEREF(suc_child);
-					NKFS_BTREE_NODE_DEREF(pre_child);
-					pre_child = node;
-				} else {
-					if (node != first)
-						NKFS_BTREE_NODE_DEREF(node);
-					NKFS_BTREE_NODE_DEREF(suc_child);
-					node = pre_child;
-				}
-				key = nkfs_btree_node_key(pre_child, key_index);
-				goto restart;
+				NKFS_BTREE_NODE_DEREF(suc_child);
+				NKFS_BTREE_NODE_DEREF(pre_child);
+				pre_child = node;
+			} else {
+				if (node != first)
+					NKFS_BTREE_NODE_DEREF(node);
+				NKFS_BTREE_NODE_DEREF(suc_child);
+				node = pre_child;
 			}
+			key = nkfs_btree_node_key(pre_child, key_index);
+			goto restart;
 		}
 	} else {
+		struct nkfs_btree_node *child;
+
 		if (node->leaf) {
 			if (node != first)
 				NKFS_BTREE_NODE_DEREF(node);
 			return -ENOENT;
-		} else {
-			struct nkfs_btree_node *child;
-			NKFS_BUG_ON(nkfs_btree_node_has_key(node, key) >= 0);
-			i = nkfs_btree_node_find_key_index(node, key);
-			child = nkfs_btree_node_child_balance(node, i);
-			if (node != first)
-				NKFS_BTREE_NODE_DEREF(node);
-			node = child;
-			goto restart;
 		}
+		NKFS_BUG_ON(nkfs_btree_node_has_key(node, key) >= 0);
+		i = nkfs_btree_node_find_key_index(node, key);
+		child = nkfs_btree_node_child_balance(node, i);
+		if (node != first)
+			NKFS_BTREE_NODE_DEREF(node);
+		node = child;
+		goto restart;
 	}
 }
 
@@ -1854,10 +1853,11 @@ static int nkfs_btree_node_check(struct nkfs_btree_node *first, int root)
 	if (!node->leaf) {
 		for (i = 0; i < node->nr_keys+1; i++) {
 			struct nkfs_btree_node *child;
+
 			child = nkfs_btree_node_read(node->tree,
 				nkfs_btree_node_get_child_val(node, i));
 			NKFS_BUG_ON(!child);
-			errs+= nkfs_btree_node_check(child, 0);
+			errs += nkfs_btree_node_check(child, 0);
 			NKFS_BTREE_NODE_DEREF(child);
 		}
 	}
@@ -1868,6 +1868,7 @@ static int nkfs_btree_node_check(struct nkfs_btree_node *first, int root)
 int nkfs_btree_check(struct nkfs_btree *tree)
 {
 	int rc;
+
 	if (tree->releasing)
 		return -EAGAIN;
 

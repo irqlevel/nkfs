@@ -86,6 +86,7 @@ static struct nkfs_sb *nkfs_sb_select_most_free(void)
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
 		u32 free_blocks = nkfs_sb_free_blocks(sb);
+
 		if (free_blocks >= max_free_blocks) {
 			found = sb;
 			max_free_blocks = free_blocks;
@@ -131,6 +132,7 @@ static struct nkfs_sb *nkfs_sb_list_first(struct list_head *phead)
 static struct nkfs_sb_link *nkfs_sb_link_create(struct nkfs_sb *sb)
 {
 	struct nkfs_sb_link *link;
+
 	link = kmalloc(sizeof(*link), GFP_NOIO);
 	if (!link)
 		return NULL;
@@ -814,9 +816,8 @@ int nkfs_sb_list_create_obj(struct nkfs_obj_id *pobj_id)
 	int err;
 
 	sb = nkfs_sb_select_most_free();
-	if (!sb) {
+	if (!sb)
 		return -ENOENT;
-	}
 
 	err = nkfs_sb_create_obj(sb, pobj_id);
 	nkfs_sb_deref(sb);

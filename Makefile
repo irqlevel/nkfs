@@ -1,7 +1,7 @@
 export PROJ_ROOT=$(CURDIR)
 export ARCH_BITS=$(shell getconf LONG_BIT)
 
-SOURCE_DIRS = crt client ctl kmod
+SOURCE_DIRS = crt client ctl core
 BUILD_DIRS = bin lib obj
 
 SOURCE_DIRS_CLEAN = $(addsuffix .clean,$(SOURCE_DIRS))

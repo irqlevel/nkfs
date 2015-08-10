@@ -36,16 +36,17 @@ void nkfs_inode_ref(struct nkfs_inode *inode);
 void nkfs_inode_deref(struct nkfs_inode *inode);
 
 #define INODE_REF(n)	\
-	nkfs_inode_ref(n);
+	nkfs_inode_ref(n)
 
 #define INODE_DEREF(n)	\
-	nkfs_inode_deref(n);
+	nkfs_inode_deref(n)
 
 int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off,
 		u32 pg_off, u32 len, struct page **pages,
 		int nr_pages, int write, u32 *pio_count);
 
-struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino);
+struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
+				     struct nkfs_obj_id *ino);
 struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block);
 void nkfs_inode_delete(struct nkfs_inode *inode);
 
