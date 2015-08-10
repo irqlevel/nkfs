@@ -1,4 +1,5 @@
 #include "crt.h"
+#include <crt/include/random.h>
 #include <crt/include/nk8.h>
 
 #define __SUBCOMPONENT__ "crt"
@@ -12,13 +13,13 @@ void *crt_malloc(size_t size)
 }
 EXPORT_SYMBOL(crt_malloc);
 
-void * crt_memset(void *ptr, int value, size_t len)
+void *crt_memset(void *ptr, int value, size_t len)
 {
 	return memset(ptr, value, len);
 }
 EXPORT_SYMBOL(crt_memset);
 
-void * crt_memcpy(void *ptr1, const void *ptr2, size_t len)
+void *crt_memcpy(void *ptr1, const void *ptr2, size_t len)
 {
 	return memcpy(ptr1, ptr2, len);
 }
@@ -55,11 +56,11 @@ void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...)
 {
 	va_list args;
-	va_start(args,fmt);
+
+	va_start(args, fmt);
 	klog_v(level, "crt", file, line, func, fmt, args);
 	va_end(args);
 }
-
 EXPORT_SYMBOL(crt_log);
 
 size_t crt_strlen(const char *s)
@@ -149,15 +150,17 @@ static int __init crt_init(void)
 {
 	int err = -EINVAL;
 
-	printk("nkfs_crt: initing\n");
+	pr_info("nkfs_crt: initing\n");
 	err = klog_init();
 	if (err)
 		goto out;
 
 	err = crt_random_init();
-	if (err) {
+	if (err)
 		goto rel_klog;
-	}
+
+
+	rand_test();
 
 	crt_wq = alloc_workqueue("crt_wq",
 			WQ_MEM_RECLAIM|WQ_UNBOUND, 1);
@@ -194,7 +197,7 @@ static void __exit crt_exit(void)
 	nk8_release();
 	crt_random_release();
 	klog_release();
-	printk("nkfs_crt: exited\n");
+	pr_info("nkfs_crt: exited\n");
 }
 
 module_init(crt_init);

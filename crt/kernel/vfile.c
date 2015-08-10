@@ -7,6 +7,7 @@ int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
 	int ret;
 	mm_segment_t old_fs;
 	u32 pos = 0;
+
 	old_fs = get_fs();
 	set_fs(get_ds());
 	while (pos < len) {
@@ -29,9 +30,10 @@ out:
 int vfile_sync(struct file *file)
 {
 	int err = vfs_fsync(file, 0);
-	if (err) {
+
+	if (err)
 		KLOG(KL_ERR, "vfs_fsync err=%d", err);
-	}
+
 	return err;
 }
 
@@ -40,6 +42,7 @@ int vfile_read(struct file *file, const void *buf, u32 len, loff_t *off)
 	int ret;
 	mm_segment_t old_fs;
 	u32 pos = 0;
+
 	old_fs = get_fs();
 	set_fs(get_ds());
 	while (pos < len) {

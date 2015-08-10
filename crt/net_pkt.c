@@ -13,6 +13,7 @@ EXPORT_SYMBOL(net_pkt_sum);
 int net_pkt_check(struct nkfs_net_pkt *pkt)
 {
 	struct csum sum;
+
 	if (pkt->dsize && pkt->dsize > NKFS_NET_PKT_MAX_DSIZE) {
 		CLOG(CL_ERR, "invalid pkt dsize %llu", pkt->dsize);
 		return -EINVAL;
@@ -50,6 +51,7 @@ EXPORT_SYMBOL(net_pkt_zero);
 struct nkfs_net_pkt *net_pkt_alloc(void)
 {
 	struct nkfs_net_pkt *pkt;
+
 	pkt = crt_malloc(sizeof(struct nkfs_net_pkt));
 	if (!pkt) {
 		CLOG(CL_ERR, "no memory");

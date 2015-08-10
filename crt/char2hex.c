@@ -38,7 +38,7 @@ int hex_bytes(char *hex, int hex_len, char *dst, int dst_len)
 		return -EINVAL;
 	}
 
-	for (i = 0, pos = 0; i < hex_len; i+=2, pos+=1) {
+	for (i = 0, pos = 0; i < hex_len; i += 2, pos += 1) {
 		high = hex_to_char(hex[i]);
 		low = hex_to_char(hex[i+1]);
 		if (high == -1 || low == -1) {

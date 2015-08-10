@@ -1,14 +1,14 @@
 #include <crt/include/crt.h>
 
-static int inited = 0;
+static int inited;
 static u8 gf_log[0x100][0x100];
 static u8 gf_alog[0x100][0x100];
 
 #define gf_mult(a, b)	gf_log[(a)][(b)]
 #define gf_div(a, b)	gf_alog[(a)][(b)]
 
-static void gf_mult_matrix(u8** matrix1, u8** matrix2,
-		u8** result, u32 size);
+static void gf_mult_matrix(u8 **matrix1, u8 **matrix2,
+		u8 **result, u32 size);
 
 #define MAX_K 254
 #define MAX_N 255
@@ -67,7 +67,7 @@ static u8 gf_mult_direct(u8 m, u8 n)
 
 	if (k >> 8)
 		for (i = 15; i >= 8; i--)
-			if ( k >> i )
+			if (k >> i)
 				k ^= (283 << (i-8));
 
 	return	k;
@@ -122,17 +122,17 @@ static void gf_init(void)
 	}
 }
 
-static void gf_mult_matrix(u8** matrix1, u8** matrix2,
-		u8** result, u32 size)
+static void gf_mult_matrix(u8 **matrix1, u8 **matrix2,
+		u8 **result, u32 size)
 {
 	int i = 0, j = 0, k = 0;
+
 	for (i = 0; i < size; i++) {
 		for (j = 0; j < size; j++) {
 			result[i][j] = 0;
-			for (k = 0; k < size; k++) {
+			for (k = 0; k < size; k++)
 				result[i][j] = (gf_mult(matrix1[i][k],
 					matrix2[k][j])) ^ (result[i][j]);
-			}
 		}
 	}
 }
@@ -140,6 +140,7 @@ static void gf_mult_matrix(u8** matrix1, u8** matrix2,
 static void gf_swap(u8 a, u8 b)
 {
 	u8 tmp;
+
 	tmp = a;
 	a = b;
 	b = tmp;
@@ -150,9 +151,8 @@ static void gf_rnd_matrix(u8 **matrix, u32 size)
 	int i, j;
 
 	for (i = 0; i < size; i++) {
-		for (j = 0; j < size; j++) {
+		for (j = 0; j < size; j++)
 			matrix[i][j] = rand_u32_up(256);
-		}
 	}
 }
 
@@ -189,24 +189,24 @@ fail:
 static void gf_free_matrix(u8 **matrix, u32 size)
 {
 	int i;
-	for (i = 0; i < size; i++) {
+
+	for (i = 0; i < size; i++)
 		crt_free(matrix[i]);
-	}
+
 	crt_free(matrix);
 }
 
-static int gf_inverse_matrix(u8 **matrix, u8**inverse, u32 size)
+static int gf_inverse_matrix(u8 **matrix, u8 **inverse, u32 size)
 {
 	int i, j, k, m, tmp;
 	int ok;
 
 	for (i = 0; i < size; i++) {
 		for (j = 0; j < size; j++) {
-			if (i != j) {
+			if (i != j)
 				inverse[i][j] = 0;
-			} else {
+			else
 				inverse[i][j] = 1;
-			}
 		}
 	}
 
@@ -251,19 +251,16 @@ static int gf_inverse_matrix(u8 **matrix, u8**inverse, u32 size)
 	for (i = size - 1; i > 0; i--) {
 		for (j = i-1; j >= 0; j--) {
 			tmp = gf_div(matrix[j][i], matrix[i][i]);
-			matrix[j][i]=0;
-			for (k = 0; k < size; k++) {
+			matrix[j][i] = 0;
+			for (k = 0; k < size; k++)
 				inverse[j][k] ^= (gf_mult(tmp, inverse[i][k]));
-			}
 		}
-		for (k = 0; k < size; k++) {
+		for (k = 0; k < size; k++)
 			inverse[i][k] = gf_div(inverse[i][k], matrix[i][i]);
-		}
 	}
 
-	for (k = 0; k < size; k++) {
+	for (k = 0; k < size; k++)
 		inverse[0][k] = gf_div(inverse[0][k], matrix[0][0]);
-	}
 
 	return 0;
 }
@@ -314,7 +311,8 @@ out:
 static u32 nk8_part_size(u32 block_size, int k)
 {
 	u32 part_size = block_size/k;
-	part_size+= (block_size % k) ? 1 : 0;
+
+	part_size += (block_size % k) ? 1 : 0;
 	return part_size;
 }
 
@@ -368,21 +366,21 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 
 	err = -ENOMEM;
 	svector = crt_malloc(MAX_K*sizeof(u8));
-	if (!svector) {
+	if (!svector)
 		goto cleanup;
-	}
+
 	tail = crt_malloc(MAX_K*sizeof(u8));
-	if (!tail) {
+	if (!tail)
 		goto cleanup;
-	}
+
 	ids = crt_malloc(n*sizeof(u8));
-	if (!ids) {
+	if (!ids)
 		goto cleanup;
-	}
+
 	parts = crt_malloc(n*sizeof(u8 *));
-	if (!parts) {
+	if (!parts)
 		goto cleanup;
-	}
+
 	memset(parts, 0, n*sizeof(u8 *));
 
 	part_size = nk8_part_size(block_size, k);
@@ -396,7 +394,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 		tail_size = block_size - (part_size - 1)*k;
 		crt_memcpy(tail, block + block_size - tail_size, tail_size);
 		crt_memset(tail + tail_size, 0, k - tail_size);
-		part_size-= 1;
+		part_size -= 1;
 	}
 	CLOG(CL_DBG, "part_size %u tail_size %u",
 		part_size, tail_size);
@@ -404,22 +402,20 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 	nk8_gen_part_ids(ids, n);
 	for (i = 0; i < n; i++) {
 		svector[0] = 1;
-		for (j = 1; j < k; j++) {
+		for (j = 1; j < k; j++)
 			svector[j] = gf_mult(svector[j-1], ids[i]);
-		}
+
 		for (j = 0; j < part_size; j++) {
 			curr = 0;
-			for (m = 0; m < k; m++) {
+			for (m = 0; m < k; m++)
 				curr ^= gf_mult(svector[m], block[j*k + m]);
-			}
 			parts[i][j] = curr;
 		}
 
 		if (tail_size) {
 			curr = 0;
-			for (m = 0; m < k; m++) {
+			for (m = 0; m < k; m++)
 				curr ^= gf_mult(svector[m], tail[m]);
-			}
 			parts[i][j] = curr;
 		}
 	}
@@ -478,7 +474,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 	part_size = nk8_part_size(block_size, k);
 	if (part_size * k > block_size) {
 		tail_size = block_size - (part_size - 1)*k;
-		part_size-= 1;
+		part_size -= 1;
 	}
 
 	CLOG(CL_DBG, "part_size %u tail_size %u",
@@ -554,9 +550,8 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 	}
 
 	for (j = 0; j < part_size; j++) {
-		for (i = 0; i < k; i++) {
+		for (i = 0; i < k; i++)
 			svector[i] = sparts[i][j];
-		}
 
 		for (m = 0; m < k; m++) {
 			curr = 0;
@@ -570,9 +565,9 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 
 	if (tail_size) {
 		sblock = tail;
-		for (i = 0; i < k; i++) {
+		for (i = 0; i < k; i++)
 			svector[i] = sparts[i][j];
-		}
+
 		for (m = 0; m < k; m++) {
 			curr = 0;
 			for (i = 0; i < k; i++) {
@@ -739,6 +734,7 @@ int nk8_init(void)
 
 	for (i = 0; i < 5; i++) {
 		int n, k, size;
+
 		size = rand_u32_min_max(3000, 70000);
 		k = rand_u32_min_max(MIN_K, MAX_K);
 		n = rand_u32_min_max(k, MAX_N);

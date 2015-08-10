@@ -18,14 +18,13 @@ int nkfs_obj_id_cmp(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2)
 		return 1;
 	else if (id1->high < id2->high)
 		return -1;
-	else {
-		if (id1->low > id2->low)
-			return 1;
-		else if (id1->low < id2->low)
-			return -1;
-		else
-			return 0;
-	}
+
+	if (id1->low > id2->low)
+		return 1;
+	else if (id1->low < id2->low)
+		return -1;
+
+	return 0;
 }
 EXPORT_SYMBOL(nkfs_obj_id_cmp);
 
@@ -37,19 +36,17 @@ static void nkfs_obj_id_minus(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
 			result->high = id1->high - id2->high;
 			result->low = id1->low - id2->low;
 			return;
-		} else {
-			result->high = id1->high - id2->high - 1;
-			result->low = (U64_MAX - id2->low) + id1->low + 1;
-			return;
 		}
+		result->high = id1->high - id2->high - 1;
+		result->low = (U64_MAX - id2->low) + id1->low + 1;
+		return;
 	} else if (id1->high == id2->high) {
 		CRT_BUG_ON(id1->low < id2->low);
 		result->high = 0;
 		result->low = id1->low - id2->low;
 		return;
-	} else
-		CRT_BUG();
-	return;
+	}
+	CRT_BUG();
 }
 
 void nkfs_obj_id_dist(struct nkfs_obj_id *id1, struct nkfs_obj_id *id2,
@@ -79,9 +76,8 @@ struct nkfs_obj_id *nkfs_obj_id_create(void)
 	int err;
 
 	id = crt_malloc(sizeof(struct nkfs_obj_id));
-	if (!id) {
+	if (!id)
 		return NULL;
-	}
 
 	err = nkfs_obj_id_gen(id);
 	if (err) {
