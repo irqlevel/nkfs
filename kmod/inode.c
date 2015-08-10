@@ -58,9 +58,9 @@ void nkfs_inode_ref(struct nkfs_inode *inode)
 
 void nkfs_inode_deref(struct nkfs_inode *inode)
 {
-	NKFS_BUG_ON(atomic_read(&inode->ref) <= 0);	
+	NKFS_BUG_ON(atomic_read(&inode->ref) <= 0);
 	if (atomic_dec_and_test(&inode->ref))
-		nkfs_inode_release(inode);	
+		nkfs_inode_release(inode);
 }
 
 static struct nkfs_inode *__nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
@@ -84,7 +84,7 @@ static struct nkfs_inode *__nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
 }
 
 static struct nkfs_inode * nkfs_inodes_lookup(struct nkfs_sb *sb, u64 block)
-{	
+{
 	struct nkfs_inode *inode;
 	read_lock_irq(&sb->inodes_lock);
 	inode = __nkfs_inodes_lookup(sb, block);
@@ -163,9 +163,9 @@ static void nkfs_inode_to_on_disk(struct nkfs_inode *inode,
 	struct nkfs_inode_disk *on_disk)
 {
 	nkfs_obj_id_copy(&on_disk->ino, &inode->ino);
-	on_disk->size = cpu_to_be64(inode->size);	
+	on_disk->size = cpu_to_be64(inode->size);
 	on_disk->blocks_tree_block = cpu_to_be64(inode->blocks_tree_block);
-	on_disk->blocks_sum_tree_block = 
+	on_disk->blocks_sum_tree_block =
 		cpu_to_be64(inode->blocks_sum_tree_block);
 	on_disk->sig1 = cpu_to_be32(NKFS_INODE_SIG1);
 	on_disk->sig2 = cpu_to_be32(NKFS_INODE_SIG2);
@@ -194,7 +194,7 @@ static int nkfs_inode_parse_on_disk(struct nkfs_inode *inode,
 	inode->blocks_tree_block = be64_to_cpu(on_disk->blocks_tree_block);
 	inode->blocks_sum_tree_block =
 			be64_to_cpu(on_disk->blocks_sum_tree_block);
-	
+
 	inode->sig1 = be32_to_cpu(on_disk->sig1);
 	inode->sig2 = be32_to_cpu(on_disk->sig2);
 
@@ -210,15 +210,15 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 
 	inode =	nkfs_inodes_lookup(sb, block);
 	if (inode) {
-		return inode;	
+		return inode;
 	}
-	
+
 	inode = nkfs_inode_alloc();
 	if (!inode) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
 	}
-	
+
 	inode->block = block;
 	inode->sb = sb;
 
@@ -315,7 +315,7 @@ void nkfs_inode_delete(struct nkfs_inode *inode)
 
 static int nkfs_inode_write(struct nkfs_inode *inode)
 {
-	struct dio_cluster *clu;	
+	struct dio_cluster *clu;
 	struct nkfs_inode_disk *idisk;
 	int err;
 
@@ -341,7 +341,7 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 	if (err) {
 		KLOG(KL_ERR, "cant write inode %llu",
 			inode->block);
-		goto cleanup;	
+		goto cleanup;
 	}
 
 	err = dio_clu_sync(clu);
@@ -499,8 +499,7 @@ static int nkfs_inode_block_write(struct nkfs_inode *inode,
 }
 
 static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
-	u64 vblock,	
-	struct inode_block *pib)
+	u64 vblock, struct inode_block *pib)
 {
 	int err;
 	struct inode_block ib;
@@ -556,7 +555,7 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 	}
 
 
-	nkfs_btree_key_by_u64(ib.vblock, &key);	
+	nkfs_btree_key_by_u64(ib.vblock, &key);
 	err = nkfs_btree_insert_key(inode->blocks_tree, &key,
 		(struct nkfs_btree_value *)&ib.block, 0);
 	if (err) {
@@ -570,7 +569,7 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 
 fail:
 	if (sum_block_inserted) {
-		nkfs_btree_key_by_u64(ib.vsum_block, &key);	
+		nkfs_btree_key_by_u64(ib.vsum_block, &key);
 		nkfs_btree_delete_key(inode->blocks_sum_tree, &key);
 	}
 
@@ -618,12 +617,12 @@ nkfs_inode_block_read(struct nkfs_inode *inode, u64 vblock,
 	int err;
 	struct nkfs_btree_key key;
 	struct inode_block ib;
-	
+
 	nkfs_inode_block_zero(&ib);
 	nkfs_inode_block_zero(pib);
 
 	ib.vblock = vblock;
-	nkfs_btree_key_by_u64(ib.vblock, &key);	
+	nkfs_btree_key_by_u64(ib.vblock, &key);
 	err = nkfs_btree_find_key(inode->blocks_tree, &key,
 		(struct nkfs_btree_value *)&ib.block);
 	if (err) {
@@ -658,13 +657,13 @@ nkfs_inode_block_read_create(struct nkfs_inode *inode, u64 vblock,
 {
 	int err;
 	struct inode_block ib;
-	
+
 	nkfs_inode_block_zero(&ib);
 	nkfs_inode_block_zero(pib);
 
 	err = nkfs_inode_block_read(inode, vblock, &ib);
 	if (err) {
-		err = nkfs_inode_block_alloc(inode, vblock, &ib);		
+		err = nkfs_inode_block_alloc(inode, vblock, &ib);
 		if (err) {
 			KLOG(KL_ERR, "cant alloc block vblock %llu inode %llu",
 				vblock, inode->block);
@@ -686,7 +685,7 @@ nkfs_inode_block_read_create(struct nkfs_inode *inode, u64 vblock,
 	memcpy(pib, &ib, sizeof(ib));
 	return 0;
 fail:
-	nkfs_inode_block_relse(&ib);	
+	nkfs_inode_block_relse(&ib);
 	return err;
 }
 
@@ -712,7 +711,7 @@ nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock,
 		return -ERANGE;
 	} else if (data_off == inode->size) {
 		up_read(&inode->rw_sem);
-		*peof = 1;	
+		*peof = 1;
 		return 0;
 	}
 

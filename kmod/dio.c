@@ -50,10 +50,10 @@ dio_pages_io(struct dio_pages *pages, void *buf,
 	while (read < len) {
 		NKFS_BUG_ON(pg_idx >= pages->nr_pages);
 		step = len - read;
-		if (step > (PAGE_SIZE - pg_off)) 
+		if (step > (PAGE_SIZE - pg_off))
 			step = PAGE_SIZE - pg_off;
 
-		if (!write) 
+		if (!write)
 			memcpy(
 			(char *)buf + read,
 			(char *)page_address(pages->pages[pg_idx]) + pg_off,
@@ -184,7 +184,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 		kmem_cache_free(dio_clu_cachep, cluster);
 		return NULL;
 	}
-	
+
 	atomic_set(&cluster->pin_count, 0);
 	atomic_set(&cluster->ref, 1);
 	init_completion(&cluster->read_comp);
@@ -194,7 +194,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 	return cluster;
 }
 
-static struct 
+static struct
 dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 {
 	struct dio_cluster *cluster;
@@ -213,7 +213,7 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 			return NULL;
 		new->index = index;
 		if (radix_tree_preload(GFP_NOIO)) {
-			dio_clu_deref(new);	
+			dio_clu_deref(new);
 			return NULL;
 		}
 
@@ -231,9 +231,9 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 			dio_clu_pin(cluster);
 		}
 		spin_unlock_irq(&dev->clus_lock);
-	
+
 		radix_tree_preload_end();
-	
+
 		if (cluster != new)
 			dio_clu_deref(new);
 	}
@@ -261,7 +261,7 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 			NKFS_BUG_ON(cluster->index != index);
 			dev->nr_clus--;
 		}
-	} else 
+	} else
 		cluster = NULL;
 
 	spin_unlock_irq(&dev->clus_lock);
@@ -495,7 +495,7 @@ static void dio_io_end_bio(struct bio *bio, int err)
 	struct dio_io *io = bio->bi_private;
 
 	NKFS_BUG_ON(io->bio != bio);
- 
+
 	io->err = err;
 	if (err) {
 		KLOG(KL_ERR, "err %d rw %x io %p bio %p sec %llx size %x",
@@ -595,7 +595,7 @@ static int dio_clu_wait_read(struct dio_cluster *cluster)
 			goto read_comp;
 		}
 
-		set_bit(DIO_IO_WAIT, &io->flags); 
+		set_bit(DIO_IO_WAIT, &io->flags);
 		dio_submit(READ, io);
 		wait_for_completion(&io->comp);
 		err = io->err;
@@ -650,7 +650,7 @@ int dio_clu_read(struct dio_cluster *cluster,
 	up_read(&cluster->rw_lock);
 
 	err = 0;
-out:	
+out:
 	return err;
 }
 
@@ -701,7 +701,7 @@ int dio_clu_write(struct dio_cluster *cluster,
 	}
 
 	NKFS_BUG_ON(!test_bit(DIO_CLU_READ, &cluster->flags));
-	
+
 	down_write(&cluster->rw_lock);
 	set_bit(DIO_CLU_DIRTY, &cluster->flags);
 	dio_pages_io(&cluster->pages, buf, off, len, 1);
@@ -755,10 +755,10 @@ int dio_clu_sync(struct dio_cluster *cluster)
 	struct dio_io *io;
 
 	trace_dio_clu_sync(cluster);
-	
+
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags))
 		return 0;
-	
+
 	down_write(&cluster->sync_rw_lock);
 	if (!test_bit(DIO_CLU_DIRTY, &cluster->flags)) {
 		err = 0;
@@ -771,7 +771,7 @@ int dio_clu_sync(struct dio_cluster *cluster)
 		goto out;
 	}
 
-	set_bit(DIO_IO_WAIT, &io->flags); 
+	set_bit(DIO_IO_WAIT, &io->flags);
 	dio_submit(WRITE, io);
 	wait_for_completion(&io->comp);
 
@@ -794,7 +794,7 @@ static void dio_clu_free(struct dio_cluster *cluster)
 
 static void dio_clu_release(struct dio_cluster *cluster)
 {
-	set_bit(DIO_CLU_RELS, &cluster->flags);	
+	set_bit(DIO_CLU_RELS, &cluster->flags);
 	if (test_bit(DIO_CLU_DIRTY, &cluster->flags))
 		dio_clu_sync(cluster);
 	dio_clu_free(cluster);

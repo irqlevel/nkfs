@@ -55,9 +55,9 @@ void crt_log(int level, const char *file, int line,
 	const char *func, const char *fmt, ...)
 {
 	va_list args;
-    	va_start(args,fmt);
-    	klog_v(level, "crt", file, line, func, fmt, args);
-    	va_end(args);
+	va_start(args,fmt);
+	klog_v(level, "crt", file, line, func, fmt, args);
+	va_end(args);
 }
 
 EXPORT_SYMBOL(crt_log);
@@ -146,7 +146,7 @@ void crt_file_close(void *file)
 EXPORT_SYMBOL(crt_file_close);
 
 static int __init crt_init(void)
-{	
+{
 	int err = -EINVAL;
 
 	printk("nkfs_crt: initing\n");
@@ -167,7 +167,7 @@ static int __init crt_init(void)
 		goto rel_rnd;
 	}
 
-	KLOG(KL_INF, "nk8 initing");	
+	KLOG(KL_INF, "nk8 initing");
 	err = nk8_init();
 	if (err) {
 		KLOG(KL_ERR, "nk8 init err %d", err);

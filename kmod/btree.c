@@ -111,7 +111,7 @@ static struct nkfs_btree_node *nkfs_btree_node_alloc(int zero_pages)
 		return NULL;
 	}
 
-	memset(node, 0, sizeof(*node));	
+	memset(node, 0, sizeof(*node));
 
 	node->header = alloc_page(GFP_KERNEL);
 	if (!node->header)
@@ -154,7 +154,7 @@ fail:
 static void __nkfs_btree_node_release(struct nkfs_btree_node *node)
 {
 	KLOG(KL_DBG1, "node %p leaf %d nr_keys %d",
-		node, node->leaf, node->nr_keys);	
+		node, node->leaf, node->nr_keys);
 
 	nkfs_btree_nodes_remove(node->tree, node);
 	__nkfs_btree_node_free(node);
@@ -196,7 +196,7 @@ static struct nkfs_btree_node *__nkfs_btree_nodes_lookup(struct nkfs_btree *tree
 
 static struct nkfs_btree_node * nkfs_btree_nodes_lookup(struct nkfs_btree *tree,
 	u64 block)
-{	
+{
 	struct nkfs_btree_node *node;
 	read_lock_irq(&tree->nodes_lock);
 	node = __nkfs_btree_nodes_lookup(tree, block);
@@ -406,7 +406,7 @@ static void nkfs_btree_node_calc_sum(struct nkfs_btree_node *node,
 	KLOG(KL_DBG3, "node %llu leaf %d nr_keys %d sig1 %x sig2 %x",
 		node->block, header->leaf, header->nr_keys,
 		header->sig1, header->sig2);
-	
+
 	csum_reset(&ctx);
 
 	KLOG_BUF_SUM(KL_DBG3, page_address(node->header),
@@ -456,7 +456,7 @@ static struct nkfs_btree_node *nkfs_btree_node_read(struct nkfs_btree *tree, u64
 
 	node->tree = tree;
 	node->block = block;
-	
+
 	clu = dio_clu_get(tree->sb->ddev, node->block);
 	if (!clu) {
 		KLOG(KL_ERR, "cant read block at %llu", block);
@@ -504,7 +504,7 @@ put_clu:
 free_node:
 	__nkfs_btree_node_free(node);
 
-	return NULL;	
+	return NULL;
 }
 
 int nkfs_btree_node_write(struct nkfs_btree_node *node)
@@ -550,7 +550,7 @@ int nkfs_btree_node_write(struct nkfs_btree_node *node)
 }
 
 static void nkfs_btree_node_delete(struct nkfs_btree_node *node)
-{	
+{
 	KLOG(KL_DBG1, "node %p leaf %d nr_keys %d block %llu",
 		node, node->leaf, node->nr_keys, node->block);
 
@@ -613,15 +613,15 @@ static struct nkfs_btree_node *nkfs_btree_node_create(struct nkfs_btree *tree)
 	inserted = nkfs_btree_nodes_insert(tree, node);
 	if (inserted != node) {
 		nkfs_btree_node_delete(node);
-		__nkfs_btree_node_free(node);	
+		__nkfs_btree_node_free(node);
 		node = inserted;
-		KLOG(KL_DBG1, "node %p found block %llu", node, node->block);	
+		KLOG(KL_DBG1, "node %p found block %llu", node, node->block);
 	} else {
 		NKFS_BTREE_NODE_DEREF(inserted);
 		KLOG(KL_DBG1, "node %p created block %llu", node, node->block);
 	}
 
-	return node;	
+	return node;
 }
 
 char *nkfs_btree_key_hex(struct nkfs_btree_key *key)
@@ -879,7 +879,7 @@ static void nkfs_btree_node_split_child(struct nkfs_btree_node *node,
 	int i;
 
 	NKFS_BUG_ON(child_index < 0 || child_index > node->nr_keys);
-	NKFS_BUG_ON(!child || !nkfs_btree_node_is_full(child));	
+	NKFS_BUG_ON(!child || !nkfs_btree_node_is_full(child));
 	NKFS_BUG_ON(!new);
 
 	KLOG(KL_DBG1, "Splitting node [%p %d] child[%d]=[%p %d]",
@@ -959,7 +959,7 @@ static int nkfs_btree_node_find_key_index(struct nkfs_btree_node *node,
 	int cmp;
 
 	if (0 == node->nr_keys)
-		return 0; 
+		return 0;
 	else if (nkfs_btree_cmp_key(key, nkfs_btree_node_key(node, end-1)) > 0)
 		return end;
 	else if (nkfs_btree_cmp_key(key, nkfs_btree_node_key(node, start)) < 0)
@@ -989,7 +989,7 @@ static int nkfs_btree_node_insert_nonfull(
 {
 	int i;
 	struct nkfs_btree_node *node = first;
-	
+
 	while (1) {
 		KLOG(KL_DBG1, "node [%p %d] leaf %d",
 			node, node->nr_keys, node->leaf);
@@ -1045,11 +1045,11 @@ static int nkfs_btree_node_insert_nonfull(
 					return -EIO;
 				}
 				nkfs_btree_node_split_child(node, child, i, new);
-				
+
 				nkfs_btree_node_write(node);
 				nkfs_btree_node_write(child);
 				nkfs_btree_node_write(new);
-				
+
 				NKFS_BTREE_NODE_DEREF(new);
 				NKFS_BTREE_NODE_DEREF(child);
 				continue; /* restart */
@@ -1113,11 +1113,11 @@ int nkfs_btree_insert_key(struct nkfs_btree *tree, struct nkfs_btree_key *key,
 		nkfs_btree_node_split_child(new, clone, 0, new2);
 
 		nkfs_btree_node_copy(root, new);
-		
+
 		nkfs_btree_node_write(clone);
 		nkfs_btree_node_write(new2);
 		nkfs_btree_node_write(root);
-	
+
 		NKFS_BTREE_NODE_DEREF(clone);
 		NKFS_BTREE_NODE_DEREF(new2);
 		__nkfs_btree_node_free(new);
@@ -1135,7 +1135,7 @@ struct nkfs_btree_node *nkfs_btree_node_find_key(struct nkfs_btree_node *first,
 {
 	int i;
 	struct nkfs_btree_node *node = first;
-	
+
 	while (1) {
 		if (node->nr_keys == 0) {
 			if (node != first)
@@ -1160,7 +1160,7 @@ struct nkfs_btree_node *nkfs_btree_node_find_key(struct nkfs_btree_node *first,
 				nkfs_btree_node_get_child_val(node, i));
 			NKFS_BUG_ON(!node);
 			if (prev != first)
-				NKFS_BTREE_NODE_DEREF(prev);	
+				NKFS_BTREE_NODE_DEREF(prev);
 		}
 	}
 }
@@ -1198,13 +1198,13 @@ static void __nkfs_btree_node_delete_child_index(struct nkfs_btree_node *node,
 		int index)
 {
 	int i;
-	
+
 	/* do shift to the left by one */
 	for (i = (index + 1); i < node->nr_keys + 1; i++) {
 		node->childs[i-1] = node->childs[i];
 	}
 	/* zero last slot */
-	node->childs[i-1] = 0;	
+	node->childs[i-1] = 0;
 }
 
 static void __nkfs_btree_node_delete_key_index(struct nkfs_btree_node *node,
@@ -1215,7 +1215,7 @@ static void __nkfs_btree_node_delete_key_index(struct nkfs_btree_node *node,
 	NKFS_BUG_ON(node->nr_keys < 1);
 	/* do shift to the left by one */
 	for (i = (index + 1); i < node->nr_keys; i++) {
-		nkfs_btree_node_copy_kv(node, i-1, node, i);	
+		nkfs_btree_node_copy_kv(node, i-1, node, i);
 	}
 	/* zero last slot */
 	nkfs_btree_node_zero_kv(node, i-1);
@@ -1314,7 +1314,7 @@ static void nkfs_btree_node_merge(struct nkfs_btree_node *dst,
 	dst->nr_keys = dst->nr_keys + 1 + src->nr_keys;
 
 	KLOG(KL_DBG1, "Merged %p -> %p nr_keys %d",
-		src, dst, dst->nr_keys);	
+		src, dst, dst->nr_keys);
 }
 
 static void nkfs_btree_node_copy(struct nkfs_btree_node *dst, struct nkfs_btree_node *src)
@@ -1512,7 +1512,7 @@ restart:
 			if (pre_child->nr_keys >= pre_child->t) {
 				struct nkfs_btree_node *pre;
 				int pre_index;
-	
+
 				pre = nkfs_btree_node_find_left_most(pre_child,
 					&pre_index);
 				nkfs_btree_node_copy_kv(node, index,

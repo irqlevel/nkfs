@@ -3,7 +3,7 @@
 #define __SUBCOMPONENT__ "vfile"
 
 int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
-{	
+{
 	int ret;
 	mm_segment_t old_fs;
 	u32 pos = 0;
@@ -16,7 +16,7 @@ int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
 		if (ret == 0) {
 			ret = -EIO;
 			goto out;
-		} 
+		}
 		pos += ret;
 	}
 	ret = 0;
@@ -36,7 +36,7 @@ int vfile_sync(struct file *file)
 }
 
 int vfile_read(struct file *file, const void *buf, u32 len, loff_t *off)
-{	
+{
 	int ret;
 	mm_segment_t old_fs;
 	u32 pos = 0;
@@ -55,7 +55,7 @@ int vfile_read(struct file *file, const void *buf, u32 len, loff_t *off)
 				ret, pos, len, *off);
 			ret = -EIO;
 			goto out;
-		} 
+		}
 		pos += ret;
 	}
 	ret = 0;

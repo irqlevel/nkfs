@@ -2,7 +2,7 @@
 
 #define __SUBCOMPONENT__ "route"
 
-#define HOST_TIMER_TIMEOUT_MS 		500
+#define HOST_TIMER_TIMEOUT_MS		500
 #define HOST_HANDSHAKE_TIMEOUT_MS	500
 #define HOST_HBT_TIMEOUT_MS		10000
 
@@ -126,9 +126,9 @@ void nkfs_neigh_ref(struct nkfs_neigh *neigh)
 
 void nkfs_neigh_deref(struct nkfs_neigh *neigh)
 {
-	NKFS_BUG_ON(atomic_read(&neigh->ref) <= 0);	
+	NKFS_BUG_ON(atomic_read(&neigh->ref) <= 0);
 	if (atomic_dec_and_test(&neigh->ref))
-		nkfs_neigh_release(neigh);	
+		nkfs_neigh_release(neigh);
 }
 
 struct nkfs_host_id *nkfs_hid_alloc(void)
@@ -404,8 +404,8 @@ static void nkfs_neigh_attach_host_id(struct nkfs_neigh *neigh,
 	NKFS_BUG_ON(!list_empty(&neigh->hid_list));
 
 	write_lock_irq(&hid->neigh_list_lock);
-	neigh->hid = hid;	
-	list_add_tail(&neigh->hid_list, &hid->neigh_list); 
+	neigh->hid = hid;
+	list_add_tail(&neigh->hid_list, &hid->neigh_list);
 	write_unlock_irq(&hid->neigh_list_lock);
 }
 
@@ -676,7 +676,7 @@ static struct nkfs_host *nkfs_host_alloc(void)
 		return NULL;
 	memset(host, 0, sizeof(*host));
 	return host;
-}	
+}
 
 static void nkfs_host_free(struct nkfs_host *host)
 {
@@ -691,7 +691,7 @@ static struct nkfs_host *nkfs_host_create(void)
 	host = nkfs_host_alloc();
 	if (!host)
 		return NULL;
-	
+
 	nkfs_obj_id_gen(&host->host_id);
 	host->neighs = RB_ROOT;
 	rwlock_init(&host->neighs_lock);
@@ -722,7 +722,7 @@ static struct nkfs_host *nkfs_host_create(void)
 del_wq:
 	destroy_workqueue(host->wq);
 free_host:
-	nkfs_host_free(host);	
+	nkfs_host_free(host);
 	return NULL;
 }
 
@@ -734,15 +734,15 @@ static void nkfs_host_release(struct nkfs_host *host)
 	host->stopping = 1;
 	del_timer_sync(&host->timer);
 	destroy_workqueue(host->wq);
-	
+
 	INIT_LIST_HEAD(&neigh_list);
-	
+
 	write_lock_irq(&host->neighs_lock);
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
 		list_del_init(&neigh->neigh_list);
 		list_add_tail(&neigh->neigh_list, &neigh_list);
 	}
-	write_unlock_irq(&host->neighs_lock);	
+	write_unlock_irq(&host->neighs_lock);
 
 	list_for_each_entry_safe(neigh, tmp, &neigh_list, neigh_list) {
 		list_del_init(&neigh->neigh_list);
@@ -781,7 +781,7 @@ int nkfs_route_init(void)
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
 		goto del_neigh_cache;
-	}	
+	}
 
 	nkfs_host_work_cachep = kmem_cache_create("nkfs_host_work_cache",
 		sizeof(struct nkfs_host_work), 0, SLAB_MEM_SPREAD, NULL);
@@ -789,8 +789,7 @@ int nkfs_route_init(void)
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
 		goto del_host_cache;
-	}	
-
+	}
 
 	return 0;
 
@@ -848,7 +847,7 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 int nkfs_host_remove_neigh(struct nkfs_host *host, u32 ip, int port)
 {
 	struct nkfs_neigh *neigh, *tmp;
-	struct list_head neigh_list;	
+	struct list_head neigh_list;
 	int found = 0;
 
 	INIT_LIST_HEAD(&neigh_list);
@@ -889,7 +888,7 @@ int nkfs_route_neigh_add(u32 ip, int port)
 	neigh->ip = ip;
 	neigh->port = port;
 	set_bit(NKFS_NEIGH_S_INITED, &neigh->state);
-	err = nkfs_host_add_neigh(nkfs_host, neigh); 
+	err = nkfs_host_add_neigh(nkfs_host, neigh);
 	if (err) {
 		NEIGH_DEREF(neigh);
 	}
@@ -1013,7 +1012,7 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 
 	err = 0;
 	nkfs_obj_id_copy(reply_host_id, &host->host_id);
-	
+
 	i = 0;
 	read_lock(&host->neighs_lock);
 	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {

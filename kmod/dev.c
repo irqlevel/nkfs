@@ -103,7 +103,7 @@ int nkfs_dev_query(char *dev_name, struct nkfs_dev_info *info)
 		info->used_blocks = atomic64_read(&sb->used_blocks);
 		info->inodes_tree_block = sb->inodes_tree_block;
 		info->bm_block = sb->bm_block;
-	 	info->bm_blocks = sb->bm_blocks;
+		info->bm_blocks = sb->bm_blocks;
 		info->bsize = sb->bsize;
 		info->used_size = sb->bsize*atomic64_read(&sb->used_blocks);
 		info->free_size = info->size - info->used_size;
@@ -118,7 +118,7 @@ int nkfs_dev_query(char *dev_name, struct nkfs_dev_info *info)
 	}
 
 	nkfs_dev_deref(dev);
-	return 0;	
+	return 0;
 }
 
 static struct nkfs_dev *nkfs_dev_lookup_unlink(char *dev_name)
@@ -174,7 +174,7 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 
 	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 64);
 	if (!dev->ddev) {
-		KLOG(KL_ERR, "cant create ddev");	
+		KLOG(KL_ERR, "cant create ddev");
 		blkdev_put(dev->bdev, dev->fmode);
 		dev->bdev = NULL;
 		nkfs_dev_deref(dev);
@@ -239,7 +239,7 @@ int nkfs_dev_add(char *dev_name, int format)
 	err = nkfs_dev_start(dev, format);
 	if (err) {
 		KLOG(KL_ERR, "nkfs_dev_insert err %d", err);
-		nkfs_dev_unlink(dev);		
+		nkfs_dev_unlink(dev);
 		nkfs_dev_release(dev);
 		nkfs_dev_deref(dev);
 		return err;
@@ -289,7 +289,7 @@ static void nkfs_dev_release_all(void)
 int nkfs_dev_init(void)
 {
 	int err;
-	
+
 	nkfs_dev_cachep = kmem_cache_create("nkfs_dev_cache", sizeof(struct nkfs_dev), 0,
 			SLAB_MEM_SPREAD, NULL);
 	if (!nkfs_dev_cachep) {

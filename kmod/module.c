@@ -29,7 +29,7 @@ static int nkfs_klog_ctl(int level, int sync)
 static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 {
 	int err = -EINVAL;
-	struct nkfs_ctl *cmd = NULL;	
+	struct nkfs_ctl *cmd = NULL;
 
 	cmd = kmalloc(sizeof(struct nkfs_ctl), GFP_NOIO);
 	if (!cmd) {
@@ -57,7 +57,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		case IOCTL_NKFS_SRV_START:
 			err = nkfs_server_start(cmd->u.server_start.bind_ip,
 				cmd->u.server_start.ext_ip,
-				cmd->u.server_start.port);	
+				cmd->u.server_start.port);
 			break;
 		case IOCTL_NKFS_SRV_STOP:
 			err = nkfs_server_stop(cmd->u.server_stop.bind_ip,
@@ -96,7 +96,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 out_free_cmd:
 	kfree(cmd);
 out:
-	return err;	
+	return err;
 }
 
 static const struct file_operations nkfs_fops = {
@@ -109,15 +109,15 @@ static const struct file_operations nkfs_fops = {
 static struct miscdevice nkfs_misc = {
 	.fops = &nkfs_fops,
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = NKFS_CTL_DEV_NAME,	
+	.name = NKFS_CTL_DEV_NAME,
 };
 
 static int __init nkfs_init(void)
-{	
+{
 	int err = -EINVAL;
-	
+
 	KLOG(KL_INF, "initing");
-	
+
 	err = dio_init();
 	if (err) {
 		KLOG(KL_ERR, "dio_init err %d", err);
@@ -127,7 +127,7 @@ static int __init nkfs_init(void)
 	err = misc_register(&nkfs_misc);
 	if (err) {
 		KLOG(KL_ERR, "misc_register err=%d", err);
-		goto out_dio_release; 
+		goto out_dio_release;
 	}
 
 	err = nkfs_btree_init();
@@ -135,7 +135,7 @@ static int __init nkfs_init(void)
 		KLOG(KL_ERR, "btree_init err %d", err);
 		goto out_misc_release;
 	}
-	
+
 	err = nkfs_inode_init();
 	if (err) {
 		KLOG(KL_ERR, "inode_init err %d", err);

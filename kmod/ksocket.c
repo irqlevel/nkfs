@@ -25,16 +25,16 @@ u32 ksock_self_addr(struct socket *sock)
 int ksock_create(struct socket **sockp,
 	__u32 local_ip, int local_port)
 {
-	struct sockaddr_in 	localaddr;
+	struct sockaddr_in	localaddr;
 	struct socket		*sock = NULL;
-	int 			error;
-	int 			option;
+	int			error;
+	int			option;
 	mm_segment_t		oldmm = get_fs();
-	
+
 	error = sock_create(PF_INET, SOCK_STREAM, 0, &sock);
 	if (error) {
 		KLOG(KL_ERR, "sock_create err=%d", error);
-		goto out;	
+		goto out;
 	}
 
 	KLOG(KL_DBG, "socket=%p", sock);
@@ -53,7 +53,7 @@ int ksock_create(struct socket **sockp,
 		memset(&localaddr, 0, sizeof(localaddr));
 		localaddr.sin_family = AF_INET;
 		localaddr.sin_port = htons(local_port);
-		localaddr.sin_addr.s_addr = (local_ip == 0) ? 
+		localaddr.sin_addr.s_addr = (local_ip == 0) ?
 			INADDR_ANY : htonl(local_ip);
 		error = sock->ops->bind(sock, (struct sockaddr *)&localaddr,
 				sizeof(localaddr));
@@ -81,7 +81,7 @@ int ksock_set_sendbufsize(struct socket *sock, int size)
 	int option = size;
 	int error;
 	mm_segment_t oldmm = get_fs();
-	
+
 	set_fs(KERNEL_DS);
 	error = sock_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
 		(char *)&option, sizeof(option));
@@ -198,7 +198,10 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 
 		then = jiffies;
 		set_fs(KERNEL_DS);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 		error = sock_sendmsg(sock, &msg, nob);
+#endif
+		error = sock_sendmsg(sock, &msg);
 		set_fs(oldmm);
 		delta = jiffies - then;
 		delta = (delta > ticks) ? ticks : delta;
@@ -218,10 +221,9 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		if (error > 0)
 			wrote+= error;
 
-		
 		buffer = (void *)((unsigned long)buffer + error);
 		NKFS_BUG_ON(error <= 0);
-		NKFS_BUG_ON(nob < error);	
+		NKFS_BUG_ON(nob < error);
 		nob-= error;
 		if (nob == 0) {
 			error = 0;
@@ -294,7 +296,7 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 			KLOG(KL_ERR, "recv err=%d", error);
 			goto out;
 		}
-		
+
 		if (error == 0) {
 			KLOG(KL_DBG, "recv returned zero size");
 			error = -ECONNRESET;
@@ -371,7 +373,7 @@ int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 	}
 
 	KLOG(KL_DBG, "sock=%p, sock->ops=%p", sock, sock->ops);
-	
+
 	error = sock->ops->listen(sock, backlog);
 	if (error) {
 		KLOG(KL_ERR, "listen failed err=%d", error);

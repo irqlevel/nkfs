@@ -37,7 +37,7 @@ int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
 		goto fail;
 	}
 	memcpy(pup, &up, sizeof(up));
-	return 0;	
+	return 0;
 fail:
 	nkfs_release_user_pages(&up);
 	return err;
@@ -50,7 +50,7 @@ void nkfs_release_user_pages(struct nkfs_user_pages *up)
 	if (up->write) {
 		for (i = 0; i < up->nr_pages; i++) {
 			NKFS_BUG_ON(!up->pages[i]);
-			set_page_dirty_lock(up->pages[i]);	
+			set_page_dirty_lock(up->pages[i]);
 		}
 	}
 
@@ -112,7 +112,7 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 	}
 
 	memcpy(ppages, &pages, sizeof(pages));
-	return 0;	
+	return 0;
 fail:
 	for (j = 0; j < i; j++)
 		put_page(pages.pages[j]);

@@ -144,7 +144,7 @@ int nkfs_con_recv_pkt(struct nkfs_con *con,
 	}
 
 	err = net_pkt_check(pkt);
-	if (err) {	
+	if (err) {
 		KLOG(KL_ERR, "pkt check err %d", err);
 		nkfs_con_fail(con, -EINVAL);
 	}
@@ -170,7 +170,7 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 	if (err) {
 		KLOG(KL_ERR, "no memory");
 		return err;
-	}	
+	}
 
 	read = pkt->dsize;
 	i = 0;
@@ -228,11 +228,11 @@ static int nkfs_con_send_pages(struct nkfs_con *con,
 		ilen = (len > PAGE_SIZE) ? PAGE_SIZE : len;
 		ibuf = kmap(pages->pages[i]);
 		err = nkfs_con_send(con, ibuf, ilen);
-		kunmap(pages->pages[i]);	
+		kunmap(pages->pages[i]);
 		if (err) {
 			nkfs_con_fail(con, err);
 			goto out;
-		}	
+		}
 		len-= ilen;
 		i++;
 	}
@@ -272,12 +272,12 @@ static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 		goto free_pages;
 	}
 
-	if (read) {	
+	if (read) {
 		err = nkfs_pages_dsum(&pages, &dsum, read);
 		if (err) {
 			KLOG(KL_ERR, "cant dsum pages err %d", err);
 			nkfs_con_send_reply(con, reply, err);
-			goto free_pages;	
+			goto free_pages;
 		}
 		memcpy(&reply->dsum, &dsum, sizeof(dsum));
 	}
@@ -286,7 +286,7 @@ static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 
 	err = nkfs_con_send_reply(con, reply, 0);
 	if (err) {
-		goto free_pages;	
+		goto free_pages;
 	}
 
 	if (read)
@@ -310,7 +310,7 @@ static int nkfs_con_put_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 			nkfs_con_send_reply(con, reply, err);
 		goto out;
 	}
-	
+
 	err = nkfs_sb_list_put_obj(&pkt->u.put_obj.obj_id,
 		pkt->u.put_obj.off,
 		0,
@@ -430,11 +430,11 @@ static int nkfs_con_thread_routine(void *data)
 			KLOG(KL_ERR, "no memory");
 			break;
 		}
-		err = nkfs_con_recv_pkt(con, pkt);	
+		err = nkfs_con_recv_pkt(con, pkt);
 		if (err) {
 			if (err == -ECONNRESET) {
 				KLOG(KL_DBG, "pkt recv err %d", err);
-			} else { 
+			} else {
 				KLOG(KL_ERR, "pkt recv err %d", err);
 			}
 			crt_free(pkt);
@@ -450,7 +450,7 @@ static int nkfs_con_thread_routine(void *data)
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&con->list))
-			list_del_init(&con->list);	
+			list_del_init(&con->list);
 		else
 			con = NULL;
 		mutex_unlock(&server->con_list_lock);
@@ -518,14 +518,14 @@ static struct nkfs_con *nkfs_con_start(struct nkfs_server *server,
 		goto out;
 	}
 
-	get_task_struct(con->thread);	
+	get_task_struct(con->thread);
 	mutex_lock(&server->con_list_lock);
 	list_add_tail(&con->list, &server->con_list);
 	mutex_unlock(&server->con_list_lock);
 
 	wake_up_process(con->thread);
 
-	return con;	
+	return con;
 out:
 	nkfs_con_free(con);
 	return NULL;
@@ -569,7 +569,7 @@ static int nkfs_server_thread_routine(void *data)
 				KLOG_SOCK(KL_DBG, server->sock, "listened");
 				mutex_unlock(&server->lock);
 			} else {
-				KLOG(KL_ERR, "csock_listen err=%d", err);	
+				KLOG(KL_ERR, "csock_listen err=%d", err);
 			}
 			server->err = err;
 			complete(&server->comp);
@@ -606,7 +606,7 @@ static int nkfs_server_thread_routine(void *data)
 
 	if (lsock)
 		ksock_release(lsock);
-	
+
 	KLOG(KL_DBG, "releasing cons");
 
 	for (;;) {
@@ -615,7 +615,7 @@ static int nkfs_server_thread_routine(void *data)
 		if (!list_empty(&server->con_list)) {
 			con = list_first_entry(&server->con_list, struct nkfs_con,
 					list);
-			list_del_init(&con->list);		
+			list_del_init(&con->list);
 		}
 		mutex_unlock(&server->con_list_lock);
 		if (!con)
@@ -682,7 +682,7 @@ static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip, int
 	get_task_struct(server->thread);
 	wake_up_process(server->thread);
 	wait_for_completion(&server->comp);
-	
+
 	return server;
 }
 

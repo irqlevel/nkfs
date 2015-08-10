@@ -97,7 +97,7 @@ int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 	err = dio_clu_sync(clu);
 	if (err) {
 		KLOG(KL_ERR, "cant sync block %llu", bm_block);
-		goto cleanup;		
+		goto cleanup;
 	}
 
 	err = 0;
