@@ -200,8 +200,9 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		set_fs(KERNEL_DS);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 		error = sock_sendmsg(sock, &msg, nob);
-#endif
+#else
 		error = sock_sendmsg(sock, &msg);
+#endif
 		set_fs(oldmm);
 		delta = jiffies - then;
 		delta = (delta > ticks) ? ticks : delta;
