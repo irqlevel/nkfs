@@ -16,10 +16,10 @@ struct nkfs_server {
 };
 
 struct nkfs_con {
-	struct socket 		*sock;
+	struct socket		*sock;
 	struct list_head	list;
 	struct nkfs_server	*server;
-	struct task_struct 	*thread;	
+	struct task_struct	*thread;
 	int			err;
 };
 

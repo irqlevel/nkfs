@@ -6,7 +6,7 @@
 
 #define KLOG_SOCK(lvl, s, msg)						\
 	KLOG((lvl), "%s socket %p self %08x:%u peer %08x:%u",		\
-		(msg), (s), ksock_self_addr(s), ksock_self_port(s),		\
+		(msg), (s), ksock_self_addr(s), ksock_self_port(s),	\
 			ksock_peer_addr(s), ksock_peer_port(s));
 
 static struct kmem_cache *server_cachep;
@@ -176,7 +176,7 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 	i = 0;
 	llen = 0;
 	while (read > 0) {
-		KLOG(KL_DBG1, "read %u nr_pages %u i %u, llen %u dsize %u plen %u",
+		KLOG(KL_DBG1, "read %u pgs %u i %u llen %u dsize %u plen %u",
 			read, pages.nr_pages, i, llen, pkt->dsize, pages.len);
 		NKFS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
@@ -552,8 +552,9 @@ static int nkfs_server_thread_routine(void *data)
 		if (!server->sock) {
 			KLOG(KL_DBG, "start listening on ip %x:%x port %d",
 				server->bind_ip, server->ext_ip, server->port);
-			err = ksock_listen(&lsock, (server->bind_ip) ? server->bind_ip :
-				INADDR_ANY, server->port, 5);
+			err = ksock_listen(&lsock, (server->bind_ip) ?
+					   server->bind_ip :INADDR_ANY,
+					   server->port, 5);
 			if (err == -EADDRINUSE && listen_attempts) {
 				KLOG(KL_WRN, "csock_listen err=%d", err);
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
@@ -613,8 +614,8 @@ static int nkfs_server_thread_routine(void *data)
 		con = NULL;
 		mutex_lock(&server->con_list_lock);
 		if (!list_empty(&server->con_list)) {
-			con = list_first_entry(&server->con_list, struct nkfs_con,
-					list);
+			con = list_first_entry(&server->con_list,
+					       struct nkfs_con, list);
 			list_del_init(&con->list);
 		}
 		mutex_unlock(&server->con_list_lock);
@@ -648,7 +649,8 @@ static void nkfs_server_do_stop(struct nkfs_server *server)
 		server->bind_ip, server->ext_ip, server->port);
 }
 
-static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip, int port)
+static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip,
+						    int port)
 {
 	char thread_name[10];
 	int err;
@@ -671,7 +673,8 @@ static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip, int
 	init_completion(&server->comp);
 
 	snprintf(thread_name, sizeof(thread_name), "%s-%d", "nkfs_srv", port);
-	server->thread = kthread_create(nkfs_server_thread_routine, server, thread_name);
+	server->thread = kthread_create(nkfs_server_thread_routine, server,
+					thread_name);
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;

@@ -3,9 +3,9 @@
 #define KLOG_MSG_BYTES	256
 
 struct klog_msg {
-	struct list_head 	list;
+	struct list_head	list;
 	struct completion	*comp;
-	char 			data[KLOG_MSG_BYTES];
+	char			data[KLOG_MSG_BYTES];
 	int			len;
 };
 
@@ -20,43 +20,45 @@ static long klog_stopping = 0;
 static struct task_struct *klog_thread;
 static DECLARE_WAIT_QUEUE_HEAD(klog_thread_wait);
 
-static char *klog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" , "WRN" , "ERR", "FTL", "TST", "MAX"};
+static char *klog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" ,
+			       "WRN" , "ERR", "FTL", "TST", "MAX"};
 
-static int klog_write_msg2(char **buff, int *left, const char *fmt, va_list args)
+static int klog_write_msg2(char **buff, int *left, const char *fmt,
+			   va_list args)
 {
-    	int res;
+	int res;
 
-    	if (*left < 0)
-        	return -1;
+	if (*left < 0)
+		return -1;
 
-    	res = vsnprintf(*buff,*left,fmt,args);
-    	if (res >= 0) {
-        	*buff+=res;
-        	*left-=res;
-        	return 0;
-    	} else {
-        	return -2;
-    	}
+	res = vsnprintf(*buff,*left,fmt,args);
+	if (res >= 0) {
+		*buff+=res;
+		*left-=res;
+		return 0;
+	} else {
+		return -2;
+	}
 }
 
 static int klog_write_msg(char **buff, int *left, const char *fmt, ...)
 {
-    	va_list args;
-    	int res;
+	va_list args;
+	int res;
 
-    	va_start(args,fmt);
-    	res = klog_write_msg2(buff, left,fmt,args);
-    	va_end(args);
-    	return res;
+	va_start(args,fmt);
+	res = klog_write_msg2(buff, left,fmt,args);
+	va_end(args);
+	return res;
 }
 
 static char * truncate_file_path(const char *filename)
 {
-    	char *temp, *curr = (char *)filename;
-    	while((temp = strchr(curr,'/'))) {
-    	    curr = ++temp;
-    	}
-    	return curr;
+	char *temp, *curr = (char *)filename;
+	while((temp = strchr(curr,'/'))) {
+	    curr = ++temp;
+	}
+	return curr;
 }
 
 static atomic_t klog_nr_msg;
@@ -84,7 +86,7 @@ static int  klog_msg_queue(struct klog_msg *msg)
 {
 	unsigned long irqf;
 	int queued = 0;
-	
+
 	if (klog_stopping) {
 		printk(KERN_ERR "klog : stopping drop one msg\n");
 		klog_msg_free(msg);
@@ -116,7 +118,7 @@ static int klog_file_sync(void)
 	if (!file) {
 		printk(KERN_ERR "klog : cant open log file\n");
 		err = -EIO;
-		goto cleanup;	
+		goto cleanup;
 	}
 
 	err = vfile_sync(file);
@@ -128,7 +130,7 @@ static int klog_file_sync(void)
 cleanup:
 	if (file)
 		filp_close(file, NULL);
-	
+
 	return err;
 }
 
@@ -143,7 +145,7 @@ static void klog_file_write(void *buf, u32 len)
 	if (!file) {
 		printk(KERN_ERR "klog : cant open log file\n");
 		err = -EIO;
-		goto cleanup;	
+		goto cleanup;
 	}
 
 	err = vfile_write(file, buf, len, &pos);
@@ -177,7 +179,7 @@ static void klog_msg_list_write(struct list_head *msg_list)
 		printk(KERN_ERR "klog: cant alloc buf for klog\n");
 		goto cleanup;
 	}
-	
+
 	pos = 0;
 	while (1) {
 		list_for_each_entry_safe(msg, tmp, msg_list, list) {
@@ -200,12 +202,12 @@ static void klog_msg_list_write(struct list_head *msg_list)
 			break;
 	}
 
-	kfree(buf);	
+	kfree(buf);
 cleanup:
 	list_for_each_entry_safe(msg, tmp, msg_list, list) {
 		list_del_init(&msg->list);
 		klog_msg_free(msg);
-		printk(KERN_ERR "klog: dropped one msg for file log\n");	
+		printk(KERN_ERR "klog: dropped one msg for file log\n");
 	}
 }
 
@@ -222,7 +224,8 @@ static void klog_msg_queue_process(void)
 		msg_comp = NULL;
 		spin_lock_irq(&klog_msg_lock);
 		while (!list_empty(&klog_msg_list)) {
-			msg = list_first_entry(&klog_msg_list, struct klog_msg, list);
+			msg = list_first_entry(&klog_msg_list,
+					       struct klog_msg, list);
 			list_del_init(&msg->list);
 			if (msg->comp) {
 				msg_comp = msg;
@@ -258,11 +261,11 @@ static void klog_msg_list_drop(void)
 
 void klog_v(int level, const char *subcomp, const char *file, int line,
 		const char *func, const char *fmt, va_list args)
-{	
-    	struct klog_msg *msg = NULL;
-    	char *pos;
+{
+	struct klog_msg *msg = NULL;
+	char *pos;
 	int left, count;
-    	struct timespec ts;
+	struct timespec ts;
 	struct tm tm;
 	char *level_s;
 
@@ -272,7 +275,7 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 	}
 
 	level_s = klog_level_s[level];
-	
+
 	if (klog_stopping) {
 		printk(KERN_ERR "klog : stopping\n");
 		return;
@@ -288,7 +291,7 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 	count = sizeof(msg->data)/sizeof(char);
 	left = count - 1;
 
-    	getnstimeofday(&ts);
+	getnstimeofday(&ts);
 	time_to_tm(ts.tv_sec, 0, &tm);
 
 	klog_write_msg(&pos,&left,
@@ -297,9 +300,9 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 		tm.tm_sec, ts.tv_nsec/1000, level_s, subcomp, current->pid,
 		truncate_file_path(file), line, func);
 
-    	klog_write_msg2(&pos,&left,fmt,args);
+	klog_write_msg2(&pos,&left,fmt,args);
 
-    	msg->data[count-1] = '\0';
+	msg->data[count-1] = '\0';
 	msg->len = strlen(msg->data);
 	if (level >= KLOG_PRINTK_LEVEL)
 		printk("%s\n", msg->data);
@@ -311,9 +314,9 @@ void klog(int level, const char *subcomp, const char *file,
 		int line, const char *func, const char *fmt, ...)
 {
 	va_list args;
-    	va_start(args,fmt);
-    	klog_v(level, subcomp, file, line, func, fmt, args);
-    	va_end(args);
+	va_start(args,fmt);
+	klog_v(level, subcomp, file, line, func, fmt, args);
+	va_end(args);
 }
 EXPORT_SYMBOL(klog);
 
@@ -351,10 +354,10 @@ static int klog_thread_routine(void *data)
 		wait_event_interruptible_timeout(klog_thread_wait,
 			(!list_empty(&klog_msg_list)) ||
 				kthread_should_stop(), msecs_to_jiffies(100));
-		klog_msg_queue_process();	
+		klog_msg_queue_process();
 	}
 	klog_msg_queue_process();
-	klog_file_sync();	
+	klog_file_sync();
 	return 0;
 }
 
@@ -378,7 +381,7 @@ int klog_init(void)
 	}
 
 	atomic_set(&klog_nr_msg, 0);
-	
+
 	klog_thread = kthread_create(klog_thread_routine, NULL, "klogger");
 	if (IS_ERR(klog_thread)) {
 		error = PTR_ERR(klog_thread);
@@ -391,7 +394,7 @@ int klog_init(void)
 out_pool_del:
 	mempool_destroy(klog_msg_pool);
 out_cache_del:
-	kmem_cache_destroy(klog_msg_cache);	
+	kmem_cache_destroy(klog_msg_cache);
 out:
 
 	return error;
@@ -399,7 +402,7 @@ out:
 
 void klog_release(void)
 {
-	klog_stopping = 1;	
+	klog_stopping = 1;
 	kthread_stop(klog_thread);
 	klog_msg_list_drop();
 	klog_file_sync();

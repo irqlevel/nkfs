@@ -106,7 +106,7 @@ int nkfs_server_stop(u32 bind_ip, int port)
 	err = nkfs_ctl_open(&fd);
 	if (err)
 		return err;
-	
+
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.u.server_stop.bind_ip = bind_ip;
 	cmd.u.server_stop.port = port;
@@ -132,7 +132,7 @@ int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port)
 	err = nkfs_ctl_open(&fd);
 	if (err)
 		return err;
-	
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.u.server_start.bind_ip = bind_ip;
@@ -160,7 +160,7 @@ int nkfs_neigh_add(u32 ip, int port)
 	err = nkfs_ctl_open(&fd);
 	if (err)
 		return err;
-	
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.u.neigh_add.ip = ip;
@@ -187,7 +187,7 @@ int nkfs_neigh_remove(u32 ip, int port)
 	err = nkfs_ctl_open(&fd);
 	if (err)
 		return err;
-	
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.u.neigh_remove.ip = ip;
@@ -253,7 +253,7 @@ int nkfs_klog_ctl(int level, int sync)
 	err = nkfs_ctl_open(&fd);
 	if (err)
 		return err;
-	
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.u.klog_ctl.level = level;

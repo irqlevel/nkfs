@@ -527,7 +527,7 @@ typedef struct
 
 XXH32_state_t* XXH32_createState(void)
 {
-    XXH_STATIC_ASSERT(sizeof(XXH32_state_t) >= sizeof(XXH_istate32_t));   // A compilation error here means XXH32_state_t is not large enough
+    XXH_STATIC_ASSERT(sizeof(XXH32_state_t) >= sizeof(XXH_istate32_t));
     return (XXH32_state_t*)XXH_malloc(sizeof(XXH32_state_t));
 }
 XXH_errorcode XXH32_freeState(XXH32_state_t* statePtr)
@@ -538,7 +538,7 @@ XXH_errorcode XXH32_freeState(XXH32_state_t* statePtr)
 
 XXH64_state_t* XXH64_createState(void)
 {
-    XXH_STATIC_ASSERT(sizeof(XXH64_state_t) >= sizeof(XXH_istate64_t));   // A compilation error here means XXH64_state_t is not large enough
+    XXH_STATIC_ASSERT(sizeof(XXH64_state_t) >= sizeof(XXH_istate64_t));
     return (XXH64_state_t*)XXH_malloc(sizeof(XXH64_state_t));
 }
 XXH_errorcode XXH64_freeState(XXH64_state_t* statePtr)
@@ -576,7 +576,9 @@ XXH_errorcode XXH64_reset(XXH64_state_t* state_in, unsigned long long seed)
     return XXH_OK;
 }
 
-FORCE_INLINE XXH_errorcode XXH32_update_endian (XXH32_state_t* state_in, const void* input, size_t len, XXH_endianess endian)
+FORCE_INLINE XXH_errorcode XXH32_update_endian (XXH32_state_t* state_in,
+						const void* input, size_t len,
+						XXH_endianess endian)
 {
     XXH_istate32_t* state = (XXH_istate32_t *) state_in;
     const BYTE* p = (const BYTE*)input;
@@ -597,7 +599,8 @@ FORCE_INLINE XXH_errorcode XXH32_update_endian (XXH32_state_t* state_in, const v
 
     if (state->memsize)   // some data left from previous update
     {
-        XXH_memcpy((BYTE*)(state->mem32) + state->memsize, input, 16-state->memsize);
+        XXH_memcpy((BYTE*)(state->mem32) + state->memsize, input,
+		   16-state->memsize);
         {
             const U32* p32 = state->mem32;
             state->v1 += XXH_readLE32(p32, endian) * PRIME32_2;
@@ -665,7 +668,8 @@ FORCE_INLINE XXH_errorcode XXH32_update_endian (XXH32_state_t* state_in, const v
     return XXH_OK;
 }
 
-XXH_errorcode XXH32_update (XXH32_state_t* state_in, const void* input, size_t len)
+XXH_errorcode XXH32_update (XXH32_state_t* state_in, const void* input,
+			    size_t len)
 {
     XXH_endianess endian_detected = (XXH_endianess)XXH_CPU_LITTLE_ENDIAN;
 
@@ -675,9 +679,8 @@ XXH_errorcode XXH32_update (XXH32_state_t* state_in, const void* input, size_t l
         return XXH32_update_endian(state_in, input, len, XXH_bigEndian);
 }
 
-
-
-FORCE_INLINE U32 XXH32_digest_endian (const XXH32_state_t* state_in, XXH_endianess endian)
+FORCE_INLINE U32 XXH32_digest_endian (const XXH32_state_t* state_in,
+				      XXH_endianess endian)
 {
     XXH_istate32_t* state = (XXH_istate32_t*) state_in;
     const BYTE * p = (const BYTE*)state->mem32;
@@ -686,7 +689,8 @@ FORCE_INLINE U32 XXH32_digest_endian (const XXH32_state_t* state_in, XXH_endiane
 
     if (state->total_len >= 16)
     {
-        h32 = XXH_rotl32(state->v1, 1) + XXH_rotl32(state->v2, 7) + XXH_rotl32(state->v3, 12) + XXH_rotl32(state->v4, 18);
+        h32 = XXH_rotl32(state->v1, 1) + XXH_rotl32(state->v2, 7) +
+		XXH_rotl32(state->v3, 12) + XXH_rotl32(state->v4, 18);
     }
     else
     {
@@ -718,7 +722,6 @@ FORCE_INLINE U32 XXH32_digest_endian (const XXH32_state_t* state_in, XXH_endiane
     return h32;
 }
 
-
 U32 XXH32_digest (const XXH32_state_t* state_in)
 {
     XXH_endianess endian_detected = (XXH_endianess)XXH_CPU_LITTLE_ENDIAN;
@@ -730,7 +733,8 @@ U32 XXH32_digest (const XXH32_state_t* state_in)
 }
 
 
-FORCE_INLINE XXH_errorcode XXH64_update_endian (XXH64_state_t* state_in, const void* input, size_t len, XXH_endianess endian)
+FORCE_INLINE XXH_errorcode XXH64_update_endian (XXH64_state_t* state_in,
+			const void* input, size_t len, XXH_endianess endian)
 {
     XXH_istate64_t * state = (XXH_istate64_t *) state_in;
     const BYTE* p = (const BYTE*)input;
@@ -751,7 +755,8 @@ FORCE_INLINE XXH_errorcode XXH64_update_endian (XXH64_state_t* state_in, const v
 
     if (state->memsize)   // some data left from previous update
     {
-        XXH_memcpy(((BYTE*)state->mem64) + state->memsize, input, 32-state->memsize);
+        XXH_memcpy(((BYTE*)state->mem64) + state->memsize, input,
+		   32-state->memsize);
         {
             const U64* p64 = state->mem64;
             state->v1 += XXH_readLE64(p64, endian) * PRIME64_2;
@@ -819,7 +824,8 @@ FORCE_INLINE XXH_errorcode XXH64_update_endian (XXH64_state_t* state_in, const v
     return XXH_OK;
 }
 
-XXH_errorcode XXH64_update (XXH64_state_t* state_in, const void* input, size_t len)
+XXH_errorcode XXH64_update(XXH64_state_t* state_in, const void* input,
+			   size_t len)
 {
     XXH_endianess endian_detected = (XXH_endianess)XXH_CPU_LITTLE_ENDIAN;
 
@@ -829,7 +835,8 @@ XXH_errorcode XXH64_update (XXH64_state_t* state_in, const void* input, size_t l
         return XXH64_update_endian(state_in, input, len, XXH_bigEndian);
 }
 
-FORCE_INLINE U64 XXH64_digest_endian (const XXH64_state_t* state_in, XXH_endianess endian)
+FORCE_INLINE U64 XXH64_digest_endian(const XXH64_state_t* state_in,
+				     XXH_endianess endian)
 {
     XXH_istate64_t * state = (XXH_istate64_t *) state_in;
     const BYTE * p = (const BYTE*)state->mem64;
@@ -843,7 +850,8 @@ FORCE_INLINE U64 XXH64_digest_endian (const XXH64_state_t* state_in, XXH_endiane
         U64 v3 = state->v3;
         U64 v4 = state->v4;
 
-        h64 = XXH_rotl64(v1, 1) + XXH_rotl64(v2, 7) + XXH_rotl64(v3, 12) + XXH_rotl64(v4, 18);
+        h64 = XXH_rotl64(v1, 1) + XXH_rotl64(v2, 7) + XXH_rotl64(v3, 12)
+		+ XXH_rotl64(v4, 18);
 
         v1 *= PRIME64_2;
         v1 = XXH_rotl64(v1, 31);

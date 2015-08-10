@@ -34,7 +34,7 @@ struct dio_pages {
 struct dio_cluster {
 	atomic_t		ref;
 	atomic_t		pin_count;
-	struct dio_dev 		*dev;
+	struct dio_dev		*dev;
 	u64			index;
 	unsigned long		flags;
 	struct dio_pages	pages;

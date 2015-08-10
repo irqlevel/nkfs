@@ -1,6 +1,7 @@
 #include <crt/include/crt.h>
 
-static char *ulog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" , "WRN" , "ERR", "FTL", "TST", "MAX"};
+static char *ulog_level_s[] = {"INV", "DBG3", "DBG2", "DBG1", "DBG", "INF" ,
+			       "WRN" , "ERR", "FTL", "TST", "MAX"};
 
 static char *ulog_name = NULL;
 static char *ulog_path = NULL;
@@ -23,7 +24,8 @@ void crt_log_enable_printf(int enable)
 	uprintf = !!enable;
 }
 
-static void crt_write_fmt_args(char **buff, int *left, const char *fmt, va_list args)
+static void crt_write_fmt_args(char **buff, int *left,
+			       const char *fmt, va_list args)
 {
 	int res;
 
@@ -57,7 +59,9 @@ static const char * truncate_file_path(const char *filename)
 		return filename;
 }
 
-void crt_log_v(int level, const char *log_name, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args)
+void crt_log_v(int level, const char *log_name, const char *subcomp,
+	       const char *file, int line, const char *func, const char *fmt,
+	       va_list args)
 {
 	char buf[PAGE_SIZE];
 	char *pos, *begin;
@@ -88,10 +92,11 @@ void crt_log_v(int level, const char *log_name, const char *subcomp, const char 
 	secs = tv.tv_sec;
 	gmtime_r(&secs, &tm);
 
-	crt_write_fmt(&pos,&left,"%04d-%02d-%02d %02d:%02d:%02d.%.6ld - %s - %s - %u - %s %u %s() - ", 1900+tm.tm_year, tm.tm_mon+1,
-			tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
-			tv.tv_usec, level_s, subcomp, getpid(),
-			truncate_file_path(file), line, func);
+#define FMT "%04d-%02d-%02d %02d:%02d:%02d.%.6ld - %s - %s - %u - %s %u %s() - "
+	crt_write_fmt(&pos, &left, FMT, 1900+tm.tm_year, tm.tm_mon+1,
+		      tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
+		      tv.tv_usec, level_s, subcomp, getpid(),
+		      truncate_file_path(file), line, func);
 
 	crt_write_fmt_args(&pos,&left,fmt,args);
 
@@ -120,7 +125,7 @@ void crt_log_v(int level, const char *log_name, const char *subcomp, const char 
 }
 
 int fd_read(int fd, void *buf, size_t len)
-{	
+{
 	int err;
 	ssize_t ret;
 	size_t pos = 0;
@@ -133,7 +138,7 @@ int fd_read(int fd, void *buf, size_t len)
 		if (ret == 0) {
 			err = -EIO;
 			goto out;
-		} 
+		}
 		pos += ret;
 	}
 	err = 0;
@@ -185,7 +190,7 @@ void crt_log(int level, const char *file, int line,
 {
 	va_list args;
 	va_start(args, fmt);
-	crt_log_v(level,  __LOGNAME__, "crt", file, line, func, fmt, args);  
+	crt_log_v(level,  __LOGNAME__, "crt", file, line, func, fmt, args);
 	va_end(args);
 }
 

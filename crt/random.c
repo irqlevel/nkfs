@@ -14,7 +14,7 @@ EXPORT_SYMBOL(log2_u32);
 u32 rand_u32_up(u32 up)
 {
 	u32 v, log;
-	
+
 	if (up == 0)
 		return 0;
 

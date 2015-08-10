@@ -97,11 +97,11 @@ static int do_file_put(char *server, int port, char *fpath)
 		if (err) {
 			CLOG(CL_ERR, "cant put obj off %llu len %d err %d",
 				off, bytes_read, err);
-			goto del_obj; 
+			goto del_obj;
 		}
 		off+= bytes_read;
 	}
-	printf("%s\n", hex_id);	
+	printf("%s\n", hex_id);
 	err = 0;
 	goto close_con;
 del_obj:
@@ -118,7 +118,8 @@ close:
 	return err;
 }
 
-static int do_file_get(char *server, int port, struct nkfs_obj_id *obj_id, char *fpath)
+static int do_file_get(char *server, int port, struct nkfs_obj_id *obj_id,
+		       char *fpath)
 {
 	int err, fd;
 	int buf_size = 16*4096;
@@ -159,7 +160,7 @@ static int do_file_get(char *server, int port, struct nkfs_obj_id *obj_id, char 
 			break;
 
 		wrote = 0;
-		do {		
+		do {
 			wrote_bytes = write(fd, (char *)buf + wrote,
 					read - wrote);
 			if (wrote_bytes < 0) {
@@ -289,7 +290,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			usage(prog);
 			return -EINVAL;
 		}
-		
+
 		err = do_file_get(server, port, id, fpath);
 		crt_free(id);
 		return err;
@@ -307,7 +308,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			usage(prog);
 			return -EINVAL;
 		}
-		
+
 		err = do_obj_query(server, port, id);
 		crt_free(id);
 		return err;
@@ -325,7 +326,7 @@ static int do_cmd(char *prog, char *cmd, char *server, int port,
 			usage(prog);
 			return -EINVAL;
 		}
-		
+
 		err = do_obj_delete(server, port, id);
 		crt_free(id);
 		return err;
@@ -362,7 +363,7 @@ int main(int argc, char *argv[])
 				server = optarg;
 				break;
 			case 'p':
-				port = atoi(optarg);				
+				port = atoi(optarg);
 				break;
 			default:
 				usage(prog);
@@ -374,7 +375,7 @@ int main(int argc, char *argv[])
 		printf("expected more args\n");
 		usage(prog);
 		exit(-EINVAL);
-	}	
+	}
 	cmd = argv[optind];
 	err = do_cmd(prog, cmd, server, port, fpath, obj_id);
 	return err;

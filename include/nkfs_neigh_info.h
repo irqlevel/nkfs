@@ -5,7 +5,7 @@
 #pragma pack(push, 1)
 
 struct nkfs_neigh_info {
-	u32 			ip;
+	u32			ip;
 	int			port;
 	unsigned long		state;
 	struct nkfs_obj_id	host_id;

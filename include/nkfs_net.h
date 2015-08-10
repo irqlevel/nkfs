@@ -63,13 +63,13 @@ struct nkfs_net_pkt {
 			struct nkfs_obj_id	src_net_id;
 			struct nkfs_obj_id	src_host_id;
 			struct nkfs_obj_id	dst_host_id;
-			struct nkfs_obj_id	reply_host_id;
-			struct nkfs_net_peer	reply_neigh[NKFS_NET_PKT_MAX_NEIGHS];
-			int			reply_nr_neighs;
+			struct nkfs_obj_id	host_id;
+			struct nkfs_net_peer	neigh[NKFS_NET_PKT_MAX_NEIGHS];
+			int			nr_neighs;
 		} neigh_heartbeat;
 	} u;
 	struct csum		dsum;
-	struct csum		sum;	
+	struct csum		sum;
 	u32			sign2;
 };
 #pragma pack(pop)

@@ -72,9 +72,10 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 				cmd->u.neigh_remove.port);
 			break;
 		case IOCTL_NKFS_NEIGH_INFO:
-			err = nkfs_route_neigh_info(cmd->u.neigh_info.neighs,
-						ARRAY_SIZE(cmd->u.neigh_info.neighs),
-						&cmd->u.neigh_info.nr_neighs);
+			err = nkfs_route_neigh_info(
+					cmd->u.neigh_info.neighs,
+					ARRAY_SIZE(cmd->u.neigh_info.neighs),
+					&cmd->u.neigh_info.nr_neighs);
 			break;
 		case IOCTL_NKFS_KLOG_CTL:
 			err = nkfs_klog_ctl(cmd->u.klog_ctl.level,

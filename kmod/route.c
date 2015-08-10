@@ -6,30 +6,30 @@
 #define HOST_HANDSHAKE_TIMEOUT_MS	500
 #define HOST_HBT_TIMEOUT_MS		10000
 
-#define KLOG_HOST(lvl, h)					\
-	do {							\
-		char *host_id, *net_id;				\
-		host_id = nkfs_obj_id_str(&((h)->host_id));	\
-		net_id = nkfs_obj_id_str(&((h)->net_id));	\
-		KLOG((lvl), "host %p hid %s nid %s",		\
-			(h), host_id, net_id);			\
-		if (host_id)					\
-			crt_free(host_id);			\
-		if (net_id)					\
-			crt_free(net_id);			\
-	} while (0);						\
+#define KLOG_HOST(lvl, h)				\
+do {							\
+	char *host_id, *net_id;				\
+	host_id = nkfs_obj_id_str(&((h)->host_id));	\
+	net_id = nkfs_obj_id_str(&((h)->net_id));	\
+	KLOG((lvl), "host %p hid %s nid %s",		\
+		    (h), host_id, net_id);		\
+	if (host_id)					\
+		crt_free(host_id);			\
+	if (net_id)					\
+		crt_free(net_id);			\
+} while (0);						\
 
-#define KLOG_NEIGH(lvl, n)							\
-	do {									\
-		char *host_id = NULL;						\
-		if ((n)->hid)							\
-			host_id = nkfs_obj_id_str(&((n)->hid)->host_id);	\
-		KLOG((lvl), "n %p hid %s s%d -> %x:%d hbt %llu",		\
-			(n), host_id, (n)->state, (n)->ip,			\
-			(n)->port, (n)->hbt_delay);				\
-		if (host_id)							\
-			crt_free(host_id);					\
-	} while (0);								\
+#define KLOG_NEIGH(lvl, n)						\
+do {									\
+	char *host_id = NULL;						\
+	if ((n)->hid)							\
+		host_id = nkfs_obj_id_str(&((n)->hid)->host_id);	\
+	KLOG((lvl), "n %p hid %s s%d -> %x:%d hbt %llu",		\
+		(n), host_id, (n)->state, (n)->ip,			\
+		(n)->port, (n)->hbt_delay);				\
+	if (host_id)							\
+		crt_free(host_id);					\
+} while (0);								\
 
 struct nkfs_host *nkfs_host;
 struct kmem_cache *nkfs_neigh_cachep;
@@ -177,7 +177,8 @@ void nkfs_hid_deref(struct nkfs_host_id *hid)
 		nkfs_hid_release(hid);
 }
 
-struct nkfs_host_id *__nkfs_host_ids_lookup(struct nkfs_host *host, struct nkfs_obj_id *host_id)
+struct nkfs_host_id *__nkfs_host_ids_lookup(struct nkfs_host *host,
+					    struct nkfs_obj_id *host_id)
 {
 	struct rb_node *n = host->host_ids.rb_node;
 	struct nkfs_host_id *found = NULL;
@@ -285,7 +286,8 @@ struct nkfs_host_id *nkfs_host_id_lookup(struct nkfs_host *host,
 	return hid;
 }
 
-static struct nkfs_neigh *__nkfs_neighs_lookup(struct nkfs_host *host, u32 ip, int port)
+static struct nkfs_neigh *__nkfs_neighs_lookup(struct nkfs_host *host,
+					       u32 ip, int port)
 {
 	struct rb_node *n = host->neighs.rb_node;
 	struct nkfs_neigh *found = NULL;
@@ -530,7 +532,8 @@ static void nkfs_host_handshake_work(struct nkfs_host_work *work)
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
 		if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state) &&
 			!test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state))
-			nkfs_host_queue_work(host, nkfs_neigh_handshake_work, neigh);
+			nkfs_host_queue_work(host, nkfs_neigh_handshake_work,
+					     neigh);
 	}
 	read_unlock(&host->neighs_lock);
 }
@@ -573,7 +576,8 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 	req->type = NKFS_NET_PKT_NEIGH_HEARTBEAT;
 	nkfs_obj_id_copy(&req->u.neigh_heartbeat.src_net_id, &host->net_id);
 	nkfs_obj_id_copy(&req->u.neigh_heartbeat.src_host_id, &host->host_id);
-	nkfs_obj_id_copy(&req->u.neigh_heartbeat.dst_host_id, &neigh->hid->host_id);
+	nkfs_obj_id_copy(&req->u.neigh_heartbeat.dst_host_id,
+			 &neigh->hid->host_id);
 
 	err = nkfs_con_send_pkt(neigh->con, req);
 	if (err) {
@@ -593,9 +597,9 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 		goto free_reply;
 	}
 
-	for (i = 0; i < reply->u.neigh_heartbeat.reply_nr_neighs; i++) {
-		u32 ip = reply->u.neigh_heartbeat.reply_neigh[i].ip;
-		int port = reply->u.neigh_heartbeat.reply_neigh[i].port;
+	for (i = 0; i < reply->u.neigh_heartbeat.nr_neighs; i++) {
+		u32 ip = reply->u.neigh_heartbeat.neigh[i].ip;
+		int port = reply->u.neigh_heartbeat.neigh[i].port;
 		KLOG(KL_DBG, "add neigh from reply %x:%d", ip, port);
 		err = nkfs_route_neigh_add(ip, port);
 		if (err && err != -EEXIST)
@@ -640,7 +644,8 @@ static void nkfs_host_heartbeat_work(struct nkfs_host_work *work)
 	list_for_each_entry_safe(neigh, tmp, &host->neigh_list, neigh_list) {
 		if (test_bit(NKFS_NEIGH_S_INITED, &neigh->state) &&
 			test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state))
-			nkfs_host_queue_work(host, nkfs_neigh_heartbeat_work, neigh);
+			nkfs_host_queue_work(host, nkfs_neigh_heartbeat_work,
+					     neigh);
 	}
 	read_unlock(&host->neighs_lock);
 }
@@ -650,7 +655,8 @@ static void nkfs_host_timer_callback(unsigned long data)
 	struct nkfs_host *host = (struct nkfs_host *)data;
 
 	if (time_after64(get_jiffies_64(),
-		host->last_handshake + msecs_to_jiffies(HOST_HANDSHAKE_TIMEOUT_MS))) {
+		host->last_handshake +
+		msecs_to_jiffies(HOST_HANDSHAKE_TIMEOUT_MS))) {
 		nkfs_host_queue_work(host, nkfs_host_handshake_work, NULL);
 		host->last_handshake = get_jiffies_64();
 	}
@@ -707,7 +713,8 @@ static struct nkfs_host *nkfs_host_create(void)
 		goto free_host;
 	}
 
-	setup_timer(&host->timer, nkfs_host_timer_callback, (unsigned long)host);
+	setup_timer(&host->timer, nkfs_host_timer_callback,
+		    (unsigned long)host);
 	err = mod_timer(&host->timer,
 			jiffies +
 			msecs_to_jiffies(HOST_TIMER_TIMEOUT_MS));
@@ -1018,9 +1025,9 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {
 		if (i >= reply_max_neighs)
 			break;
-		if (0 != nkfs_obj_id_cmp(&neigh->hid->host_id, &host->host_id) &&
-			0 != nkfs_obj_id_cmp(&neigh->hid->host_id, src_host_id) &&
-			test_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state)) {
+		if (nkfs_obj_id_cmp(&neigh->hid->host_id, &host->host_id) &&
+		    nkfs_obj_id_cmp(&neigh->hid->host_id, src_host_id) &&
+		    test_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state)) {
 			reply_neigh[i].ip = neigh->ip;
 			reply_neigh[i].port = neigh->port;
 			i++;
@@ -1045,10 +1052,10 @@ int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	err = nkfs_neigh_heartbeat(&pkt->u.neigh_heartbeat.src_net_id,
 			&pkt->u.neigh_heartbeat.src_host_id,
 			&pkt->u.neigh_heartbeat.dst_host_id,
-			&reply->u.neigh_heartbeat.reply_host_id,
-			reply->u.neigh_heartbeat.reply_neigh,
-			ARRAY_SIZE(reply->u.neigh_heartbeat.reply_neigh),
-			&reply->u.neigh_heartbeat.reply_nr_neighs);
+			&reply->u.neigh_heartbeat.host_id,
+			reply->u.neigh_heartbeat.neigh,
+			ARRAY_SIZE(reply->u.neigh_heartbeat.neigh),
+			&reply->u.neigh_heartbeat.nr_neighs);
 
 	return nkfs_con_send_reply(con, reply, err);
 }

@@ -14,7 +14,8 @@ struct nkfs_con {
 int  nkfs_connect(struct nkfs_con *con, char *ip, int port);
 void nkfs_close(struct nkfs_con *con);
 
-int  nkfs_put_object(struct nkfs_con *con, struct nkfs_obj_id *id, u64 off, void *data, u32 data_size);
+int  nkfs_put_object(struct nkfs_con *con, struct nkfs_obj_id *id, u64 off,
+		     void *data, u32 data_size);
 int  nkfs_get_object(struct nkfs_con *con,struct nkfs_obj_id *id, u64 off,
 	void *data, u32 data_size, u32 *pread);
 

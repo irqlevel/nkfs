@@ -2,11 +2,11 @@
 
 struct nkfs_sb {
 	struct list_head	list;
-	struct nkfs_dev 		*dev;
+	struct nkfs_dev		*dev;
 	struct dio_dev		*ddev;
-	struct block_device 	*bdev;	
+	struct block_device	*bdev;
 	atomic_t		refs;
-	struct nkfs_obj_id	id;	
+	struct nkfs_obj_id	id;
 	struct rw_semaphore	rw_lock;
 	struct nkfs_btree	*inodes_tree;
 	struct rb_root		inodes;
@@ -31,7 +31,7 @@ _Static_assert(sizeof(struct nkfs_btree_value) >= sizeof(u64),
 	"sizes error");
 
 struct nkfs_sb_link {
-	struct list_head 	list;
+	struct list_head	list;
 	struct nkfs_sb		*sb;
 };
 
@@ -56,7 +56,8 @@ int nkfs_sb_list_put_obj(struct nkfs_obj_id *obj_id, u64 off,
 
 int nkfs_sb_list_delete_obj(struct nkfs_obj_id *obj_id);
 
-int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info);
+int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id,
+			   struct nkfs_obj_info *info);
 
 int nkfs_sb_init(void);
 void nkfs_sb_finit(void);

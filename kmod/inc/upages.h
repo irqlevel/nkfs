@@ -8,8 +8,8 @@ struct nkfs_user_pages {
 };
 
 struct nkfs_pages {
-	struct page 	**pages;
-	u32 		nr_pages;
+	struct page	**pages;
+	u32		nr_pages;
 	u32		len;
 };
 

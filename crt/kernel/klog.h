@@ -13,8 +13,10 @@
 #define KL_TST		9
 #define KL_MAX		10
 
-void klog(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, ...);
-void klog_v(int level, const char *subcomp, const char *file, int line, const char *func, const char *fmt, va_list args);
+void klog(int level, const char *subcomp, const char *file, int line,
+	  const char *func, const char *fmt, ...);
+void klog_v(int level, const char *subcomp, const char *file, int line,
+	    const char *func, const char *fmt, va_list args);
 
 void klog_sync(void);
 
@@ -67,14 +69,14 @@ void klog_release(void);
 			crt_free(hsum);		\
 	}
 
-#define KLOG_NKFS_BTREE_KEY(level, key)						\
-	if ((level) >= KLOG_LEVEL) {						\
-		char *hex;							\
-		hex = bytes_hex((void *)(key), sizeof(struct nkfs_btree_key));	\
-		KLOG((level), "key %s", hex);					\
-		if (hex)							\
-			crt_free(hex);						\
-	}
+#define KLOG_NKFS_BTREE_KEY(level, key)					\
+if ((level) >= KLOG_LEVEL) {						\
+	char *hex;							\
+	hex = bytes_hex((void *)(key), sizeof(struct nkfs_btree_key));	\
+	KLOG((level), "key %s", hex);					\
+	if (hex)							\
+		crt_free(hex);						\
+}
 
 #define KLOG_BUF_SUM(level, buf, len)				\
 	if ((level) >= KLOG_LEVEL) {				\

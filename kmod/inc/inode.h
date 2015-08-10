@@ -8,7 +8,7 @@ struct nkfs_inode {
 	atomic_t		ref;
 	struct nkfs_obj_id	ino;
 	struct rb_node		inodes_link;
-	struct rw_semaphore	rw_sem;	
+	struct rw_semaphore	rw_sem;
 	u64			block;
 	u64			size;
 	u64			blocks_tree_block;
@@ -16,7 +16,7 @@ struct nkfs_inode {
 	struct nkfs_btree	*blocks_tree;
 	struct nkfs_btree	*blocks_sum_tree;
 	struct nkfs_sb		*sb;
-	u32			dirty;	
+	u32			dirty;
 	u32			sig2;
 };
 
@@ -25,8 +25,8 @@ struct inode_block {
 	u64			block;
 	u64			vsum_block;
 	u64			sum_block;
-	struct dio_cluster 	*clu;
-	struct dio_cluster 	*sum_clu;
+	struct dio_cluster	*clu;
+	struct dio_cluster	*sum_clu;
 	u32			sum_off;
 };
 

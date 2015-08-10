@@ -64,7 +64,7 @@ int net_pkt_check_dsum(struct nkfs_net_pkt *pkt, struct csum *dsum)
 {
 	if (0 != crt_memcmp(&pkt->dsum, dsum, sizeof(*dsum))) {
 		CLOG(CL_ERR, "invalid pkt dsum");
-		return -EINVAL;	
+		return -EINVAL;
 	}
 	return 0;
 }

@@ -151,7 +151,8 @@ static int nkfs_sb_list_by_obj(struct nkfs_obj_id *obj_id,
 
 	down_read(&sb_list_lock);
 	list_for_each_entry(sb, &sb_list, list) {
-		err = nkfs_btree_find_key(sb->inodes_tree, (struct nkfs_btree_key *)obj_id,
+		err = nkfs_btree_find_key(sb->inodes_tree,
+				(struct nkfs_btree_key *)obj_id,
 				(struct nkfs_btree_value *)&block);
 		if (err)
 			continue;
@@ -205,7 +206,9 @@ static int nkfs_sb_gen_header(struct nkfs_sb *sb,
 		return -EINVAL;
 	}
 
-	bm_blocks = nkfs_div_round_up(nkfs_div_round_up(nkfs_div(size, bsize), 8), bsize);
+	bm_blocks = nkfs_div_round_up(
+				nkfs_div_round_up(nkfs_div(size, bsize), 8),
+				bsize);
 	if (size <= (NKFS_IMAGE_BM_BLOCK + bm_blocks)*bsize) {
 		KLOG(KL_ERR, "size %lld to small bsize %u bm_blocks %u",
 			size, bsize, bm_blocks);
@@ -420,7 +423,7 @@ free_sb:
 
 void nkfs_sb_log(struct nkfs_sb *sb)
 {
-	KLOG(KL_DBG, "sb %p blocks %llu inodes tree %llu bm %llu bm_blocks %llu",
+	KLOG(KL_DBG, "sb %p blocks %llu ind tree %llu bm %llu bm_blocks %llu",
 		sb, sb->nr_blocks, sb->inodes_tree_block, sb->bm_block,
 		sb->bm_blocks);
 }
@@ -562,8 +565,9 @@ int nkfs_sb_init(void)
 {
 	int err;
 
-	nkfs_sb_cachep = kmem_cache_create("nkfs_sb_cache", sizeof(struct nkfs_sb), 0,
-			SLAB_MEM_SPREAD, NULL);
+	nkfs_sb_cachep = kmem_cache_create("nkfs_sb_cache",
+				sizeof(struct nkfs_sb), 0,
+				SLAB_MEM_SPREAD, NULL);
 	if (!nkfs_sb_cachep) {
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;
@@ -616,8 +620,8 @@ static int nkfs_sb_get_obj(struct nkfs_sb *sb,
 	err = nkfs_inode_io_pages(inode, off, pg_off, len,
 		pages, nr_pages, 0, pread);
 	if (err) {
-		KLOG(KL_ERR, "cant read inode %llu at %llu pages %u len %u err %d",
-			iblock, off, nr_pages, len, err);
+		KLOG(KL_ERR, "read inode %llu at %llu pages %u len %u err %d",
+			    iblock, off, nr_pages, len, err);
 		goto cleanup;
 	}
 
@@ -643,7 +647,8 @@ static int nkfs_sb_create_obj(struct nkfs_sb *sb,
 		return -ENOMEM;
 	}
 
-	err = nkfs_btree_insert_key(sb->inodes_tree, (struct nkfs_btree_key *)&inode->ino,
+	err = nkfs_btree_insert_key(sb->inodes_tree,
+			(struct nkfs_btree_key *)&inode->ino,
 			(struct nkfs_btree_value *)&inode->block, 0);
 	if (err) {
 		KLOG(KL_ERR, "cant insert ino in inodes_tree err %d",
@@ -671,7 +676,8 @@ static int nkfs_sb_put_obj(struct nkfs_sb *sb,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = nkfs_btree_find_key(sb->inodes_tree, (struct nkfs_btree_key *)obj_id,
+	err = nkfs_btree_find_key(sb->inodes_tree,
+				(struct nkfs_btree_key *)obj_id,
 				(struct nkfs_btree_value *)&iblock);
 	if (err)
 		return err;
@@ -707,8 +713,9 @@ static int nkfs_sb_delete_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id)
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = nkfs_btree_find_key(sb->inodes_tree, (struct nkfs_btree_key *)obj_id,
-				(struct nkfs_btree_value *)&iblock);
+	err = nkfs_btree_find_key(sb->inodes_tree,
+				  (struct nkfs_btree_key *)obj_id,
+				  (struct nkfs_btree_value *)&iblock);
 	if (err)
 		return err;
 
@@ -718,7 +725,8 @@ static int nkfs_sb_delete_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id)
 		return -EIO;
 	}
 
-	nkfs_btree_delete_key(sb->inodes_tree, (struct nkfs_btree_key *)&inode->ino);
+	nkfs_btree_delete_key(sb->inodes_tree,
+			      (struct nkfs_btree_key *)&inode->ino);
 	nkfs_inode_delete(inode);
 	INODE_DEREF(inode);
 	return err;
@@ -828,7 +836,8 @@ static int nkfs_sb_query_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id,
 	if (sb->stopping)
 		return -EAGAIN;
 
-	err = nkfs_btree_find_key(sb->inodes_tree, (struct nkfs_btree_key *)obj_id,
+	err = nkfs_btree_find_key(sb->inodes_tree,
+			(struct nkfs_btree_key *)obj_id,
 			(struct nkfs_btree_value *)&iblock);
 	if (err)
 		return err;
@@ -852,7 +861,8 @@ static int nkfs_sb_query_obj(struct nkfs_sb *sb, struct nkfs_obj_id *obj_id,
 	return err;
 }
 
-int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id, struct nkfs_obj_info *info)
+int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id,
+			   struct nkfs_obj_info *info)
 {
 	struct list_head list;
 	int err;

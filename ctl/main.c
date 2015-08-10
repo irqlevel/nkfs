@@ -10,12 +10,16 @@ static void prepare_logging()
 	crt_log_enable_printf(1);
 }
 
+
 static void usage(char *program)
 {
-	printf("Usage: %s [-d device] [-f format] [-b bind ip] [-e ext ip] [-p port]"
-		" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"
-		" neigh_add, neigh_remove, neigh_info, klog_sync}\n",
-		program);
+
+#define USAGE_S								\
+"Usage: %s [-d device] [-f format] [-b bind ip] [-e ext ip] [-p port]"	\
+" command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"		\
+" neigh_add, neigh_remove, neigh_info, klog_sync}\n"
+
+	printf(USAGE_S, program);
 }
 
 static int cmd_equal(char *cmd, const char *val)
@@ -32,8 +36,8 @@ static int output_dev_info(struct nkfs_dev_info *info)
 
 	printf("dev_name : %s\n", info->dev_name);
 	printf("major : %u\n", info->major);
-	printf("minor : %u\n", info->minor);	
-	printf("sb_id : %s\n", hex_sb_id);	
+	printf("minor : %u\n", info->minor);
+	printf("sb_id : %s\n", hex_sb_id);
 	printf("size : %llu\n", (unsigned long long)info->size);
 	printf("used_size : %llu\n", (unsigned long long)info->used_size);
 	printf("free_size : %llu\n", (unsigned long long)info->free_size);
@@ -69,9 +73,8 @@ static int output_neigh_info(struct nkfs_neigh_info *neigh)
 	return 0;
 }
 
-
-static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int port,
-	char *dev_name, int format)
+static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s,
+		  int port, char *dev_name, int format)
 {
 	int err;
 	if (cmd_equal(cmd, "dev_add")) {
@@ -111,7 +114,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 			printf("cant output dev info err %d\n", err);
 		}
 	} else if (cmd_equal(cmd, "srv_start")) {
-		struct in_addr bind_addr, ext_addr;	
+		struct in_addr bind_addr, ext_addr;
 		u32 bind_ip, ext_ip;
 
 		if (port <= 0 || port > 64000) {
@@ -131,7 +134,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 			usage(prog);
 			return -EINVAL;
 		}
-	
+
 		if (!inet_aton(ext_ip_s, &ext_addr)) {
 			printf("ext ip %s is not valid\n", ext_ip_s);
 			usage(prog);
@@ -141,8 +144,8 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 		ext_ip = ntohl(ext_addr.s_addr);
 		bind_ip = ntohl(bind_addr.s_addr);
 		if (ext_ip == 0) {
-			printf("please specify exact(not 0) ext ip, your ip is %s\n",
-					ext_ip_s);
+			printf("specify exact(not 0) ext ip, your ip is %s\n",
+				ext_ip_s);
 			usage(prog);
 			return -EINVAL;
 		}
@@ -153,7 +156,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 				bind_ip_s, ext_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "srv_stop")) {
-		struct in_addr bind_addr;	
+		struct in_addr bind_addr;
 		u32 bind_ip;
 
 		if (port <= 0 || port > 64000) {
@@ -173,7 +176,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 			usage(prog);
 			return -EINVAL;
 		}
-	
+
 		bind_ip = ntohl(bind_addr.s_addr);
 		err = nkfs_server_stop(bind_ip, port);
 		if (err) {
@@ -181,7 +184,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 				bind_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "neigh_add")) {
-		struct in_addr addr;	
+		struct in_addr addr;
 		u32 ip;
 
 		if (port <= 0 || port > 64000) {
@@ -209,7 +212,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 				ext_ip_s, port, err);
 		}
 	} else if (cmd_equal(cmd, "neigh_remove")) {
-		struct in_addr addr;	
+		struct in_addr addr;
 		u32 ip;
 
 		if (port <= 0 || port > 64000) {
@@ -239,7 +242,7 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 	} else if (cmd_equal(cmd, "klog_sync")) {
 		err = nkfs_klog_ctl(0, 1);
 		if (err)
-			printf("can't sync klog err %d\n", err);		
+			printf("can't sync klog err %d\n", err);
 	} else if (cmd_equal(cmd, "neigh_info")) {
 		struct nkfs_neigh_info neighs[NKFS_ROUTE_MAX_NEIGHS];
 		int nr_neighs, i;
@@ -260,13 +263,13 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s, int po
 		return -EINVAL;
 	}
 out:
-	return err;	
+	return err;
 }
 
 int main(int argc, char *argv[])
 {
-    	int err = -EINVAL;
- 	int format = 0;
+	int err = -EINVAL;
+	int format = 0;
 	int opt;
 	char *dev_name = NULL;
 	char *cmd = NULL;
@@ -292,7 +295,7 @@ int main(int argc, char *argv[])
 				ext_ip_s = optarg;
 				break;
 			case 'p':
-				port = atoi(optarg);				
+				port = atoi(optarg);
 				break;
 			default:
 				usage(prog);
@@ -304,7 +307,7 @@ int main(int argc, char *argv[])
 		printf("expected more args\n");
 		usage(prog);
 		exit(-EINVAL);
-	}	
+	}
 
 	cmd = argv[optind];
 	err = do_cmd(prog, cmd, bind_ip_s, ext_ip_s, port,

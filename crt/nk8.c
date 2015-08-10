@@ -73,8 +73,8 @@ static u8 gf_mult_direct(u8 m, u8 n)
 	return	k;
 }
 
-static u8 gf_div_brute(u8 i, u8 j) 
-{	
+static u8 gf_div_brute(u8 i, u8 j)
+{
 	int found = 0;
 	int k;
 
@@ -82,10 +82,10 @@ static u8 gf_div_brute(u8 i, u8 j)
 		return 0;
 
 	for (k = 1; k < 0x100; k++) {
-    		if (gf_mult(k, j) == i) {
-      			found = 1;
-      			break;
-    		}
+		if (gf_mult(k, j) == i) {
+			found = 1;
+			break;
+		}
 	}
 
 	return (found) ? k : 0;
@@ -172,9 +172,9 @@ static int gf_alloc_matrix(u8 ***pmatrix, u32 size)
 		if (!matrix[i]) {
 			CLOG(CL_ERR, "no memory");
 			err = -ENOMEM;
-			goto fail;	
+			goto fail;
 		}
-		crt_memset(matrix[i], 0, size*sizeof(u8));	
+		crt_memset(matrix[i], 0, size*sizeof(u8));
 	}
 
 	*pmatrix = matrix;
@@ -213,25 +213,30 @@ static int gf_inverse_matrix(u8 **matrix, u8**inverse, u32 size)
 	for (i = 0; i < size; i++) {
 		ok = 0;
 		for (j = i; j < size; j++) {
-      			if (matrix[i][j] > 0) {
+			if (matrix[i][j] > 0) {
 				ok = 1;
 				if (i != j) {
 					for (k = 0; k < size; k++) {
-						gf_swap(matrix[i][k], matrix[j][k]);
-						gf_swap(inverse[i][k], inverse[j][k]);
+						gf_swap(matrix[i][k],
+							matrix[j][k]);
+						gf_swap(inverse[i][k],
+							inverse[j][k]);
 					}
 				}
- 
+
 				for (k = i+1; k < size; k++) {
-					tmp = gf_div(matrix[k][i], matrix[i][i]);
+					tmp = gf_div(matrix[k][i],
+						     matrix[i][i]);
 
 					for (m = 0; m < size; m++) {
 						if (m >= i) {
 							(matrix[k][m]) ^=
-								(gf_mult(matrix[i][m], tmp));
+							(gf_mult(matrix[i][m],
+							tmp));
 						}
 						(inverse[k][m]) ^=
-							(gf_mult(inverse[i][m], tmp));
+							(gf_mult(inverse[i][m],
+							tmp));
 					}
 				}
 				break;
@@ -251,16 +256,16 @@ static int gf_inverse_matrix(u8 **matrix, u8**inverse, u32 size)
 				inverse[j][k] ^= (gf_mult(tmp, inverse[i][k]));
 			}
 		}
- 		for (k = 0; k < size; k++) {
+		for (k = 0; k < size; k++) {
 			inverse[i][k] = gf_div(inverse[i][k], matrix[i][i]);
 		}
 	}
 
 	for (k = 0; k < size; k++) {
 		inverse[0][k] = gf_div(inverse[0][k], matrix[0][0]);
- 	}
+	}
 
-  	return 0;
+	return 0;
 }
 
 static int gf_test_matrix(void)
@@ -273,14 +278,14 @@ static int gf_test_matrix(void)
 	if (err) {
 		CLOG(CL_ERR, "cant alloc matrix err %d", err);
 		goto out;
-	}	
+	}
 	gf_rnd_matrix(matrix, size);
 
 	err = gf_alloc_matrix(&inverse, size);
 	if (err) {
 		CLOG(CL_ERR, "cant alloc matrix err %d", err);
 		goto free_matrix;
-	}	
+	}
 
 	err = gf_alloc_matrix(&mult, size);
 	if (err) {
@@ -301,7 +306,7 @@ free_mult:
 free_inverse:
 	gf_free_matrix(inverse, size);
 free_matrix:
-	gf_free_matrix(matrix, size);	
+	gf_free_matrix(matrix, size);
 out:
 	return err;
 }
@@ -354,7 +359,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 		n > MAX_N || k > MAX_K) {
 		CLOG(CL_ERR, "inv params");
 		return -EINVAL;
-	} 
+	}
 
 	if (!inited) {
 		CLOG(CL_ERR, "not ready");
@@ -376,7 +381,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 	}
 	parts = crt_malloc(n*sizeof(u8 *));
 	if (!parts) {
-		goto cleanup;	
+		goto cleanup;
 	}
 	memset(parts, 0, n*sizeof(u8 *));
 
@@ -392,15 +397,15 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 		crt_memcpy(tail, block + block_size - tail_size, tail_size);
 		crt_memset(tail + tail_size, 0, k - tail_size);
 		part_size-= 1;
-	}		
+	}
 	CLOG(CL_DBG, "part_size %u tail_size %u",
 		part_size, tail_size);
 
-	nk8_gen_part_ids(ids, n);	
+	nk8_gen_part_ids(ids, n);
 	for (i = 0; i < n; i++) {
 		svector[0] = 1;
 		for (j = 1; j < k; j++) {
-			svector[j] = gf_mult(svector[j-1], ids[i]); 
+			svector[j] = gf_mult(svector[j-1], ids[i]);
 		}
 		for (j = 0; j < part_size; j++) {
 			curr = 0;
@@ -408,7 +413,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 				curr ^= gf_mult(svector[m], block[j*k + m]);
 			}
 			parts[i][j] = curr;
-		}			
+		}
 
 		if (tail_size) {
 			curr = 0;
@@ -421,7 +426,7 @@ int nk8_split_block(u8 *block, u32 block_size, int n, int k,
 	*pparts = parts;
 	*pids = ids;
 	err = 0;
-	
+
 cleanup:
 	if (tail)
 		crt_free(tail);
@@ -463,7 +468,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 		n > MAX_N || k > MAX_K) {
 		CLOG(CL_ERR, "inv params");
 		return -EINVAL;
-	} 
+	}
 
 	if (!inited) {
 		CLOG(CL_ERR, "not ready");
@@ -497,7 +502,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 	svector = crt_malloc(k*sizeof(u8));
 	if (!svector) {
 		err = -ENOMEM;
-		goto cleanup;		
+		goto cleanup;
 	}
 	sparts = crt_malloc(k*sizeof(u8 *));
 	if (!sparts) {
@@ -516,7 +521,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 			if (id == ids[j]) {
 				found++;
 				break;
-			}	
+			}
 		}
 		if (!found) {
 			ormatrix[1][num_parts] = id;
@@ -552,7 +557,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 		for (i = 0; i < k; i++) {
 			svector[i] = sparts[i][j];
 		}
-		
+
 		for (m = 0; m < k; m++) {
 			curr = 0;
 			for (i = 0; i < k; i++) {
@@ -561,7 +566,7 @@ int nk8_assemble_block(u8 **parts, u8 *ids, int n, int k,
 			}
 			*sblock++ = curr;
 		}
-	}	
+	}
 
 	if (tail_size) {
 		sblock = tail;
@@ -594,7 +599,7 @@ cleanup:
 		crt_free(svector);
 	if (sparts)
 		crt_free(sparts);
-	
+
 	return err;
 }
 
@@ -629,7 +634,7 @@ static int nk8_test(u32 block_size, int n, int k)
 		err = -ENOMEM;
 		goto cleanup;
 	}
-	
+
 	sparts = crt_malloc(k*sizeof(u8 *));
 	if (!sparts) {
 		CLOG(CL_ERR, "no mem");
@@ -649,7 +654,7 @@ static int nk8_test(u32 block_size, int n, int k)
 	if (err) {
 		CLOG(CL_ERR, "can gen buf err %d", err);
 		goto cleanup;
-	}	
+	}
 
 	csum_reset(&ctx);
 	csum_update(&ctx, block, block_size);
@@ -678,7 +683,7 @@ static int nk8_test(u32 block_size, int n, int k)
 			if (!found) {
 				sparts[i] = part;
 				sids[i] = id;
-				break;	
+				break;
 			}
 		}
 	}

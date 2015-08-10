@@ -29,7 +29,7 @@ struct nkfs_btree {
 	atomic_t		ref;
 	int			releasing;
 	u32			nodes_active;
-	u32			sig1;	
+	u32			sig1;
 };
 
 struct nkfs_btree_info {
@@ -80,14 +80,18 @@ u64 nkfs_btree_key_to_u64(struct nkfs_btree_key *key);
 char *nkfs_btree_key_hex(struct nkfs_btree_key *key);
 char *nkfs_btree_value_hex(struct nkfs_btree_value *value);
 
-typedef int (*nkfs_btree_enum_clb_t)(void *ctx, struct nkfs_btree_node *node, int index);
-int nkfs_btree_enum_tree(struct nkfs_btree *tree, nkfs_btree_enum_clb_t clb, void *ctx);
+typedef int (*nkfs_btree_enum_clb_t)(void *ctx, struct nkfs_btree_node *node,
+				     int index);
+int nkfs_btree_enum_tree(struct nkfs_btree *tree, nkfs_btree_enum_clb_t clb,
+			 void *ctx);
 
 int nkfs_btree_node_delete_key(struct nkfs_btree_node *first,
 		struct nkfs_btree_key *key);
 
-struct nkfs_btree_key *nkfs_btree_node_key(struct nkfs_btree_node *node, int index);
-struct nkfs_btree_value *nkfs_btree_node_value(struct nkfs_btree_node *node, int index);
+struct nkfs_btree_key *nkfs_btree_node_key(struct nkfs_btree_node *node,
+					   int index);
+struct nkfs_btree_value *nkfs_btree_node_value(struct nkfs_btree_node *node,
+					       int index);
 
 void nkfs_btree_log(struct nkfs_btree *tree, int llevel);
 

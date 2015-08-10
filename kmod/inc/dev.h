@@ -2,14 +2,14 @@
 
 struct nkfs_dev {
 	atomic_t		ref;
-	struct list_head 	dev_list;
-	struct block_device 	*bdev;
+	struct list_head	dev_list;
+	struct block_device	*bdev;
 	int			fmode;
 	int			stopping;
 	int			bsize;
 	struct	nkfs_sb		*sb;
 	struct	dio_dev		*ddev;
-	char			dev_name[NKFS_NAME_MAX_SZ]; 
+	char			dev_name[NKFS_NAME_MAX_SZ];
 };
 
 int nkfs_dev_add(char *dev_name, int format);

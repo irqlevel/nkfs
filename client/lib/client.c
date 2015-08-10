@@ -79,14 +79,14 @@ static int con_init(struct nkfs_con *con)
 	int sock;
 	int err;
 
-	memset(con, 0, sizeof(*con));	
+	memset(con, 0, sizeof(*con));
 	sock = socket(AF_INET,SOCK_STREAM,0);
 	if (sock < 0) {
 		CLOG(CL_ERR, "socket() failed");
 		err =  NKFS_E_CON_INIT_FAILED;
 		con_fail(con, err);
 		goto out;
-	} 
+	}
 	con->sock = sock;
 	err = 0;
 out:
@@ -97,26 +97,27 @@ int nkfs_connect(struct nkfs_con *con, char *ip, int port)
 {
 	struct sockaddr_in serv_addr;
 	int err;
-	
+
 	err = con_init(con);
 	if (err) {
 		CLOG(CL_INF, "err %x - %s", err, nkfs_error(err));
 		return err;
 	}
-	
+
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(port);
-	
+
 	err = inet_aton(ip,(struct in_addr*)&(serv_addr.sin_addr.s_addr));
-	if(!err) { 
+	if(!err) {
 		CLOG(CL_ERR, "inet_aton(), invalid address");
 		err = -EFAULT;
 		goto out;
 	}
-	
+
 	crt_memset(&(serv_addr.sin_zero), 0, sizeof(serv_addr.sin_zero));
 
-	err = connect(con->sock,(struct sockaddr*)&serv_addr,sizeof(struct sockaddr));
+	err = connect(con->sock, (struct sockaddr*)&serv_addr,
+		      sizeof(struct sockaddr));
 	if (err) {
 		CLOG(CL_ERR, "connect(), connection failed");
 		err = -ENOTCONN;
@@ -141,7 +142,7 @@ int nkfs_put_object(struct nkfs_con *con, struct nkfs_obj_id *obj_id,
 	cmd.u.put_obj.off = off;
 	cmd.type = NKFS_NET_PKT_PUT_OBJ;
 	nkfs_obj_id_copy(&cmd.u.put_obj.obj_id, obj_id);
-	
+
 	csum_reset(&ctx);
 	csum_update(&ctx, data, data_size);
 	csum_digest(&ctx, &cmd.dsum);

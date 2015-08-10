@@ -26,7 +26,7 @@ struct nkfs_host {
 	struct rb_root		neighs;
 	rwlock_t		neighs_lock;
 	struct list_head	neigh_list;
-	struct timer_list 	timer;
+	struct timer_list	timer;
 	struct workqueue_struct *wq;
 	int			neighs_active;
 	int			stopping;

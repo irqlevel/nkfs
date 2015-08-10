@@ -21,11 +21,11 @@
 
 #define EXPORT_SYMBOL(s)
 
-#define CRT_BUG_ON(cond) 			\
-	do {					\
-		if ((cond))			\
-			__builtin_trap();	\
-	} while (0);	
+#define CRT_BUG_ON(cond)		\
+do {					\
+	if ((cond))			\
+		__builtin_trap();	\
+} while (0);
 
 #define CRT_BUG()	\
 	__builtin_trap();

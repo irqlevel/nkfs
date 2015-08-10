@@ -25,7 +25,7 @@
 #define NKFS_IMAGE_SIG		0xBEDABEDA
 #define NKFS_IMAGE_VER_1	1
 
-#define NKFS_IMAGE_BM_BLOCK 	1
+#define NKFS_IMAGE_BM_BLOCK	1
 
 /* Do not change if you do not know about B-tree */
 #define NKFS_BTREE_T		896
@@ -47,14 +47,14 @@ struct nkfs_btree_key {
 
 struct nkfs_btree_child {
 	union {
-		__be64 	val_be;
+		__be64	val_be;
 		u64	val;
 	};
 };
 
 struct nkfs_btree_value {
 	union {
-		__be64 	val_be;
+		__be64	val_be;
 		u64	val;
 	};
 };
@@ -101,7 +101,7 @@ struct nkfs_btree_node_disk {
 
 struct nkfs_inode_disk {
 	__be32			sig1; /* = NKFS_INODE_SIG1 */
-	struct nkfs_obj_id 	ino; /* unique id */
+	struct nkfs_obj_id	ino; /* unique id */
 	__be64			size; /* size of data in bytes */
 	__be64			blocks_tree_block; /* data blocks tree */
 	__be64			blocks_sum_tree_block; /* sha256 data sums */
@@ -120,7 +120,7 @@ struct nkfs_image_header {
 	__be64			used_blocks; /*number of allocated blocks */
 	__be32			bsize; /* block size in bytes=NKFS_BLOCK_SIZE */
 	struct csum		sum; /* sum of [sig1 ... bsize ] */
-	__be32			sig; /* = NKFS_IMAGE_SIG */ 
+	__be32			sig; /* = NKFS_IMAGE_SIG */
 };
 
 #pragma pack(pop)

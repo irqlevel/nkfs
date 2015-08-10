@@ -290,8 +290,9 @@ int nkfs_dev_init(void)
 {
 	int err;
 
-	nkfs_dev_cachep = kmem_cache_create("nkfs_dev_cache", sizeof(struct nkfs_dev), 0,
-			SLAB_MEM_SPREAD, NULL);
+	nkfs_dev_cachep = kmem_cache_create("nkfs_dev_cache",
+					    sizeof(struct nkfs_dev), 0,
+					    SLAB_MEM_SPREAD, NULL);
 	if (!nkfs_dev_cachep) {
 		KLOG(KL_ERR, "cant create cache");
 		err = -ENOMEM;

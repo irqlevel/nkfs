@@ -152,8 +152,9 @@ static int nkfs_balloc_block_find_set_free_bit(struct nkfs_sb *sb,
 					dio_clu_set_dirty(clu);
 					err = dio_clu_sync(clu);
 					if (err) {
-						KLOG(KL_ERR, "sync clu %llu err %d",
-							clu->index, err);
+						KLOG(KL_ERR,
+						     "sync clu %llu err %d",
+						     clu->index, err);
 						return err;
 					}
 					*plong = i;
@@ -192,8 +193,8 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off
 					+ bit;
 			trace_balloc_block_alloc(block);
-			KLOG(KL_DBG3, "alloc long_off %lu bit %u i %llu block %llu",
-				long_off, bit , i, block);
+			KLOG(KL_DBG3, "long_off %lu bit %u i %llu block %llu",
+				      long_off, bit , i, block);
 			*pblock = block;
 			dio_clu_put(clu);
 			return 0;

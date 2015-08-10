@@ -369,7 +369,8 @@ static int nkfs_inode_write_dirty(struct nkfs_inode *inode)
 	}
 }
 
-struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb, struct nkfs_obj_id *ino)
+struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
+				     struct nkfs_obj_id *ino)
 {
 	struct nkfs_inode *inode;
 	struct nkfs_inode *inserted;
@@ -601,7 +602,8 @@ nkfs_inode_block_check_sum(struct nkfs_inode *inode,
 	NKFS_BUG_ON(!ib->clu || !ib->sum_clu);
 
 	dio_clu_sum(ib->clu, &sum);
-	if (0 != memcmp(dio_clu_map(ib->sum_clu, ib->sum_off), &sum, sizeof(sum))) {
+	if (0 !=
+	    memcmp(dio_clu_map(ib->sum_clu, ib->sum_off), &sum, sizeof(sum))) {
 		KLOG(KL_ERR, "invalid sum i[%llu] vb%llu b%llu",
 			inode->block, ib->vblock, ib->block);
 		return -EINVAL;
@@ -653,7 +655,7 @@ fail:
 
 static int
 nkfs_inode_block_read_create(struct nkfs_inode *inode, u64 vblock,
-	struct inode_block *pib)
+			     struct inode_block *pib)
 {
 	int err;
 	struct inode_block ib;
@@ -690,8 +692,8 @@ fail:
 }
 
 static int
-nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock,
-	u32 off, void *buf, u32 len, u32 *pio_count, u32 *peof)
+nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
+			  void *buf, u32 len, u32 *pio_count, u32 *peof)
 {
 	int err;
 	struct inode_block ib;
@@ -754,8 +756,8 @@ out:
 }
 
 static int
-nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock,
-	u32 off, void *buf, u32 len, u32 *pio_count, int *peof)
+nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
+			   void *buf, u32 len, u32 *pio_count, int *peof)
 {
 	int err;
 	struct inode_block ib;
@@ -815,8 +817,9 @@ out:
 	return err;
 }
 
-static int nkfs_inode_io_buf(struct nkfs_inode *inode, u64 off, void *buf, u32 len,
-		int write, u32 *pio_count, int *peof)
+static int nkfs_inode_io_buf(struct nkfs_inode *inode, u64 off,
+			     void *buf, u32 len, int write,
+			     u32 *pio_count, int *peof)
 {
 	int err;
 	u64 vblock = nkfs_div(off, inode->sb->bsize);
@@ -833,10 +836,12 @@ static int nkfs_inode_io_buf(struct nkfs_inode *inode, u64 off, void *buf, u32 l
 			(inode->sb->bsize - loff) : res;
 		if (write) {
 			err = nkfs_inode_write_block_buf(inode, vblock, loff,
-							pos, llen, &io_count, &eof);
+							 pos, llen,
+							 &io_count, &eof);
 		} else {
 			err = nkfs_inode_read_block_buf(inode, vblock, loff,
-							pos, llen, &io_count, &eof);
+							pos, llen,
+							&io_count, &eof);
 		}
 		if (err)
 			goto out;
@@ -858,7 +863,8 @@ out:
 }
 
 int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off, u32 pg_off, u32 len,
-		struct page **pages, int nr_pages, int write, u32 *pio_count)
+			struct page **pages, int nr_pages, int write,
+			u32 *pio_count)
 {
 	int err;
 	int i;
@@ -879,9 +885,11 @@ int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off, u32 pg_off, u32 len,
 			goto fail;
 		}
 		buf = kmap(pages[i]);
-		llen = ((len + pg_off) > PAGE_SIZE) ? (PAGE_SIZE - pg_off) : len;
-		err = nkfs_inode_io_buf(inode, off, (void *)((unsigned long)buf + pg_off),
-			llen, write, &io_count, &eof);
+		llen = ((len + pg_off) > PAGE_SIZE) ?
+				(PAGE_SIZE - pg_off) : len;
+		err = nkfs_inode_io_buf(inode, off,
+					(void *)((unsigned long)buf + pg_off),
+					llen, write, &io_count, &eof);
 		kunmap(pages[i]);
 		if (err)
 			goto fail;
