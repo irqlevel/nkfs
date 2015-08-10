@@ -157,10 +157,10 @@ void ksock_release(struct socket *sock)
 }
 
 int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
-	unsigned long ticks, u32 *pwrote)
+	u64 ticks, u32 *pwrote)
 {
 	int error;
-	unsigned long then, delta;
+	u64 then, delta;
 	struct timeval tv;
 	u32 wrote = 0;
 	mm_segment_t oldmm = get_fs();
@@ -196,7 +196,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 			goto out;
 		}
 
-		then = jiffies;
+		then = get_jiffies_64();
 		set_fs(KERNEL_DS);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 		error = sock_sendmsg(sock, &msg, nob);
@@ -204,7 +204,7 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		error = sock_sendmsg(sock, &msg);
 #endif
 		set_fs(oldmm);
-		delta = jiffies - then;
+		delta = get_jiffies_64() - then;
 		delta = (delta > ticks) ? ticks : delta;
 		ticks -= delta;
 
@@ -245,10 +245,10 @@ out:
 }
 
 int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
-	unsigned long ticks, u32 *pread)
+	u64 ticks, u32 *pread)
 {
 	int error;
-	unsigned long then, delta;
+	u64 then, delta;
 	struct timeval tv;
 	u32 read = 0;
 	mm_segment_t oldmm = get_fs();
@@ -286,11 +286,11 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 			goto out;
 		}
 
-		then = jiffies;
+		then = get_jiffies_64();
 		set_fs(KERNEL_DS);
 		error = sock_recvmsg(sock, &msg, nob, 0);
 		set_fs(oldmm);
-		delta = (jiffies > then) ? jiffies - then : 0;
+		delta = (get_jiffies_64() - then);
 		delta = (delta > ticks) ? ticks : delta;
 		ticks -= delta;
 
@@ -336,7 +336,7 @@ int ksock_read(struct socket *sock, void *buffer, u32 nob, u32 *pread)
 
 	while (off < nob) {
 		err = ksock_read_timeout(sock, (char *)buffer + off,
-				nob - off, ~((unsigned long)0), &read);
+				nob - off, U64_MAX, &read);
 		off += read;
 		if (err)
 			break;
@@ -353,7 +353,7 @@ int ksock_write(struct socket *sock, void *buffer, u32 nob, u32 *pwrote)
 
 	while (off < nob) {
 		err = ksock_write_timeout(sock, (char *)buffer + off,
-				nob - off, ~((unsigned long)0), &wrote);
+				nob - off, U64_MAX, &wrote);
 		off += wrote;
 		if (err)
 			break;
