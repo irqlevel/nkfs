@@ -6,7 +6,10 @@ SUBCLEAN = $(addsuffix .clean,$(SUBDIRS))
 .PHONY: all clean $(SUBDIRS) $(SUBCLEAN)
 
 all: $(SUBDIRS)
-clean: $(SUBCLEAN)
+clean: curr_dir_clean $(SUBCLEAN)
+
+curr_dir_clean:
+	rm -rf *.o *.a && find . -name '.*' -type f | xargs rm -f
 
 $(SUBDIRS):
 	$(MAKE) -C $@
