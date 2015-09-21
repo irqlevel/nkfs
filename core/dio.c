@@ -489,8 +489,7 @@ static void dio_io_deref(struct dio_io *io)
 		dio_io_release(io);
 }
 
-
-static void dio_io_end_bio(struct bio *bio, int err)
+static void __dio_io_end_bio(struct bio *bio, int err)
 {
 	struct dio_io *io = bio->bi_private;
 
@@ -520,6 +519,18 @@ static void dio_io_end_bio(struct bio *bio, int err)
 	else
 		dio_io_deref(io);
 }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+static void dio_io_end_bio(struct bio *bio)
+{
+	__dio_io_end_bio(bio, bio->bi_error);
+}
+#else
+static void dio_io_end_bio(struct bio *bio, int err)
+{
+	__dio_io_end_bio(bio, err);
+}
+#endif
 
 static struct bio *dio_io_alloc_bio(struct dio_io *io)
 {

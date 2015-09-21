@@ -167,7 +167,8 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 	err = IS_ERR(dev->bdev);
 	if (err) {
 		dev->bdev = NULL;
-		KLOG(KL_ERR, "bkdev_get_by_path failed err %d", err);
+		KLOG(KL_ERR, "bkdev_get_by_path %s failed err %d",
+		     dev->dev_name, err);
 		nkfs_dev_deref(dev);
 		return NULL;
 	}
