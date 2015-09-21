@@ -33,10 +33,10 @@ if __name__=="__main__":
 		ts.addTests([FilePutDelTest(env, 3, 10, 10, 10000000), FilePutGetTest(env, 3, 10, 10, 10000000)])
 		ts.run()
 	except Exception as e:
-		log.error("EXCEPTION: %s" % e)
+		log.exception("tests run failed")
 	finally:
 		try:
 			if env:
 				env.cleanup()
-		except:
-			pass
+		except Exception as e:
+			log.exception("cant cleanup env")

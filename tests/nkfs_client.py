@@ -69,7 +69,7 @@ if __name__=="__main__":
 
 	for d in devs:
 		c.query_dev(d)
-		
+
 	for ip, port in srvs:
 		c.stop_srv(ip, port)
 

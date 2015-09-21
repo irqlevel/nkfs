@@ -114,7 +114,7 @@ def run_cluster_test(ips, user, passwd, dev):
 	settings.init_logging(log_dir = root_dir, log_name = 'tests.log')
 	log = logging.getLogger('main')
 	log.info('starting')
-	nodes = []	
+	nodes = []
 	for ip in ips:
 		n = NkfsNode(log, ip, root_dir, dev=dev, passwd=passwd, user=user)
 		nodes.append(n)
@@ -130,11 +130,11 @@ def run_cluster_test(ips, user, passwd, dev):
 		try:
 			multi_process([n.get_nkfs_log for n in nodes])
 		except:
-			pass
+			log.exception("multi process run failed")
 		try:
 			multi_process([n.stop_nkfs for n in nodes])
 		except:
-			pass
+			log.exception("multi process run failed")
 	log.info('stopping')
 
 if __name__=="__main__":

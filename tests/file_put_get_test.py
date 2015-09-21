@@ -37,7 +37,7 @@ class FilePutGetTest(NkfsTest):
 		file_names = self.gen_tmp_files()
 		for f in file_names:
 			obj_ids.append(self.get_client().put_file(os.path.join(self.in_dir, f)))
-		
+
 		for obj_id in obj_ids:
 			self.get_client().get_file(obj_id, os.path.join(self.out_dir, file_names[i]))
 			i+= 1
@@ -48,10 +48,10 @@ class FilePutGetTest(NkfsTest):
 		proc_list = [Process(target=self.proc_routine,args=()) for p in xrange(self.proc_num)]
 		for p in proc_list:
 			p.start()
-	
+
 		for p in proc_list:
 			p.join()
-	
+
 		for p in proc_list:
 			log.info("process %s exit with code: %d" % (p.name, p.exitcode))
 
@@ -92,12 +92,12 @@ class FilePutGetTest(NkfsTest):
 				buf = afile.read(block_size)
 		return buf
 
-	def check_file_hash(self):	
+	def check_file_hash(self):
 		broken_files = []
-	
+
 		for root,dirs,files in os.walk(self.in_dir):
 			in_files = files
-		
+
 		for filename in in_files:
 			path_to_in_file = os.path.join(self.in_dir, filename)
 			path_to_out_file = os.path.join(self.out_dir, filename)
@@ -105,8 +105,7 @@ class FilePutGetTest(NkfsTest):
 			hash_in = self.hash_large_file(path_to_in_file)
 			hash_out = self.hash_large_file(path_to_out_file)
 			if hash_in != hash_out:
-				broken_files.append(filename)	
-
+				broken_files.append(filename)
 		return broken_files
 
 	def cleanup(self):
@@ -121,10 +120,10 @@ if __name__ == "__main__":
 		t = FilePutGetTest(env, 3, 10, 10, 10000000)
 		t.run()
 	except Exception as e:
-		log.error("EXCEPTION: %s" % e)
+		log.exception("test run failed")
 	finally:
 		try:
 			if env:
 				env.cleanup()
 		except:
-			pass
+			log.exception("env cleanup failed")

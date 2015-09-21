@@ -39,7 +39,7 @@ class FilePutDelTest(FilePutGetTest):
 		proc_list = [Process(target=self.proc_routine,args=()) for p in xrange(self.proc_num)]
 		for p in proc_list:
 			p.start()
-		
+
 		for p in proc_list:
 			p.join()
 
@@ -61,10 +61,10 @@ if __name__ == "__main__":
 		t = FilePutDelTest(env, 3, 10, 10, 100000)
 		t.run()
 	except Exception as e:
-		log.error("EXCEPTION: %s" % e)
+		log.exception("test run failed")
 	finally:
 		try:
 			if env:
 				env.cleanup()
 		except:
-			pass
+			log.exception("env cleanup failed")

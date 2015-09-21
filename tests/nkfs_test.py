@@ -42,14 +42,13 @@ class NkfsTest:
 			else:
 				log.error("FAILED %s" % (self.get_uid_name(),))
 		except Exception as e:
-			log.error("EXCEPTION %s" % e)
-			log.error("FAILED %s" % (self.get_uid_name(),))
+			log.exception("FAILED %s" % (self.get_uid_name(),))
 			raise
 		finally:
 			try:
 				self.cleanup()
 			except Exception as e:
-				log.error("EXCEPTION %s" % e)
+				log.exception("cleanup failed")
 	def get_name(self):
 		return self.__class__.__name__
 	def get_uid_name(self):
@@ -73,7 +72,7 @@ class NkfsTestList:
 			except:
 				pass
 		self.report()
-	
+
 	def count_passed(self):
 		passed = 0
 		for t in self.tests:

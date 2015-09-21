@@ -1,9 +1,9 @@
 #!/bin/bash
 . scripts/common.sh
 log "remove loop devs"
-exec losetup -d /dev/loop0
-exec losetup -d /dev/loop1
-exec losetup -d /dev/loop2
-exec rm -f lfile0
-exec rm -f lfile1
-exec rm -f lfile2
+exec losetup -d /dev/loop10
+exec losetup -d /dev/loop11
+exec losetup -d /dev/loop12
+exec rm -f lfile10
+exec rm -f lfile11
+exec rm -f lfile12
