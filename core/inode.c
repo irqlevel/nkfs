@@ -790,12 +790,6 @@ nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 		goto out;
 	}
 
-	err = dio_clu_sync(ib.clu);
-	if (err) {
-		KLOG(KL_ERR, "cant sync clu err %d", err);
-		goto out;
-	}
-
 	err = nkfs_inode_block_write(inode, &ib);
 	if (err) {
 		KLOG(KL_ERR, "cant write to b %llu vb %llu",
