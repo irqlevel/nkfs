@@ -75,15 +75,12 @@ class NkfsLocalLoopEnv(DsEnv):
 		cmd.exec_cmd2("echo 100000 > /sys/kernel/debug/tracing/buffer_size_kb", throw = True, elog = log)
 		cmd.exec_cmd2("echo '' > /sys/kernel/debug/tracing/trace", throw = True, elog = log)
 		cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/enable", throw = True, elog = log)
-		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/balloc_block_alloc/enable", throw = True, elog = log)
-		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/balloc_block_free/enable", throw = True, elog = log)
-		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/dio_clu_sync/enable", throw = True, elog = log)
-		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/inode_create/enable", throw = True, elog = log)
-		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/inode_write_block/enable", throw = True, elog = log)
 		cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/tracing_on", throw = True, elog = log)
 
 	def cleanup_trace(self):
 		cmd.exec_cmd2("echo 0 > /sys/kernel/debug/tracing/tracing_on", throw = True, elog = log)
+		cmd.exec_cmd2("cat /sys/kernel/debug/tracing/trace > trace.out", throw = True, elog = log)
+		cmd.exec_cmd2("echo '' > /sys/kernel/debug/tracing/trace", throw = True, elog = log)
 
 	def prepare(self):
 		if self.load_mods:
@@ -123,14 +120,14 @@ class NkfsLocalLoopEnv(DsEnv):
 			except Exception as e:
 				log.exception("cant rem dev")
 
+		if self.trace:
+			self.cleanup_trace()
+
 		try:
 			if self.load_mods:
 				cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True, elog = log)
 		except Exception as e:
 			log.exception("cant uload mods")
-
-		if self.trace:
-			self.cleanup_trace()
 
 		for loop_dev, loop_file in LOOP_DEVS.items():
 			delete_loop(loop_dev, loop_file)

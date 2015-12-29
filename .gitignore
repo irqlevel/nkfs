@@ -13,6 +13,7 @@ Module.symvers
 *.pyc
 *.log
 *.lock
+*.out
 tags
 tests/logs/
 bin/
