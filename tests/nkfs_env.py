@@ -56,20 +56,41 @@ class DsEnv:
 		pass
 
 class NkfsLocalLoopEnv(DsEnv):
-	def __init__(self, bind_ip, ext_ip, load_mods = True):
+	def __init__(self, bind_ip, ext_ip, load_mods = True, trace = True):
 		DsEnv.__init__(self)
 		self.devs = []
 		self.srvs = []
 		self.bind_ip = bind_ip
 		self.ext_ip = ext_ip
 		self.load_mods = load_mods
+		self.trace = trace
 
 	def get_client(self):
 		return NkfsClient(self.ext_ip, PORT)
 
+	def prepare_trace(self):
+		cmd.exec_cmd2("echo 0 > /sys/kernel/debug/tracing/tracing_on", throw = True, elog = log)
+		cmd.exec_cmd2("echo 'nop' > /sys/kernel/debug/tracing/current_tracer", throw = True, elog = log)
+		cmd.exec_cmd2("echo 0 > /sys/kernel/debug/tracing/events/enable", throw = True, elog = log)
+		cmd.exec_cmd2("echo 100000 > /sys/kernel/debug/tracing/buffer_size_kb", throw = True, elog = log)
+		cmd.exec_cmd2("echo '' > /sys/kernel/debug/tracing/trace", throw = True, elog = log)
+		cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/enable", throw = True, elog = log)
+		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/balloc_block_alloc/enable", throw = True, elog = log)
+		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/balloc_block_free/enable", throw = True, elog = log)
+		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/dio_clu_sync/enable", throw = True, elog = log)
+		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/inode_create/enable", throw = True, elog = log)
+		#cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/events/nkfs/inode_write_block/enable", throw = True, elog = log)
+		cmd.exec_cmd2("echo 1 > /sys/kernel/debug/tracing/tracing_on", throw = True, elog = log)
+
+	def cleanup_trace(self):
+		cmd.exec_cmd2("echo 0 > /sys/kernel/debug/tracing/tracing_on", throw = True, elog = log)
+
 	def prepare(self):
 		if self.load_mods:
 			cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/load_mods.sh", throw = True, elog = log)
+
+		if self.trace:
+			self.prepare_trace()
 
 		for loop_dev, loop_file in LOOP_DEVS.items():
 			create_loop(loop_dev, loop_file)
@@ -106,6 +127,10 @@ class NkfsLocalLoopEnv(DsEnv):
 			if self.load_mods:
 				cmd.exec_cmd2("cd " + settings.PROJ_DIR + " && scripts/unload_mods.sh", throw = True, elog = log)
 		except Exception as e:
-			log.exception("cant load mods")
+			log.exception("cant uload mods")
+
+		if self.trace:
+			self.cleanup_trace()
+
 		for loop_dev, loop_file in LOOP_DEVS.items():
 			delete_loop(loop_dev, loop_file)
