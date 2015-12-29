@@ -520,7 +520,7 @@ static void __dio_io_end_bio(struct bio *bio, int err)
 		dio_io_deref(io);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 static void dio_io_end_bio(struct bio *bio)
 {
 	__dio_io_end_bio(bio, bio->bi_error);
