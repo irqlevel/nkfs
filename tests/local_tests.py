@@ -24,13 +24,14 @@ if __name__=="__main__":
 	env = None
 	try:
 		load_mods = True
+		ncpus = multiprocessing.cpu_count()
 		for arg in sys.argv:
 			if arg.find("--noloadmods") == 0:
 				load_mods = False
 		env = NkfsLocalLoopEnv('127.0.0.1', '127.0.0.1', load_mods = load_mods)
 		env.prepare()
 		ts = NkfsTestList()
-		ts.addTests([FilePutDelTest(env, 3, 10, 10, 10000000), FilePutGetTest(env, 3, 10, 10, 10000000)])
+		ts.addTests([FilePutDelTest(env, ncpus, 10, 10, 10000000), FilePutGetTest(env, ncpus, 10, 10, 10000000)])
 		ts.run()
 	except Exception as e:
 		log.exception("tests run failed")

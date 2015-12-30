@@ -27,7 +27,7 @@ def drop_caches():
 def bdev_flush_bufs(dev_name):
 	cmd.exec_cmd2("blockdev --flushbufs " + dev_name, throw = True, elog = log)
 
-def create_loop(loop_dev, loop_file, sizeMBs = 100):
+def create_loop(loop_dev, loop_file, sizeMBs = 400):
 	cmd.exec_cmd2("losetup -d " + loop_dev, throw = False, elog = log)
 	cmd.exec_cmd2("rm -rf " + loop_file, throw = False, elog = log)
 	cmd.exec_cmd2("dd if=/dev/zero of=" + loop_file + " bs=1M count="
