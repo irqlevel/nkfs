@@ -14,6 +14,7 @@ Module.symvers
 *.log
 *.lock
 *.out
+*.patch
 tags
 tests/logs/
 bin/

@@ -54,5 +54,6 @@
 #include "inc/upages.h"
 #include "inc/route.h"
 #include "inc/dio.h"
+#include "inc/journal.h"
 #include "inc/trace_events.h"
 
