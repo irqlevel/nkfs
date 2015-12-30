@@ -200,13 +200,14 @@ dio_cluster *dio_clu_lookup_create(struct dio_dev *dev, unsigned long index)
 {
 	struct dio_cluster *cluster;
 
-	spin_lock_irq(&dev->clus_lock);
+	rcu_read_lock();
 	cluster = radix_tree_lookup(&dev->clus_root, index);
 	if (cluster) {
 		dio_clu_ref(cluster);
 		dio_clu_pin(cluster);
 	}
-	spin_unlock_irq(&dev->clus_lock);
+	rcu_read_unlock();
+
 	if (!cluster) {
 		struct dio_cluster *new;
 
@@ -254,8 +255,15 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 {
 	struct dio_cluster *cluster;
 
-	spin_lock_irq(&dev->clus_lock);
+	rcu_read_lock();
+	cluster = radix_tree_lookup(&dev->clus_root, index);
+	if (cluster && dio_clu_pinned(cluster))
+		cluster = NULL;
+	rcu_read_unlock();
+	if (!cluster)
+		return NULL;
 
+	spin_lock_irq(&dev->clus_lock);
 	cluster = radix_tree_lookup(&dev->clus_root, index);
 	if (cluster && !dio_clu_pinned(cluster)) {
 		cluster = radix_tree_delete(&dev->clus_root, index);
@@ -265,7 +273,6 @@ dio_cluster *dio_clu_remove(struct dio_dev *dev, unsigned long index)
 		}
 	} else
 		cluster = NULL;
-
 	spin_unlock_irq(&dev->clus_lock);
 
 	return cluster;
@@ -280,14 +287,14 @@ static void dio_clus_release(struct dio_dev *dev)
 	KLOG(KL_INF, "nr_clus=%d", dev->nr_clus);
 
 	for (;;) {
-		spin_lock_irq(&dev->clus_lock);
+		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&dev->clus_root,
 				(void **)batch, 0, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
 			cluster = batch[index];
 			dio_clu_ref(cluster);
 		}
-		spin_unlock_irq(&dev->clus_lock);
+		rcu_read_unlock();
 		if (nr_found == 0)
 			break;
 
@@ -314,7 +321,7 @@ static void dio_clus_dump(struct dio_dev *dev)
 	struct dio_cluster *node;
 
 	for (;;) {
-		spin_lock(&dev->clus_lock);
+		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&dev->clus_root,
 				(void **)batch, first_index, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
@@ -323,7 +330,7 @@ static void dio_clus_dump(struct dio_dev *dev)
 			if (node->index >= first_index)
 				first_index = node->index + 1;
 		}
-		spin_unlock(&dev->clus_lock);
+		rcu_read_unlock();
 		if (nr_found == 0)
 			break;
 
@@ -397,7 +404,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 
 	while (nr_nodes < nodes_limit) {
 
-		spin_lock_irq(&dev->clus_lock);
+		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&dev->clus_root,
 				(void **)batch, first_index,
 				ARRAY_SIZE(batch));
@@ -407,7 +414,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 			if (node->index >= first_index)
 				first_index = node->index + 1;
 		}
-		spin_unlock_irq(&dev->clus_lock);
+		rcu_read_unlock();
 
 		if (nr_found == 0)
 			break;
@@ -859,7 +866,7 @@ static void dio_clus_age(struct dio_dev *dev)
 	struct dio_cluster *node;
 
 	for (;;) {
-		spin_lock(&dev->clus_lock);
+		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&dev->clus_root,
 				(void **)batch, first_index, ARRAY_SIZE(batch));
 		for (index = 0; index < nr_found; index++) {
@@ -868,7 +875,7 @@ static void dio_clus_age(struct dio_dev *dev)
 			if (node->index >= first_index)
 				first_index = node->index + 1;
 		}
-		spin_unlock(&dev->clus_lock);
+		rcu_read_unlock();
 		if (nr_found == 0)
 			break;
 
