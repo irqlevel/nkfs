@@ -503,6 +503,7 @@ static void __dio_io_end_bio(struct bio *bio, int err)
 	NKFS_BUG_ON(io->bio != bio);
 
 	io->err = err;
+	trace_dio_io_end_bio(io);
 	if (err) {
 		KLOG(KL_ERR, "err %d rw %x io %p bio %p sec %llx size %x",
 			err, io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
@@ -599,6 +600,7 @@ static void dio_submit(unsigned long rw, struct dio_io *io)
 	KLOG(KL_DBG3, "rw %x io %p bio %p sec %llx size %x",
 			io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
 			BIO_BI_SIZE(io->bio));
+	trace_dio_submit(io);
 	submit_bio(io->rw, io->bio);
 }
 

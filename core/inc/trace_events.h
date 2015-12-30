@@ -93,6 +93,58 @@ DEFINE_EVENT(dio_clu_class, name,			\
 
 DEFINE_DIO_EVENT(dio_clu_sync);
 
+TRACE_EVENT(dio_submit,
+	TP_PROTO(struct dio_io *io),
+	TP_ARGS(io),
+
+	TP_STRUCT__entry(
+		__field(void *, io)
+		__field(void *, bio)
+		__field(unsigned long, rw)
+		__field(u64, sector)
+		__field(u32, size)
+	),
+
+	TP_fast_assign(
+		__entry->io = io;
+		__entry->rw = io->rw;
+		__entry->bio = io->bio;
+		__entry->sector = BIO_BI_SECTOR(io->bio);
+		__entry->size = BIO_BI_SIZE(io->bio);
+	),
+
+	TP_printk("io %p rw 0x%lx bio %p sector %llu size %u",
+		  __entry->io, __entry->rw, __entry->bio, __entry->sector,
+		  __entry->size)
+);
+
+TRACE_EVENT(dio_io_end_bio,
+	TP_PROTO(struct dio_io *io),
+	TP_ARGS(io),
+
+	TP_STRUCT__entry(
+		__field(void *, io)
+		__field(void *, bio)
+		__field(unsigned long, rw)
+		__field(u64, sector)
+		__field(u32, size)
+		__field(int, err)
+	),
+
+	TP_fast_assign(
+		__entry->io = io;
+		__entry->rw = io->rw;
+		__entry->bio = io->bio;
+		__entry->sector = BIO_BI_SECTOR(io->bio);
+		__entry->size = BIO_BI_SIZE(io->bio);
+		__entry->err = io->err;
+	),
+
+	TP_printk("io %p err %d rw 0x%lx bio %p sector %llu size %u",
+		  __entry->io, __entry->err, __entry->rw, __entry->bio,
+		  __entry->sector, __entry->size)
+);
+
 #endif /* _NKFS_TRACE_H */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ./inc
