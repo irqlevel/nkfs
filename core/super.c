@@ -107,7 +107,7 @@ static void nkfs_sb_list_release(struct list_head *phead)
 	list_for_each_entry_safe(curr, tmp, phead, list) {
 		list_del_init(&curr->list);
 		nkfs_sb_deref(curr->sb);
-		kfree(curr);
+		crt_kfree(curr);
 	}
 }
 
@@ -133,7 +133,7 @@ static struct nkfs_sb_link *nkfs_sb_link_create(struct nkfs_sb *sb)
 {
 	struct nkfs_sb_link *link;
 
-	link = kmalloc(sizeof(*link), GFP_NOIO);
+	link = crt_kmalloc(sizeof(*link), GFP_NOIO);
 	if (!link)
 		return NULL;
 	nkfs_sb_ref(sb);

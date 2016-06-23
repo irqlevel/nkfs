@@ -898,7 +898,7 @@ static void dio_clus_age_work(struct work_struct *work)
 		dio_clus_age(dev);
 	}
 	mutex_unlock(&dio_dev_list_lock);
-	kfree(work);
+	crt_kfree(work);
 }
 
 static void dio_clus_shrink_work(struct work_struct *work)
@@ -910,23 +910,22 @@ static void dio_clus_shrink_work(struct work_struct *work)
 		dio_clus_shrink(dev);
 	}
 	mutex_unlock(&dio_dev_list_lock);
-	kfree(work);
+	crt_kfree(work);
 }
 
 static int dio_queue_work(work_func_t func)
 {
 	struct work_struct *work = NULL;
 
-	work = kmalloc(sizeof(struct work_struct), GFP_ATOMIC);
+	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
 		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
 	}
 
-	memset(work, 0, sizeof(*work));
 	INIT_WORK(work, func);
 	if (!queue_work(dio_wq, work)) {
-		kfree(work);
+		crt_kfree(work);
 		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}

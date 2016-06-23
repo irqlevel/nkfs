@@ -15,7 +15,7 @@ int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
 
 	memset(&up, 0, sizeof(up));
 	up.nr_pages = nr_pages;
-	up.pages = kcalloc(up.nr_pages, sizeof(struct page *), GFP_NOIO);
+	up.pages = crt_kcalloc(up.nr_pages, sizeof(struct page *), GFP_NOIO);
 	if (!up.pages)
 		return -ENOMEM;
 
@@ -56,7 +56,7 @@ void nkfs_release_user_pages(struct nkfs_user_pages *up)
 		put_page(up->pages[i]);
 	}
 
-	kfree(up->pages);
+	crt_kfree(up->pages);
 }
 
 void nkfs_pages_region(unsigned long buf, u32 len,
@@ -97,7 +97,8 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 		pages.nr_pages, len, PAGE_SIZE);
 
 	pages.len = len;
-	pages.pages = kcalloc(pages.nr_pages, sizeof(struct page *), GFP_NOIO);
+	pages.pages = crt_kcalloc(pages.nr_pages, sizeof(struct page *),
+				  GFP_NOIO);
 	if (!pages.pages)
 		return -ENOMEM;
 
@@ -112,7 +113,7 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 fail:
 	for (j = 0; j < i; j++)
 		put_page(pages.pages[j]);
-	kfree(pages.pages);
+	crt_kfree(pages.pages);
 	return -ENOMEM;
 }
 
@@ -148,5 +149,5 @@ void nkfs_pages_release(struct nkfs_pages *pages)
 
 	for (i = 0; i < pages->nr_pages; i++)
 		put_page(pages->pages[i]);
-	kfree(pages->pages);
+	crt_kfree(pages->pages);
 }

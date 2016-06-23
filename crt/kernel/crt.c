@@ -90,8 +90,6 @@ void crt_random_release(void)
 	fput(dev_urandom);
 }
 
-
-
 int crt_queue_work(work_func_t func)
 {
 	struct work_struct *work = NULL;
@@ -156,6 +154,16 @@ void *crt_kmalloc(size_t size, gfp_t flags)
 #endif
 }
 EXPORT_SYMBOL(crt_kmalloc);
+
+void *crt_kcalloc(size_t n, size_t size, gfp_t flags)
+{
+#ifdef __MALLOC_CHECKER__
+	return malloc_checker_kmalloc(n * size, flags);
+#else
+	return kmalloc(n * size, flags);
+#endif
+}
+EXPORT_SYMBOL(crt_kcalloc);
 
 void crt_kfree(void *ptr)
 {

@@ -31,7 +31,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	int err = -EINVAL;
 	struct nkfs_ctl *cmd = NULL;
 
-	cmd = kmalloc(sizeof(struct nkfs_ctl), GFP_NOIO);
+	cmd = crt_kmalloc(sizeof(*cmd), GFP_NOIO);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto out;
@@ -94,7 +94,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 	KLOG(KL_DBG, "ctl %d err %d", code, err);
 	err = 0;
 out_free_cmd:
-	kfree(cmd);
+	crt_kfree(cmd);
 out:
 	return err;
 }

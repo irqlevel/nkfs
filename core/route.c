@@ -683,7 +683,7 @@ static struct nkfs_host *nkfs_host_alloc(void)
 {
 	struct nkfs_host *host;
 
-	host = kmalloc(sizeof(*host), GFP_NOIO);
+	host = crt_kmalloc(sizeof(*host), GFP_NOIO);
 	if (!host)
 		return NULL;
 	memset(host, 0, sizeof(*host));
@@ -692,7 +692,7 @@ static struct nkfs_host *nkfs_host_alloc(void)
 
 static void nkfs_host_free(struct nkfs_host *host)
 {
-	kfree(host);
+	crt_kfree(host);
 }
 
 static struct nkfs_host *nkfs_host_create(void)
