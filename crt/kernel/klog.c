@@ -13,9 +13,6 @@ struct klog_msg {
 static LIST_HEAD(klog_msg_list);
 static DEFINE_SPINLOCK(klog_msg_lock);
 
-static struct kmem_cache *klog_msg_cache;
-static mempool_t *klog_msg_pool;
-
 static long klog_stopping;
 
 static struct task_struct *klog_thread;
@@ -59,9 +56,9 @@ struct klog_msg *klog_msg_alloc(void)
 {
 	struct klog_msg *msg;
 
-	msg = mempool_alloc(klog_msg_pool, GFP_ATOMIC);
+	msg = crt_kmalloc(sizeof(*msg), GFP_ATOMIC);
 	if (msg) {
-		memset(msg, 0, sizeof(struct klog_msg));
+		memset(msg, 0, sizeof(*msg));
 		atomic_inc(&klog_nr_msg);
 	}
 	return msg;
@@ -69,8 +66,8 @@ struct klog_msg *klog_msg_alloc(void)
 
 static void klog_msg_free(struct klog_msg *msg)
 {
-	kfree(msg->comp);
-	mempool_free(msg, klog_msg_pool);
+	crt_kfree(msg->comp);
+	crt_kfree(msg);
 	atomic_dec(&klog_nr_msg);
 }
 
@@ -166,7 +163,7 @@ static void klog_msg_list_write(struct list_head *msg_list)
 
 	if (size > KLOG_BUF_MAX)
 		size = KLOG_BUF_MAX;
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = crt_kmalloc(size, GFP_KERNEL);
 	if (!buf) {
 		pr_err("klog: cant alloc buf for klog\n");
 		goto cleanup;
@@ -194,7 +191,7 @@ static void klog_msg_list_write(struct list_head *msg_list)
 			break;
 	}
 
-	kfree(buf);
+	crt_kfree(buf);
 cleanup:
 	list_for_each_entry_safe(msg, tmp, msg_list, list) {
 		list_del_init(&msg->list);
@@ -324,7 +321,7 @@ void klog_sync(void)
 	if (!msg)
 		return;
 
-	msg->comp = kmalloc(sizeof(struct completion), GFP_ATOMIC);
+	msg->comp = crt_kmalloc(sizeof(struct completion), GFP_ATOMIC);
 	if (!msg->comp) {
 		klog_msg_free(msg);
 		return;
@@ -355,38 +352,18 @@ int klog_init(void)
 {
 	int error = -EINVAL;
 
-	klog_msg_cache = kmem_cache_create("klog_msg_cache",
-		sizeof(struct klog_msg), 0, SLAB_HWCACHE_ALIGN, NULL);
-	if (klog_msg_cache == NULL) {
-		pr_err("klog: cant create mem_cache\n");
-		error = -ENOMEM;
-		goto out;
-	}
-
-	klog_msg_pool = mempool_create_slab_pool(1024, klog_msg_cache);
-	if (klog_msg_pool == NULL) {
-		pr_err("klog: cant create mempool\n");
-		error = -ENOMEM;
-		goto out_cache_del;
-	}
-
 	atomic_set(&klog_nr_msg, 0);
 
 	klog_thread = kthread_create(klog_thread_routine, NULL, "klogger");
 	if (IS_ERR(klog_thread)) {
 		error = PTR_ERR(klog_thread);
 		pr_err("klog: cant create thread\n");
-		goto out_pool_del;
+		goto out;
 	}
 	wake_up_process(klog_thread);
 
 	return 0;
-out_pool_del:
-	mempool_destroy(klog_msg_pool);
-out_cache_del:
-	kmem_cache_destroy(klog_msg_cache);
 out:
-
 	return error;
 }
 
@@ -397,6 +374,4 @@ void klog_release(void)
 	klog_msg_list_drop();
 	klog_file_sync();
 	BUG_ON(atomic_read(&klog_nr_msg));
-	mempool_destroy(klog_msg_pool);
-	kmem_cache_destroy(klog_msg_cache);
 }

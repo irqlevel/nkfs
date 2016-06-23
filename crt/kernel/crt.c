@@ -96,7 +96,7 @@ int crt_queue_work(work_func_t func)
 {
 	struct work_struct *work = NULL;
 
-	work = kzalloc(sizeof(struct work_struct), GFP_ATOMIC);
+	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
 		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
@@ -104,7 +104,7 @@ int crt_queue_work(work_func_t func)
 
 	INIT_WORK(work, func);
 	if (!queue_work(crt_wq, work)) {
-		kfree(work);
+		crt_kfree(work);
 		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}

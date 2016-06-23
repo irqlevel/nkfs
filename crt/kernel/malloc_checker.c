@@ -32,6 +32,8 @@ struct malloc_entry {
 struct malloc_checker {
 	struct list_head entries_list[MALLOC_CHECKER_NR_LISTS];
 	spinlock_t	 entries_list_lock[MALLOC_CHECKER_NR_LISTS];
+	atomic64_t	 nr_allocs;
+	atomic64_t	 nr_frees;
 #ifdef __MALLOC_CHECKER_DELAY_FREE__
 	struct task_struct *delay_check_thread;
 	struct list_head delay_entries_list[MALLOC_CHECKER_NR_LISTS];
@@ -138,6 +140,9 @@ int malloc_checker_init(void)
 
 	PRINTK("malloc checker init\n");
 
+	atomic64_set(&checker->nr_allocs, 0);
+	atomic64_set(&checker->nr_frees, 0);
+
 	for (i = 0; i < ARRAY_SIZE(checker->entries_list); i++) {
 		INIT_LIST_HEAD(&checker->entries_list[i]);
 		spin_lock_init(&checker->entries_list_lock[i]);
@@ -225,6 +230,8 @@ void *malloc_checker_kmalloc(size_t size, gfp_t flags)
 	list_add(&entry->link, &checker->entries_list[i]);
 	spin_unlock_irqrestore(&checker->entries_list_lock[i], irq_flags);
 
+	atomic64_inc(&checker->nr_allocs);
+
 #ifdef __MALLOC_CHECKER_PRINTK__
 	PRINTK("alloc entry %p ptr %p\n", entry, entry->ptr);
 #endif
@@ -295,6 +302,7 @@ void malloc_checker_kfree(void *ptr)
 	list_for_each_entry_safe(curr, tmp, &entries_list, link) {
 		list_del_init(&curr->link);
 		check_and_release_entry(checker, curr);
+		atomic64_inc(&checker->nr_frees);
 	}
 }
 
@@ -306,7 +314,9 @@ void malloc_checker_deinit(void)
 	struct malloc_entry *curr, *tmp;
 	struct malloc_checker *checker = &g_malloc_checker;
 
-	PRINTK("malloc checker deinit\n");
+	PRINTK("malloc checker deinit: nr_allocs %ld nr_frees %ld\n",
+	       atomic64_read(&checker->nr_allocs),
+	       atomic64_read(&checker->nr_frees));
 
 #ifdef __MALLOC_CHECKER_DELAY_FREE__
 	kthread_stop(checker->delay_check_thread);
