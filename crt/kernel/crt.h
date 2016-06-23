@@ -43,3 +43,8 @@
 	BUG()
 
 int crt_queue_work(work_func_t func);
+
+void *crt_kmalloc(size_t size, gfp_t flags);
+
+void crt_kfree(void *ptr);
+

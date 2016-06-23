@@ -1,4 +1,5 @@
 #include "crt.h"
+#include "malloc_checker.h"
 #include <crt/include/random.h>
 #include <crt/include/nk8.h>
 
@@ -9,7 +10,7 @@ static struct workqueue_struct *crt_wq;
 
 void *crt_malloc(size_t size)
 {
-	return kmalloc(size, GFP_NOIO);
+	return crt_kmalloc(size, GFP_NOIO);
 }
 EXPORT_SYMBOL(crt_malloc);
 
@@ -33,7 +34,7 @@ EXPORT_SYMBOL(crt_memcmp);
 
 void crt_free(void *ptr)
 {
-	kfree(ptr);
+	crt_kfree(ptr);
 }
 EXPORT_SYMBOL(crt_free);
 
@@ -146,19 +147,59 @@ void crt_file_close(void *file)
 }
 EXPORT_SYMBOL(crt_file_close);
 
+void *crt_kmalloc(size_t size, gfp_t flags)
+{
+#ifdef __MALLOC_CHECKER__
+	return malloc_checker_kmalloc(size, flags);
+#else
+	return kmalloc(size, flags);
+#endif
+}
+EXPORT_SYMBOL(crt_kmalloc);
+
+void crt_kfree(void *ptr)
+{
+#ifdef __MALLOC_CHECKER__
+	malloc_checker_kfree(ptr);
+#else
+	kfree(ptr);
+#endif
+}
+EXPORT_SYMBOL(crt_kfree);
+
+int crt_kmalloc_init(void)
+{
+#ifdef __MALLOC_CHECKER__
+	return malloc_checker_init();
+#else
+	return 0;
+#endif
+}
+
+void crt_kmalloc_deinit(void)
+{
+#ifdef __MALLOC_CHECKER__
+	malloc_checker_deinit();
+#endif
+}
+
 static int __init crt_init(void)
 {
 	int err = -EINVAL;
 
 	pr_info("nkfs_crt: initing\n");
-	err = klog_init();
+
+	err = crt_kmalloc_init();
 	if (err)
 		goto out;
+
+	err = klog_init();
+	if (err)
+		goto rel_kmalloc;
 
 	err = crt_random_init();
 	if (err)
 		goto rel_klog;
-
 
 	rand_test();
 
@@ -186,6 +227,8 @@ rel_rnd:
 	crt_random_release();
 rel_klog:
 	klog_release();
+rel_kmalloc:
+	crt_kmalloc_deinit();
 out:
 	return err;
 }
@@ -197,6 +240,7 @@ static void __exit crt_exit(void)
 	nk8_release();
 	crt_random_release();
 	klog_release();
+	crt_kmalloc_deinit();
 	pr_info("nkfs_crt: exited\n");
 }
 

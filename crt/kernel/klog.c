@@ -1,4 +1,5 @@
 #include "crt.h"
+#include "helpers.h"
 
 #define KLOG_MSG_BYTES	256
 
@@ -50,20 +51,6 @@ static int klog_write_msg(char **buff, int *left, const char *fmt, ...)
 	res = klog_write_msg2(buff, left, fmt, args);
 	va_end(args);
 	return res;
-}
-
-static char *truncate_file_path(const char *filename)
-{
-	char *temp, *curr = (char *)filename;
-
-	while (1) {
-		temp = strchr(curr, '/');
-		if (!temp)
-			break;
-		curr = ++temp;
-	}
-
-	return curr;
 }
 
 static atomic_t klog_nr_msg;
@@ -303,7 +290,7 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 		"%04d-%02d-%02d %02d:%02d:%02d.%.06d %s %s t%d %s %d %s() ",
 		1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 		tm.tm_min, tm.tm_sec, ts.tv_nsec/1000, level_s, subcomp,
-		current->pid, truncate_file_path(file), line, func);
+		current->pid, truncate_file_name(file), line, func);
 
 	klog_write_msg2(&pos, &left, fmt, args);
 
