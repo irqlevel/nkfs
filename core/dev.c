@@ -5,8 +5,6 @@
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);
 
-static struct kmem_cache *nkfs_dev_cachep;
-
 static void nkfs_dev_free(struct nkfs_dev *dev)
 {
 	if (dev->sb)
@@ -15,7 +13,7 @@ static void nkfs_dev_free(struct nkfs_dev *dev)
 	KLOG(KL_DBG, "dev %s %p sb %p",
 		dev->dev_name, dev, dev->sb);
 
-	kmem_cache_free(nkfs_dev_cachep, dev);
+	crt_kfree(dev);
 }
 
 void nkfs_dev_ref(struct nkfs_dev *dev)
@@ -151,7 +149,7 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 		return NULL;
 	}
 
-	dev = kmem_cache_alloc(nkfs_dev_cachep, GFP_NOIO);
+	dev = crt_kmalloc(sizeof(*dev), GFP_NOIO);
 	if (!dev) {
 		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
@@ -291,24 +289,10 @@ static void nkfs_dev_release_all(void)
 
 int nkfs_dev_init(void)
 {
-	int err;
-
-	nkfs_dev_cachep = kmem_cache_create("nkfs_dev_cache",
-					    sizeof(struct nkfs_dev), 0,
-					    SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_dev_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto out;
-	}
-
 	return 0;
-out:
-	return err;
 }
 
 void nkfs_dev_finit(void)
 {
 	nkfs_dev_release_all();
-	kmem_cache_destroy(nkfs_dev_cachep);
 }

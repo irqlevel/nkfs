@@ -2,9 +2,6 @@
 
 #define __SUBCOMPONENT__ "inode"
 
-struct kmem_cache *nkfs_inode_cachep;
-struct kmem_cache *nkfs_inode_disk_cachep;
-
 static void nkfs_inodes_remove(struct nkfs_sb *sb, struct nkfs_inode *inode);
 
 static int __nkfs_inode_block_alloc(struct nkfs_inode *inode,
@@ -23,7 +20,7 @@ static struct nkfs_inode *nkfs_inode_alloc(void)
 {
 	struct nkfs_inode *inode;
 
-	inode = kmem_cache_alloc(nkfs_inode_cachep, GFP_NOIO);
+	inode = crt_kmalloc(sizeof(*inode), GFP_NOIO);
 	if (!inode) {
 		KLOG(KL_ERR, "cant alloc inode");
 		return NULL;
@@ -41,7 +38,7 @@ static void nkfs_inode_free(struct nkfs_inode *inode)
 	if (inode->blocks_sum_tree)
 		nkfs_btree_deref(inode->blocks_sum_tree);
 
-	kmem_cache_free(nkfs_inode_cachep, inode);
+	crt_kfree(inode);
 }
 
 static void nkfs_inode_release(struct nkfs_inode *inode)
@@ -232,7 +229,7 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 		goto free_inode;
 	}
 
-	inode_disk = kmem_cache_alloc(nkfs_inode_disk_cachep, GFP_NOIO);
+	inode_disk = crt_kmalloc(sizeof(*inode_disk), GFP_NOIO);
 	if (!inode_disk) {
 		KLOG(KL_ERR, "no mem");
 		goto put_clu;
@@ -270,19 +267,19 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 	inode->block = block;
 	inserted = nkfs_inodes_insert(sb, inode);
 	if (inserted != inode) {
-		kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
+		crt_kfree(inode_disk);
 		dio_clu_put(clu);
 		nkfs_inode_free(inode);
 		return inserted;
 	}
 
 	INODE_DEREF(inserted);
-	kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
+	crt_kfree(inode_disk);
 	dio_clu_put(clu);
 	return inode;
 
 free_idisk:
-	kmem_cache_free(nkfs_inode_disk_cachep, inode_disk);
+	crt_kfree(inode_disk);
 put_clu:
 	dio_clu_put(clu);
 free_inode:
@@ -331,7 +328,7 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 			inode->block);
 		return -EIO;
 	}
-	idisk = kmem_cache_alloc(nkfs_inode_disk_cachep, GFP_NOIO);
+	idisk = crt_kmalloc(sizeof(*idisk), GFP_NOIO);
 	if (!idisk) {
 		KLOG(KL_ERR, "no memory");
 		dio_clu_put(clu);
@@ -354,7 +351,7 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 	}
 
 cleanup:
-	kmem_cache_free(nkfs_inode_disk_cachep, idisk);
+	crt_kfree(idisk);
 	dio_clu_put(clu);
 
 	return err;
@@ -912,31 +909,9 @@ fail:
 
 int nkfs_inode_init(void)
 {
-	int err;
-
-	nkfs_inode_cachep = kmem_cache_create("nkfs_inode_cache",
-		sizeof(struct nkfs_inode), 0, SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_inode_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		return -ENOMEM;
-	}
-
-	nkfs_inode_disk_cachep = kmem_cache_create("nkfs_inode_disk_cache",
-		sizeof(struct nkfs_inode_disk), 0, SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_inode_disk_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto del_inode_cache;
-	}
-
 	return 0;
-del_inode_cache:
-	kmem_cache_destroy(nkfs_inode_cachep);
-	return err;
 }
 
 void nkfs_inode_finit(void)
 {
-	kmem_cache_destroy(nkfs_inode_disk_cachep);
-	kmem_cache_destroy(nkfs_inode_cachep);
 }

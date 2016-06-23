@@ -2,9 +2,6 @@
 
 #define __SUBCOMPONENT__ "nkfs_btree"
 
-static struct kmem_cache *nkfs_btree_node_cachep;
-static struct kmem_cache *nkfs_btree_cachep;
-
 static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node);
 
@@ -33,7 +30,7 @@ static void __nkfs_btree_node_free(struct nkfs_btree_node *node)
 	if (node->header)
 		put_page(node->header);
 
-	kmem_cache_free(nkfs_btree_node_cachep, node);
+	crt_kfree(node);
 }
 
 struct nkfs_btree_key *nkfs_btree_node_key(struct nkfs_btree_node *node,
@@ -111,7 +108,7 @@ static struct nkfs_btree_node *nkfs_btree_node_alloc(int zero_pages)
 	struct nkfs_btree_node *node;
 	int i;
 
-	node = kmem_cache_alloc(nkfs_btree_node_cachep, GFP_NOIO);
+	node = crt_kmalloc(sizeof(*node), GFP_NOIO);
 	if (!node) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -678,7 +675,7 @@ struct nkfs_btree *nkfs_btree_create(struct nkfs_sb *sb, u64 root_block)
 	struct nkfs_btree *tree;
 	int err;
 
-	tree = kmem_cache_alloc(nkfs_btree_cachep, GFP_NOIO);
+	tree = crt_kmalloc(sizeof(*tree), GFP_NOIO);
 	if (!tree) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -736,7 +733,7 @@ static void nkfs_btree_release(struct nkfs_btree *tree)
 
 	NKFS_BUG_ON(tree->nodes_active);
 
-	kmem_cache_free(nkfs_btree_cachep, tree);
+	crt_free(tree);
 	KLOG(KL_DBG1, "tree %p deleted", tree);
 }
 
@@ -1904,36 +1901,10 @@ void nkfs_btree_write_unlock(struct nkfs_btree *tree)
 
 int nkfs_btree_init(void)
 {
-	int err;
-
-	nkfs_btree_node_cachep = kmem_cache_create("nkfs_btree_node_cache",
-			sizeof(struct nkfs_btree_node), 0,
-			SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_btree_node_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto out;
-	}
-
-	nkfs_btree_cachep = kmem_cache_create("nkfs_btree_cache",
-			sizeof(struct nkfs_btree), 0,
-			SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_btree_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto del_node_cache;
-	}
-
 	return 0;
-
-del_node_cache:
-	kmem_cache_destroy(nkfs_btree_node_cachep);
-out:
-	return err;
 }
 
 void nkfs_btree_finit(void)
 {
-	kmem_cache_destroy(nkfs_btree_node_cachep);
-	kmem_cache_destroy(nkfs_btree_cachep);
+	return;
 }

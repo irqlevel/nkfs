@@ -5,7 +5,6 @@
 static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);
 
-static struct kmem_cache *nkfs_sb_cachep;
 static int nkfs_sb_sync(struct nkfs_sb *sb);
 
 static void nkfs_sb_release(struct nkfs_sb *sb)
@@ -21,7 +20,7 @@ static void nkfs_sb_release(struct nkfs_sb *sb)
 static void nkfs_sb_delete(struct nkfs_sb *sb)
 {
 	nkfs_sb_release(sb);
-	kmem_cache_free(nkfs_sb_cachep, sb);
+	crt_kfree(sb);
 }
 
 void nkfs_sb_stop(struct nkfs_sb *sb)
@@ -377,7 +376,7 @@ static int nkfs_sb_create(struct nkfs_dev *dev,
 	int err;
 	struct nkfs_sb *sb;
 
-	sb = kmem_cache_alloc(nkfs_sb_cachep, GFP_NOIO);
+	sb = crt_kmalloc(sizeof(*sb), GFP_NOIO);
 	if (!sb) {
 		KLOG(KL_ERR, "cant alloc sb");
 		return -ENOMEM;
@@ -419,7 +418,7 @@ static int nkfs_sb_create(struct nkfs_dev *dev,
 	return 0;
 
 free_sb:
-	kmem_cache_free(nkfs_sb_cachep, sb);
+	crt_kfree(sb);
 	return err;
 }
 
@@ -565,25 +564,11 @@ out:
 
 int nkfs_sb_init(void)
 {
-	int err;
-
-	nkfs_sb_cachep = kmem_cache_create("nkfs_sb_cache",
-				sizeof(struct nkfs_sb), 0,
-				SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_sb_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto out;
-	}
-
 	return 0;
-out:
-	return err;
 }
 
 void nkfs_sb_finit(void)
 {
-	kmem_cache_destroy(nkfs_sb_cachep);
 }
 
 static int nkfs_sb_get_obj(struct nkfs_sb *sb,

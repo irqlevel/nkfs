@@ -32,9 +32,6 @@ do {									\
 } while (0)								\
 
 struct nkfs_host *nkfs_host;
-struct kmem_cache *nkfs_neigh_cachep;
-struct kmem_cache *nkfs_host_id_cachep;
-struct kmem_cache *nkfs_host_work_cachep;
 
 static void __nkfs_neighs_remove(struct nkfs_host *host,
 	struct nkfs_neigh *neigh);
@@ -63,7 +60,7 @@ static struct nkfs_neigh *nkfs_neigh_alloc(void)
 {
 	struct nkfs_neigh *neigh;
 
-	neigh = kmem_cache_alloc(nkfs_neigh_cachep, GFP_NOIO);
+	neigh = crt_kmalloc(sizeof(*neigh), GFP_NOIO);
 	if (!neigh) {
 		KLOG(KL_ERR, "cant alloc neigh");
 		return NULL;
@@ -79,7 +76,7 @@ static struct nkfs_neigh *nkfs_neigh_alloc(void)
 
 static void nkfs_host_work_free(struct nkfs_host_work *work)
 {
-	kmem_cache_free(nkfs_host_work_cachep, work);
+	crt_kfree(work);
 }
 
 static void nkfs_host_work_deref(struct nkfs_host_work *work)
@@ -91,7 +88,7 @@ static void nkfs_host_work_deref(struct nkfs_host_work *work)
 
 static void nkfs_neigh_free(struct nkfs_neigh *neigh)
 {
-	kmem_cache_free(nkfs_neigh_cachep, neigh);
+	crt_kfree(neigh);
 }
 
 static void nkfs_neigh_detach_hid(struct nkfs_neigh *neigh)
@@ -136,7 +133,7 @@ struct nkfs_host_id *nkfs_hid_alloc(void)
 {
 	struct nkfs_host_id *hid;
 
-	hid = kmem_cache_alloc(nkfs_host_id_cachep, GFP_NOIO);
+	hid = crt_kmalloc(sizeof(*hid), GFP_NOIO);
 	if (!hid) {
 		KLOG(KL_ERR, "cant alloc host_id");
 		return NULL;
@@ -150,7 +147,7 @@ struct nkfs_host_id *nkfs_hid_alloc(void)
 
 void nkfs_hid_free(struct nkfs_host_id *hid)
 {
-	kmem_cache_free(nkfs_host_id_cachep, hid);
+	crt_kfree(hid);
 }
 
 static void nkfs_hid_release(struct nkfs_host_id *hid)
@@ -381,7 +378,7 @@ static int nkfs_host_queue_work(struct nkfs_host *host,
 {
 	struct nkfs_host_work *work = NULL;
 
-	work = kmem_cache_alloc(nkfs_host_work_cachep, GFP_ATOMIC);
+	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
 		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
@@ -772,55 +769,18 @@ static void nkfs_host_release(struct nkfs_host *host)
 
 int nkfs_route_init(void)
 {
-	int err;
-
 	nkfs_host = nkfs_host_create();
 	if (!nkfs_host) {
 		KLOG(KL_ERR, "cant create host");
 		return -ENOMEM;
 	}
 
-	nkfs_neigh_cachep = kmem_cache_create("nkfs_neigh_cache",
-		sizeof(struct nkfs_neigh), 0, SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_neigh_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto rel_host;
-	}
-
-	nkfs_host_id_cachep = kmem_cache_create("nkfs_host_id_cache",
-		sizeof(struct nkfs_host_id), 0, SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_host_id_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto del_neigh_cache;
-	}
-
-	nkfs_host_work_cachep = kmem_cache_create("nkfs_host_work_cache",
-		sizeof(struct nkfs_host_work), 0, SLAB_MEM_SPREAD, NULL);
-	if (!nkfs_host_work_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto del_host_cache;
-	}
-
 	return 0;
-
-del_host_cache:
-	kmem_cache_destroy(nkfs_host_work_cachep);
-del_neigh_cache:
-	kmem_cache_destroy(nkfs_neigh_cachep);
-rel_host:
-	nkfs_host_release(nkfs_host);
-	return err;
 }
 
 void nkfs_route_finit(void)
 {
 	nkfs_host_release(nkfs_host);
-	kmem_cache_destroy(nkfs_neigh_cachep);
-	kmem_cache_destroy(nkfs_host_id_cachep);
-	kmem_cache_destroy(nkfs_host_work_cachep);
 }
 
 int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)

@@ -1,9 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-static struct kmem_cache *dio_dev_cachep;
-static struct kmem_cache *dio_clu_cachep;
-static struct kmem_cache *dio_io_cachep;
-
 static DEFINE_MUTEX(dio_dev_list_lock);
 static LIST_HEAD(dio_dev_list);
 
@@ -151,7 +147,7 @@ struct dio_dev *dio_dev_create(struct block_device *bdev,
 	if (clu_size > (DIO_CLU_MAX_PAGES*PAGE_SIZE))
 		return NULL;
 
-	dev = kmem_cache_alloc(dio_dev_cachep, GFP_NOIO);
+	dev = crt_kmalloc(sizeof(*dev), GFP_NOIO);
 	if (!dev)
 		return NULL;
 
@@ -171,7 +167,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 	NKFS_BUG_ON(dev->clu_size > (DIO_CLU_MAX_PAGES * PAGE_SIZE));
 
 	nr_pages = dev->clu_size >> PAGE_SHIFT;
-	cluster = kmem_cache_alloc(dio_clu_cachep, GFP_NOIO);
+	cluster = crt_kmalloc(sizeof(*cluster), GFP_NOIO);
 	if (!cluster)
 		return NULL;
 
@@ -182,7 +178,7 @@ static struct dio_cluster *dio_clu_alloc(struct dio_dev *dev)
 	set_bit(DIO_CLU_INV, &cluster->flags);
 	err = dio_pages_alloc(&cluster->pages, nr_pages);
 	if (err) {
-		kmem_cache_free(dio_clu_cachep, cluster);
+		crt_kfree(cluster);
 		return NULL;
 	}
 
@@ -353,7 +349,7 @@ static void dio_dev_release(struct dio_dev *dev)
 
 	dio_clus_dump(dev);
 	dio_clus_release(dev);
-	kmem_cache_free(dio_dev_cachep, dev);
+	crt_kfree(dev);
 }
 
 static int dio_clu_age_cmp(const void *a, const void *b)
@@ -487,7 +483,7 @@ static void dio_io_release(struct dio_io *io)
 	if (io->cluster)
 		dio_clu_deref(io->cluster);
 
-	kmem_cache_free(dio_io_cachep, io);
+	crt_kfree(io);
 }
 
 static void dio_io_deref(struct dio_io *io)
@@ -572,7 +568,7 @@ struct dio_io *dio_io_alloc(struct dio_cluster *cluster)
 {
 	struct dio_io *io;
 
-	io = kmem_cache_alloc(dio_io_cachep, GFP_NOIO);
+	io = crt_kmalloc(sizeof(*io), GFP_NOIO);
 	if (!io)
 		return NULL;
 
@@ -811,7 +807,7 @@ out:
 static void dio_clu_free(struct dio_cluster *cluster)
 {
 	dio_pages_free(&cluster->pages);
-	kmem_cache_free(dio_clu_cachep, cluster);
+	crt_kfree(cluster);
 }
 
 static void dio_clu_release(struct dio_cluster *cluster)
@@ -946,35 +942,11 @@ int dio_init(void)
 {
 	int err;
 
-	dio_dev_cachep = kmem_cache_create("dio_dev_cachep",
-		sizeof(struct dio_dev), 0, SLAB_MEM_SPREAD, NULL);
-	if (!dio_dev_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto fail;
-	}
-
-	dio_clu_cachep =  kmem_cache_create("dio_clu_cachep",
-		sizeof(struct dio_cluster), 0, SLAB_MEM_SPREAD, NULL);
-	if (!dio_clu_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto rel_dev_cache;
-	}
-
-	dio_io_cachep =  kmem_cache_create("dio_io_cachep",
-		sizeof(struct dio_io), 0, SLAB_MEM_SPREAD, NULL);
-	if (!dio_io_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto rel_clu_cache;
-	}
-
 	dio_wq = alloc_workqueue("dio_wq", WQ_UNBOUND, 1);
 	if (!dio_wq) {
 		KLOG(KL_ERR, "cant create wq");
 		err = -ENOMEM;
-		goto rel_io_cache;
+		goto fail;
 	}
 
 	setup_timer(&dio_timer, dio_timer_callback, 0);
@@ -990,12 +962,6 @@ int dio_init(void)
 
 del_wq:
 	destroy_workqueue(dio_wq);
-rel_io_cache:
-	kmem_cache_destroy(dio_io_cachep);
-rel_clu_cache:
-	kmem_cache_destroy(dio_clu_cachep);
-rel_dev_cache:
-	kmem_cache_destroy(dio_dev_cachep);
 fail:
 	return err;
 }
@@ -1004,7 +970,4 @@ void dio_finit(void)
 {
 	del_timer_sync(&dio_timer);
 	destroy_workqueue(dio_wq);
-	kmem_cache_destroy(dio_io_cachep);
-	kmem_cache_destroy(dio_clu_cachep);
-	kmem_cache_destroy(dio_dev_cachep);
 }

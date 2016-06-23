@@ -9,9 +9,6 @@
 		(msg), (s), ksock_self_addr(s), ksock_self_port(s),	\
 			ksock_peer_addr(s), ksock_peer_port(s))
 
-static struct kmem_cache *server_cachep;
-static struct kmem_cache *con_cachep;
-
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
@@ -22,7 +19,7 @@ static void nkfs_con_wait(struct nkfs_con *con)
 
 static void nkfs_con_free(struct nkfs_con *con)
 {
-	kmem_cache_free(con_cachep, con);
+	crt_kfree(con);
 }
 
 u16 nkfs_con_peer_port(struct nkfs_con *con)
@@ -465,7 +462,7 @@ static struct nkfs_con *nkfs_con_alloc(void)
 {
 	struct nkfs_con *con;
 
-	con = kmem_cache_alloc(con_cachep, GFP_NOIO);
+	con = crt_kmalloc(sizeof(*con), GFP_NOIO);
 	if (!con) {
 		KLOG(KL_ERR, "cant alloc nkfs_con");
 		return NULL;
@@ -532,7 +529,7 @@ out:
 
 static void nkfs_server_free(struct nkfs_server *server)
 {
-	kmem_cache_free(server_cachep, server);
+	crt_kfree(server);
 }
 
 static int nkfs_server_thread_routine(void *data)
@@ -653,7 +650,7 @@ static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip,
 	int err;
 	struct nkfs_server *server;
 
-	server = kmem_cache_alloc(server_cachep, GFP_NOIO);
+	server = crt_kmalloc(sizeof(*server), GFP_NOIO);
 	if (!server) {
 		KLOG(KL_ERR, "no memory");
 		return NULL;
@@ -783,39 +780,12 @@ static void nkfs_server_stop_all(void)
 
 int nkfs_server_init(void)
 {
-	int err;
-
-	server_cachep = kmem_cache_create("server_cache",
-			sizeof(struct nkfs_server), 0,
-			SLAB_MEM_SPREAD, NULL);
-	if (!server_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto out;
-	}
-
-	con_cachep = kmem_cache_create("con_cache",
-			sizeof(struct nkfs_con), 0,
-			SLAB_MEM_SPREAD, NULL);
-	if (!con_cachep) {
-		KLOG(KL_ERR, "cant create cache");
-		err = -ENOMEM;
-		goto del_server_cache;
-	}
-
 	return 0;
-
-del_server_cache:
-	kmem_cache_destroy(server_cachep);
-out:
-	return err;
 }
 
 void nkfs_server_finit(void)
 {
 	nkfs_server_stop_all();
-	kmem_cache_destroy(server_cachep);
-	kmem_cache_destroy(con_cachep);
 }
 
 int nkfs_ip_port_cmp(u32 ip1, int port1, u32 ip2, int port2)
