@@ -284,17 +284,17 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 	time_to_tm(ts.tv_sec, 0, &tm);
 
 	klog_write_msg(&pos, &left,
-		"%04d-%02d-%02d %02d:%02d:%02d.%.06d %s %s t%d %s %d %s() ",
-		1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-		tm.tm_min, tm.tm_sec, ts.tv_nsec/1000, level_s, subcomp,
-		current->pid, truncate_file_name(file), line, func);
+		"%04d-%02d-%02d %02d:%02d:%02d.%.06d %s %s t%d %s,%d %s() ",
+		1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec/1000, level_s,
+		subcomp, current->pid, truncate_file_name(file), line, func);
 
 	klog_write_msg2(&pos, &left, fmt, args);
 
 	msg->data[count-1] = '\0';
 	msg->len = strlen(msg->data);
 	if (level >= KLOG_PRINTK_LEVEL)
-		pr_info("%s\n", msg->data);
+		pr_info("nkfs: %s\n", msg->data);
 	klog_msg_queue(msg);
 }
 EXPORT_SYMBOL(klog_v);
