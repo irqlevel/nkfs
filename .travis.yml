@@ -8,7 +8,7 @@ before_install:
 
 install:
     - pushd .
-    - cd $(pwd)/linux-stable && git checkout master && git pull && git checkout -b b3.17.3 v3.17.3 && make defconfig && make prepare && make modules_prepare
+    - cd $(pwd)/linux-stable && git checkout master && git pull && git checkout -b b4.4.13 v4.4.13 && make defconfig && make prepare && make modules_prepare
     - popd
 
 script:
