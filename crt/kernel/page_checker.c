@@ -267,6 +267,8 @@ void page_checker_free_page(struct page *page)
 	struct page_entry *curr, *tmp;
 	struct list_head entries_list;
 
+	WARN_ON(atomic_read(&page->_count) != 1);
+
 	INIT_LIST_HEAD(&entries_list);
 	i = hash_pointer(page) % ARRAY_SIZE(checker->entries_list);
 	spin_lock_irqsave(&checker->entries_list_lock[i], irq_flags);
