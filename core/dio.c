@@ -75,12 +75,12 @@ static int dio_pages_alloc(struct dio_pages *buf, int nr_pages)
 		return -EINVAL;
 
 	for (i = 0; i < nr_pages; i++) {
-		buf->pages[i] = alloc_page(GFP_KERNEL);
+		buf->pages[i] = crt_alloc_page(GFP_KERNEL);
 		if (!buf->pages[i]) {
 			int j;
 
 			for (j = 0; j < i; j++)
-				put_page(buf->pages[j]);
+				crt_free_page(buf->pages[j]);
 			dio_pages_zero(buf);
 			return -ENOMEM;
 		}
@@ -94,7 +94,7 @@ static void dio_pages_free(struct dio_pages *buf)
 	int i;
 
 	for (i = 0; i < buf->nr_pages; i++)
-		put_page(buf->pages[i]);
+		crt_free_page(buf->pages[i]);
 
 	dio_pages_zero(buf);
 }
@@ -390,7 +390,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 	if (dev->nr_clus <= dev->nr_max_clus)
 		return 0;
 
-	page = alloc_page(GFP_KERNEL);
+	page = crt_alloc_page(GFP_KERNEL);
 	if (!page) {
 		KLOG(KL_ERR, "no memory");
 		return -ENOMEM;
@@ -450,7 +450,7 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 		node = nodes[index];
 		dio_clu_deref(node);
 	}
-	put_page(page);
+	crt_free_page(page);
 	return 0;
 }
 
@@ -740,7 +740,7 @@ int dio_clu_zero(struct dio_cluster *cluster)
 	int i;
 	u32 off;
 
-	page = alloc_page(GFP_KERNEL);
+	page = crt_alloc_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
@@ -756,7 +756,7 @@ int dio_clu_zero(struct dio_cluster *cluster)
 	err = 0;
 
 out:
-	put_page(page);
+	crt_free_page(page);
 	return err;
 }
 

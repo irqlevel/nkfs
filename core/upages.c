@@ -53,7 +53,7 @@ void nkfs_release_user_pages(struct nkfs_user_pages *up)
 
 	for (i = 0; i < up->nr_pages; i++) {
 		NKFS_BUG_ON(!up->pages[i]);
-		put_page(up->pages[i]);
+		crt_free_page(up->pages[i]);
 	}
 
 	crt_kfree(up->pages);
@@ -103,7 +103,7 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 		return -ENOMEM;
 
 	for (i = 0; i < pages.nr_pages; i++) {
-		pages.pages[i] = alloc_page(GFP_NOIO);
+		pages.pages[i] = crt_alloc_page(GFP_NOIO);
 		if (!pages.pages[i])
 			goto fail;
 	}
@@ -112,7 +112,7 @@ int nkfs_pages_create(u32 len, struct nkfs_pages *ppages)
 	return 0;
 fail:
 	for (j = 0; j < i; j++)
-		put_page(pages.pages[j]);
+		crt_free_page(pages.pages[j]);
 	crt_kfree(pages.pages);
 	return -ENOMEM;
 }
@@ -148,6 +148,6 @@ void nkfs_pages_release(struct nkfs_pages *pages)
 	u32 i;
 
 	for (i = 0; i < pages->nr_pages; i++)
-		put_page(pages->pages[i]);
+		crt_free_page(pages->pages[i]);
 	crt_kfree(pages->pages);
 }

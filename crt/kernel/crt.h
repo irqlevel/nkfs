@@ -35,6 +35,8 @@
 
 #include "klog.h"
 #include "vfile.h"
+#include "malloc.h"
+#include "page_alloc.h"
 
 #define CRT_BUG_ON(cond)	\
 	BUG_ON(cond)
@@ -43,9 +45,3 @@
 	BUG()
 
 int crt_queue_work(work_func_t func);
-
-void *crt_kmalloc(size_t size, gfp_t flags);
-void *crt_kcalloc(size_t n, size_t size, gfp_t flags);
-
-void crt_kfree(void *ptr);
-

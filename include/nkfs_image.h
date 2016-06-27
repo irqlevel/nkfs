@@ -64,7 +64,7 @@ struct nkfs_btree_key_page {
 };
 
 struct nkfs_btree_child_page {
-	struct nkfs_btree_child childs[512];
+	struct nkfs_btree_child children[512];
 };
 
 struct nkfs_btree_value_page {
@@ -95,7 +95,7 @@ _Static_assert(sizeof(struct nkfs_btree_header_page) == PAGE_SIZE,
 struct nkfs_btree_node_disk {
 	struct nkfs_btree_header_page	header;
 	struct nkfs_btree_key_page	keys[NKFS_BTREE_VALUE_PAGES];
-	struct nkfs_btree_child_page	childs[NKFS_BTREE_CHILD_PAGES];
+	struct nkfs_btree_child_page	children[NKFS_BTREE_CHILD_PAGES];
 	struct nkfs_btree_value_page	values[NKFS_BTREE_VALUE_PAGES];
 };
 

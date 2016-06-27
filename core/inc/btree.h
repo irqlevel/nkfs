@@ -16,7 +16,7 @@ struct nkfs_btree_node {
 	struct page		*header;
 	struct page		*keys[NKFS_BTREE_KEY_PAGES];
 	struct page		*values[NKFS_BTREE_VALUE_PAGES];
-	struct page		*childs[NKFS_BTREE_CHILD_PAGES];
+	struct page		*children[NKFS_BTREE_CHILD_PAGES];
 	u32			sig2;
 };
 

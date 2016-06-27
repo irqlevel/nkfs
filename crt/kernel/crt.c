@@ -1,5 +1,6 @@
 #include "crt.h"
-#include "malloc_checker.h"
+#include "malloc.h"
+#include "page_alloc.h"
 #include <crt/include/random.h>
 #include <crt/include/nk8.h>
 
@@ -7,36 +8,6 @@
 static struct file *dev_random;
 static struct file *dev_urandom;
 static struct workqueue_struct *crt_wq;
-
-void *crt_malloc(size_t size)
-{
-	return crt_kmalloc(size, GFP_NOIO);
-}
-EXPORT_SYMBOL(crt_malloc);
-
-void *crt_memset(void *ptr, int value, size_t len)
-{
-	return memset(ptr, value, len);
-}
-EXPORT_SYMBOL(crt_memset);
-
-void *crt_memcpy(void *ptr1, const void *ptr2, size_t len)
-{
-	return memcpy(ptr1, ptr2, len);
-}
-EXPORT_SYMBOL(crt_memcpy);
-
-int crt_memcmp(const void *ptr1, const void *ptr2, size_t len)
-{
-	return memcmp(ptr1, ptr2, len);
-}
-EXPORT_SYMBOL(crt_memcmp);
-
-void crt_free(void *ptr)
-{
-	crt_kfree(ptr);
-}
-EXPORT_SYMBOL(crt_free);
 
 static int crt_random_buf_read(void *buf, __u32 len, int urandom)
 {
@@ -145,52 +116,6 @@ void crt_file_close(void *file)
 }
 EXPORT_SYMBOL(crt_file_close);
 
-void *crt_kmalloc(size_t size, gfp_t flags)
-{
-#ifdef __MALLOC_CHECKER__
-	return malloc_checker_kmalloc(size, flags);
-#else
-	return kmalloc(size, flags);
-#endif
-}
-EXPORT_SYMBOL(crt_kmalloc);
-
-void *crt_kcalloc(size_t n, size_t size, gfp_t flags)
-{
-#ifdef __MALLOC_CHECKER__
-	return malloc_checker_kmalloc(n * size, flags);
-#else
-	return kmalloc(n * size, flags);
-#endif
-}
-EXPORT_SYMBOL(crt_kcalloc);
-
-void crt_kfree(void *ptr)
-{
-#ifdef __MALLOC_CHECKER__
-	malloc_checker_kfree(ptr);
-#else
-	kfree(ptr);
-#endif
-}
-EXPORT_SYMBOL(crt_kfree);
-
-int crt_kmalloc_init(void)
-{
-#ifdef __MALLOC_CHECKER__
-	return malloc_checker_init();
-#else
-	return 0;
-#endif
-}
-
-void crt_kmalloc_deinit(void)
-{
-#ifdef __MALLOC_CHECKER__
-	malloc_checker_deinit();
-#endif
-}
-
 static int __init crt_init(void)
 {
 	int err = -EINVAL;
@@ -201,9 +126,13 @@ static int __init crt_init(void)
 	if (err)
 		goto out;
 
-	err = klog_init();
+	err = crt_page_alloc_init();
 	if (err)
 		goto rel_kmalloc;
+
+	err = klog_init();
+	if (err)
+		goto rel_page_alloc;
 
 	err = crt_random_init();
 	if (err)
@@ -235,6 +164,8 @@ rel_rnd:
 	crt_random_release();
 rel_klog:
 	klog_release();
+rel_page_alloc:
+	crt_page_alloc_deinit();
 rel_kmalloc:
 	crt_kmalloc_deinit();
 out:
@@ -248,6 +179,7 @@ static void __exit crt_exit(void)
 	nk8_release();
 	crt_random_release();
 	klog_release();
+	crt_page_alloc_deinit();
 	crt_kmalloc_deinit();
 	pr_info("nkfs_crt: exited\n");
 }
