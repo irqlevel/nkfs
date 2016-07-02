@@ -21,8 +21,13 @@ int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
 
 	up.write = !!write;
 	down_read(&current->mm->mmap_sem);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 3)
+	ret = get_user_pages(uaddr, up.nr_pages,
+		(up.write) ? WRITE : READ, 0, up.pages, NULL);
+#else
 	ret = get_user_pages(current, current->mm, uaddr, up.nr_pages,
 		(up.write) ? WRITE : READ, 0, up.pages, NULL);
+#endif
 	up_read(&current->mm->mmap_sem);
 
 	if (ret != up.nr_pages) {
