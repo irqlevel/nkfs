@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 MODULE_LICENSE("GPL");
 

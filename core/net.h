@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_NET_H__
+#define __NKFS_NET_H__
 
 struct nkfs_server {
 	struct task_struct	*thread;
@@ -50,3 +51,5 @@ void nkfs_con_close(struct nkfs_con *con);
 void nkfs_con_fail(struct nkfs_con *con, int err);
 
 int nkfs_ip_port_cmp(u32 ip1, int port1, u32 ip2, int port2);
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_HELPERS_H__
+#define __NKFS_HELPERS_H__
 
 static inline u64 nkfs_div_round_up(u64 x, u64 y)
 {
@@ -44,3 +45,5 @@ do {						\
 } while (0)					\
 
 #define NKFS_BUG()	NKFS_BUG_ON(1)
+
+#endif

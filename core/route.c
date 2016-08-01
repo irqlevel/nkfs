@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 #define HOST_TIMER_TIMEOUT_MS		500
 #define HOST_HANDSHAKE_TIMEOUT_MS	500

@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 static void nkfs_inodes_remove(struct nkfs_sb *sb, struct nkfs_inode *inode);
 

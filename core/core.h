@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __NKFS_CORE_H__
+#define __NKFS_CORE_H__
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -43,17 +45,17 @@
 
 #include <crt/include/crt.h>
 
-#include "inc/helpers.h"
-#include "inc/ksocket.h"
-#include "inc/btree.h"
-#include "inc/dev.h"
-#include "inc/net.h"
-#include "inc/super.h"
-#include "inc/balloc.h"
-#include "inc/inode.h"
-#include "inc/upages.h"
-#include "inc/route.h"
-#include "inc/dio.h"
-#include "inc/journal.h"
-#include "inc/trace_events.h"
+#include "helpers.h"
+#include "ksocket.h"
+#include "btree.h"
+#include "dev.h"
+#include "net.h"
+#include "super.h"
+#include "balloc.h"
+#include "inode.h"
+#include "upages.h"
+#include "route.h"
+#include "dio.h"
+#include "trace_events.h"
 
+#endif

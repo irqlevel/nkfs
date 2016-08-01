@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 

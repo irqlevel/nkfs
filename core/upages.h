@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_UPAGES_H__
+#define __NKFS_UPAGES_H__
 
 struct nkfs_user_pages {
 	unsigned long uaddr;
@@ -23,3 +24,5 @@ void nkfs_pages_region(unsigned long buf, u32 len,
 int nkfs_pages_create(u32 len, struct nkfs_pages *ppages);
 int nkfs_pages_dsum(struct nkfs_pages *pages, struct csum *dsum, u32 len);
 void nkfs_pages_release(struct nkfs_pages *pages);
+
+#endif

@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);

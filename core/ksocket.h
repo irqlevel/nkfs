@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_KSOCKET_H__
+#define __NKFS_KSOCKET_H__
 
 u16 ksock_self_port(struct socket *sock);
 u16 ksock_peer_port(struct socket *sock);
@@ -34,3 +35,5 @@ int ksock_accept(struct socket **newsockp, struct socket *sock);
 void ksock_abort_accept(struct socket *sock);
 
 int ksock_ioctl(struct socket *sock, int cmd, unsigned long arg);
+
+#endif

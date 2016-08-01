@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 u16 ksock_peer_port(struct socket *sock)
 {

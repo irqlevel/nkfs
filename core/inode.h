@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_INODE_H__
+#define __NKFS_INODE_H__
 
 #pragma pack(push, 1)
 
@@ -53,3 +54,4 @@ void nkfs_inode_delete(struct nkfs_inode *inode);
 int nkfs_inode_init(void);
 void nkfs_inode_finit(void);
 
+#endif

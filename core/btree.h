@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_BTREE_H__
+#define __NKFS_BTREE_H__
 
 #pragma pack(push, 1)
 
@@ -121,3 +122,5 @@ void nkfs_btree_node_deref(struct nkfs_btree_node *node);
 	KLOG(KL_DBG3, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
 	nkfs_btree_node_deref((n));					\
 }
+
+#endif

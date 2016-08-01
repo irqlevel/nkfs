@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_SUPER_H__
+#define __NKFS_SUPER_H__
 
 struct nkfs_sb {
 	struct list_head	list;
@@ -61,3 +62,5 @@ int nkfs_sb_list_query_obj(struct nkfs_obj_id *obj_id,
 
 int nkfs_sb_init(void);
 void nkfs_sb_finit(void);
+
+#endif

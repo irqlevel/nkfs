@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);

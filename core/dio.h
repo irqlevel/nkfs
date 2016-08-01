@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_DIO_H__
+#define __NKFS_DIO_H__
 
 struct dio_dev {
 	atomic_t		ref;
@@ -98,3 +99,5 @@ void dio_clu_sum(struct dio_cluster *cluster, struct csum *sum);
 
 struct dio_dev *dio_dev_create(struct block_device *bdev,
 	int clu_size, int nr_max_clus);
+
+#endif

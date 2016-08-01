@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_DEV_H__
+#define __NKFS_DEV_H__
 
 struct nkfs_dev {
 	atomic_t		ref;
@@ -24,3 +25,5 @@ struct nkfs_dev *nkfs_dev_lookup(char *dev_name);
 
 int nkfs_dev_init(void);
 void nkfs_dev_finit(void);
+
+#endif

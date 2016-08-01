@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node);

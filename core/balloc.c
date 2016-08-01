@@ -1,4 +1,4 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 
 int nkfs_balloc_bm_clear(struct nkfs_sb *sb)
 {

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_ROUTE_H__
+#define __NKFS_ROUTE_H__
 
 enum {
 	NKFS_NEIGH_S_INITED,
@@ -104,3 +105,5 @@ int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 
 int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply);
+
+#endif

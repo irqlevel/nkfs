@@ -1,3 +1,3 @@
-#include "inc/nkfs_priv.h"
+#include "core.h"
 #define CREATE_TRACE_POINTS
-#include "inc/trace_events.h"
+#include "trace_events.h"
