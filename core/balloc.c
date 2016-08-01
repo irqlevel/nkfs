@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "balloc"
-
 int nkfs_balloc_bm_clear(struct nkfs_sb *sb)
 {
 	struct dio_cluster *clu;

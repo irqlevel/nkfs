@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "route"
-
 #define HOST_TIMER_TIMEOUT_MS		500
 #define HOST_HANDSHAKE_TIMEOUT_MS	500
 #define HOST_HBT_TIMEOUT_MS		10000

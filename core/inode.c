@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "inode"
-
 static void nkfs_inodes_remove(struct nkfs_sb *sb, struct nkfs_inode *inode);
 
 static int __nkfs_inode_block_alloc(struct nkfs_inode *inode,

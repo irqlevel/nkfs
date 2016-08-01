@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "nkfs_btree"
-
 static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node);
 

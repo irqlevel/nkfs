@@ -3,8 +3,6 @@
 static DEFINE_MUTEX(dio_dev_list_lock);
 static LIST_HEAD(dio_dev_list);
 
-#define __SUBCOMPONENT__ "dio"
-
 #define DIO_TIMER_TIMEOUT_MSECS 1000
 
 static struct timer_list dio_timer;

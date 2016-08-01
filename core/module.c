@@ -2,8 +2,6 @@
 
 MODULE_LICENSE("GPL");
 
-#define __SUBCOMPONENT__ "mod"
-
 static int nkfs_mod_get(struct inode *inode, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE)) {

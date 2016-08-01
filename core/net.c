@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "net"
-
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
 #define KLOG_SOCK(lvl, s, msg)						\

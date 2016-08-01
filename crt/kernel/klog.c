@@ -248,8 +248,8 @@ static void klog_msg_list_drop(void)
 	}
 }
 
-void klog_v(int level, const char *subcomp, const char *file, int line,
-		const char *func, const char *fmt, va_list args)
+void klog_v(int level, const char *file, int line, const char *func,
+	    const char *fmt, va_list args)
 {
 	struct klog_msg *msg = NULL;
 	char *pos;
@@ -284,10 +284,10 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 	time_to_tm(ts.tv_sec, 0, &tm);
 
 	klog_write_msg(&pos, &left,
-		"%04d-%02d-%02d %02d:%02d:%02d.%.06d %s %s t%d %s,%d %s() ",
+		"%04d-%02d-%02d %02d:%02d:%02d.%.06d %s t%d %s,%d %s() ",
 		1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec/1000, level_s,
-		subcomp, current->pid, truncate_file_name(file), line, func);
+		current->pid, truncate_file_name(file), line, func);
 
 	klog_write_msg2(&pos, &left, fmt, args);
 
@@ -299,13 +299,13 @@ void klog_v(int level, const char *subcomp, const char *file, int line,
 }
 EXPORT_SYMBOL(klog_v);
 
-void klog(int level, const char *subcomp, const char *file,
-		int line, const char *func, const char *fmt, ...)
+void klog(int level, const char *file, int line, const char *func,
+	  const char *fmt, ...)
 {
 	va_list args;
 
 	va_start(args, fmt);
-	klog_v(level, subcomp, file, line, func, fmt, args);
+	klog_v(level, file, line, func, fmt, args);
 	va_end(args);
 }
 EXPORT_SYMBOL(klog);

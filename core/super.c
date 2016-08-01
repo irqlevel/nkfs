@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "super"
-
 static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);
 

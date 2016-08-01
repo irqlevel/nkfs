@@ -1,7 +1,5 @@
 #include "crt.h"
 
-#define __SUBCOMPONENT__ "vfile"
-
 int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
 {
 	int ret;

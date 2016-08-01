@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__ "upages"
-
 int nkfs_get_user_pages(unsigned long uaddr, u32 nr_pages,
 	int write, struct nkfs_user_pages *pup)
 {

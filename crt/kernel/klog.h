@@ -13,14 +13,16 @@
 #define KL_TST		9
 #define KL_MAX		10
 
-void klog(int level, const char *subcomp, const char *file, int line,
-	  const char *func, const char *fmt, ...);
-void klog_v(int level, const char *subcomp, const char *file, int line,
-	    const char *func, const char *fmt, va_list args);
+void klog(int level, const char *file, int line, const char *func,
+	const char *fmt, ...);
+
+void klog_v(int level, const char *file, int line, const char *func,
+	const char *fmt, va_list args);
 
 void klog_sync(void);
 
 int klog_init(void);
+
 void klog_release(void);
 
 #define KLOG_PATH "/var/log/nkfs.log"
@@ -37,9 +39,8 @@ void klog_release(void);
 #define KLOG(level, fmt, ...)					\
 do {								\
 	if ((level) >= KLOG_LEVEL) {				\
-		klog((level), __SUBCOMPONENT__,			\
-		__FILE__, __LINE__, __FUNCTION__,		\
-		(fmt), ##__VA_ARGS__);				\
+		klog((level), __FILE__, __LINE__, __func__,	\
+		     (fmt), ##__VA_ARGS__);			\
 	}							\
 } while (0)
 
@@ -48,9 +49,8 @@ do {								\
 #define KLOG(level, fmt, ...)					\
 do {								\
 	if ((level) >= KLOG_LEVEL) {				\
-		klog((level), __SUBCOMPONENT__,			\
-		" ", " ", " ",					\
-		(fmt), ##__VA_ARGS__);				\
+		klog((level), "??", 0, "??",			\
+		     (fmt), ##__VA_ARGS__);			\
 	}							\
 } while (0)
 

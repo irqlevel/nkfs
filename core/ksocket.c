@@ -1,7 +1,5 @@
 #include "inc/nkfs_priv.h"
 
-#define __SUBCOMPONENT__	"ksock"
-
 u16 ksock_peer_port(struct socket *sock)
 {
 	return be16_to_cpu(sock->sk->sk_dport);
