@@ -27,4 +27,4 @@ $(BUILD_DIRS_CLEAN): %.clean:
 
 client: crt $(BUILD_DIRS)
 ctl: crt $(BUILD_DIRS)
-kmod: crt $(BUILD_DIRS)
+core: crt $(BUILD_DIRS)
