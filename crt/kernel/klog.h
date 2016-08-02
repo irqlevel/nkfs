@@ -1,6 +1,8 @@
-#pragma once
+#ifndef __CRT_KERNEL_KLOG_H__
+#define __CRT_KERNEL_KLOG_H__
 
 #include <stdarg.h>
+
 #define KL_INV		0
 #define KL_DBG3		1
 #define KL_DBG2		2
@@ -105,3 +107,5 @@ if ((level) >= KLOG_LEVEL) {						\
 		KLOG(KL_INF, "klog sync requested");	\
 		klog_sync();				\
 	} while (0);
+
+#endif

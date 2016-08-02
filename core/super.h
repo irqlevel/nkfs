@@ -1,13 +1,13 @@
-#ifndef __NKFS_SUPER_H__
-#define __NKFS_SUPER_H__
+#ifndef __NKFS_CORE_SUPER_H__
+#define __NKFS_CORE_SUPER_H__
 
-#include <linux/module.h>
+#include "btree.h"
 
 #include <include/nkfs_obj_id.h>
 #include <include/nkfs_obj_info.h>
 #include <include/nkfs_image.h>
 
-#include "btree.h"
+#include <linux/rwsem.h>
 
 struct nkfs_sb {
 	struct list_head	list;

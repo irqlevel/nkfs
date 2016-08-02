@@ -1,5 +1,5 @@
-#ifndef __NKFS_CTL_H__
-#define __NKFS_CTL_H__
+#ifndef __NKFS_CTL_CTL_H__
+#define __NKFS_CTL_CTL_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <include/nkfs_control.h>
+#include <include/nkfs_ctl.h>
 #include <include/nkfs_const.h>
 #include <crt/include/crt.h>
 

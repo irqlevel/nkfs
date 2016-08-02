@@ -4,6 +4,7 @@
 #include "balloc.h"
 
 #include <crt/include/crt.h>
+#include <linux/mm.h>
 
 static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node);

@@ -7,6 +7,11 @@
 
 #include <crt/include/crt.h>
 
+#include <linux/kthread.h>
+#include <linux/highmem.h>
+#include <linux/in.h>
+#include <linux/delay.h>
+
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
 #define KLOG_SOCK(lvl, s, msg)						\

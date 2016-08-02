@@ -1,8 +1,8 @@
-#ifndef __NKFS_NET_H__
-#define __NKFS_NET_H__
+#ifndef __NKFS_CORE_NET_H__
+#define __NKFS_CORE_NET_H__
 
-#include <linux/module.h>
-#include <include/nkfs_network.h>
+#include <linux/net.h>
+#include <include/nkfs_net.h>
 
 struct nkfs_server {
 	struct task_struct	*thread;

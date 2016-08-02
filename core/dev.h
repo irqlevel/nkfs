@@ -1,7 +1,8 @@
-#ifndef __NKFS_DEV_H__
-#define __NKFS_DEV_H__
+#ifndef __NKFS_CORE_DEV_H__
+#define __NKFS_CORE_DEV_H__
 
-#include <linux/module.h>
+#include <linux/atomic.h>
+
 #include <include/nkfs_dev_info.h>
 
 struct nkfs_dev {

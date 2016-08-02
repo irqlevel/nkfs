@@ -5,6 +5,7 @@
 
 #include <include/nkfs_image.h>
 #include <crt/include/crt.h>
+#include <linux/fs.h>
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);

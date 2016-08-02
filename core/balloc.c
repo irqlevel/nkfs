@@ -3,9 +3,6 @@
 #include "dio.h"
 #include "helpers.h"
 
-#include <linux/module.h>
-#include <linux/atomic.h>
-
 #include <include/nkfs_obj_info.h>
 #include <crt/include/crt.h>
 

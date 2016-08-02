@@ -1,4 +1,8 @@
 #include <linux/module.h>
+#include <linux/miscdevice.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+
 #include "net.h"
 #include "dev.h"
 #include "dio.h"

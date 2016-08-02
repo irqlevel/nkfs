@@ -1,8 +1,8 @@
-#ifndef __NKFS_DIO_H__
-#define __NKFS_DIO_H__
+#ifndef __NKFS_CORE_DIO_H__
+#define __NKFS_CORE_DIO_H__
 
-#include <linux/module.h>
 #include <linux/radix-tree.h>
+#include <linux/rwsem.h>
 
 #include <crt/include/csum.h>
 

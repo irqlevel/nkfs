@@ -2,7 +2,11 @@
 #include "helpers.h"
 
 #include <crt/include/crt.h>
+
 #include <linux/version.h>
+#include <linux/in.h>
+#include <net/sock.h>
+#include <linux/uaccess.h>
 
 u16 ksock_peer_port(struct socket *sock)
 {

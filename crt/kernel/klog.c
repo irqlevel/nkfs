@@ -1,6 +1,9 @@
 #include "crt.h"
 #include "helpers.h"
 
+#include <linux/kthread.h>
+#include <linux/fs.h>
+
 #define KLOG_MSG_BYTES	256
 
 struct klog_msg {

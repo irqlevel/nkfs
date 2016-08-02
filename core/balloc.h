@@ -1,5 +1,5 @@
-#ifndef __NKFS_BALLOC_H__
-#define __NKFS_BALLOC_H__
+#ifndef __NKFS_CORE_BALLOC_H__
+#define __NKFS_CORE_BALLOC_H__
 
 #include "super.h"
 

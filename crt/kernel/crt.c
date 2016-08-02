@@ -1,8 +1,14 @@
 #include "crt.h"
 #include "malloc.h"
 #include "page_alloc.h"
+
 #include <crt/include/random.h>
 #include <crt/include/nk8.h>
+
+#include <linux/fs.h>
+#include <linux/file.h>
+#include <linux/delay.h>
+#include <linux/module.h>
 
 static struct file *dev_random;
 static struct file *dev_urandom;
@@ -58,25 +64,6 @@ void crt_random_release(void)
 {
 	fput(dev_random);
 	fput(dev_urandom);
-}
-
-int crt_queue_work(work_func_t func)
-{
-	struct work_struct *work = NULL;
-
-	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		KLOG(KL_ERR, "cant alloc work");
-		return -ENOMEM;
-	}
-
-	INIT_WORK(work, func);
-	if (!queue_work(crt_wq, work)) {
-		crt_kfree(work);
-		KLOG(KL_ERR, "cant queue work");
-		return -ENOMEM;
-	}
-	return 0;
 }
 
 void crt_msleep(u32 ms)

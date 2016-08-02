@@ -1,8 +1,6 @@
 #include "malloc.h"
 #include "malloc_checker.h"
 
-#include <linux/module.h>
-
 void *crt_malloc(size_t size)
 {
 	return crt_kmalloc(size, GFP_NOIO);

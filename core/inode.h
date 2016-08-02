@@ -1,13 +1,14 @@
-#ifndef __NKFS_INODE_H__
-#define __NKFS_INODE_H__
+#ifndef __NKFS_CORE_INODE_H__
+#define __NKFS_CORE_INODE_H__
 
-#pragma pack(push, 1)
-
-#include <linux/module.h>
+#include <linux/atomic.h>
 #include <include/nkfs_obj_id.h>
 
 #include "super.h"
 #include "btree.h"
+
+
+#pragma pack(push, 1)
 
 struct nkfs_inode {
 	u32			sig1;

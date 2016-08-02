@@ -1,8 +1,7 @@
-#ifndef __NKFS_KSOCKET_H__
-#define __NKFS_KSOCKET_H__
+#ifndef __NKFS_CORE_KSOCKET_H__
+#define __NKFS_CORE_KSOCKET_H__
 
-#include <linux/module.h>
-#include <net/sock.h>
+#include <linux/net.h>
 
 u16 ksock_self_port(struct socket *sock);
 u16 ksock_peer_port(struct socket *sock);

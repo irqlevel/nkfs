@@ -1,7 +1,6 @@
 #include "upages.h"
 #include "helpers.h"
 
-#include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/version.h>
 

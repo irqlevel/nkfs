@@ -3,6 +3,9 @@
 #include "trace_events.h"
 
 #include <crt/include/crt.h>
+#include <linux/mm.h>
+#include <linux/bio.h>
+#include <linux/sort.h>
 
 static DEFINE_MUTEX(dio_dev_list_lock);
 static LIST_HEAD(dio_dev_list);

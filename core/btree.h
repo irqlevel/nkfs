@@ -1,9 +1,9 @@
-#ifndef __NKFS_BTREE_H__
-#define __NKFS_BTREE_H__
+#ifndef __NKFS_CORE_BTREE_H__
+#define __NKFS_CORE_BTREE_H__
 
-#include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
+#include <linux/rwsem.h>
 
 #include <include/nkfs_image.h>
 

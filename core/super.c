@@ -6,6 +6,7 @@
 #include "balloc.h"
 
 #include <crt/include/crt.h>
+#include <linux/fs.h>
 
 static DECLARE_RWSEM(sb_list_lock);
 static LIST_HEAD(sb_list);

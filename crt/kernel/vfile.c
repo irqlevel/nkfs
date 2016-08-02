@@ -1,5 +1,8 @@
 #include "crt.h"
 
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+
 int vfile_write(struct file *file, const void *buf, u32 len, loff_t *off)
 {
 	int ret;

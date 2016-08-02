@@ -3,8 +3,8 @@
 
 #include <include/nkfs_types.h>
 #include <include/nkfs_obj_id.h>
-#include <include/nkfs_network.h>
-#include <include/nkfs_control.h>
+#include <include/nkfs_net.h>
+#include <include/nkfs_ctl.h>
 
 void *crt_memset(void *ptr, int value, size_t num);
 void *crt_memcpy(void * destination, const void * source, size_t num);

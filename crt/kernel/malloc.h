@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __CRT_KERNEL_MALLOC_H__
+#define __CRT_KERNEL_MALLOC_H__
 
 #include <linux/gfp.h>
 
@@ -21,3 +22,5 @@ void crt_free(void *ptr);
 int crt_kmalloc_init(void);
 
 void crt_kmalloc_deinit(void);
+
+#endif

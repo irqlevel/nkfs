@@ -1,5 +1,5 @@
-#ifndef __NKFS_NETWORK_H__
-#define __NKFS_NETWORK_H__
+#ifndef __NKFS_NET_H__
+#define __NKFS_NET_H__
 
 #include <include/nkfs_types.h>
 #include <include/nkfs_obj_info.h>
