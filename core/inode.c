@@ -1,4 +1,10 @@
-#include "core.h"
+#include "inode.h"
+#include "dio.h"
+#include "helpers.h"
+#include "balloc.h"
+#include "trace_events.h"
+
+#include <crt/include/crt.h>
 
 static void nkfs_inodes_remove(struct nkfs_sb *sb, struct nkfs_inode *inode);
 

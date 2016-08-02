@@ -1,6 +1,14 @@
 #ifndef __NKFS_SUPER_H__
 #define __NKFS_SUPER_H__
 
+#include <linux/module.h>
+
+#include <include/nkfs_obj_id.h>
+#include <include/nkfs_obj_info.h>
+#include <include/nkfs_image.h>
+
+#include "btree.h"
+
 struct nkfs_sb {
 	struct list_head	list;
 	struct nkfs_dev		*dev;

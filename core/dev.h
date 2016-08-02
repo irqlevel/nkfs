@@ -1,6 +1,9 @@
 #ifndef __NKFS_DEV_H__
 #define __NKFS_DEV_H__
 
+#include <linux/module.h>
+#include <include/nkfs_dev_info.h>
+
 struct nkfs_dev {
 	atomic_t		ref;
 	struct list_head	dev_list;

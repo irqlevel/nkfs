@@ -1,4 +1,9 @@
-#include "core.h"
+#include "btree.h"
+#include "dio.h"
+#include "helpers.h"
+#include "balloc.h"
+
+#include <crt/include/crt.h>
 
 static void nkfs_btree_nodes_remove(struct nkfs_btree *tree,
 	struct nkfs_btree_node *node);

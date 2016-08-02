@@ -3,6 +3,12 @@
 
 #pragma pack(push, 1)
 
+#include <linux/module.h>
+#include <include/nkfs_obj_id.h>
+
+#include "super.h"
+#include "btree.h"
+
 struct nkfs_inode {
 	u32			sig1;
 	u32			pad;

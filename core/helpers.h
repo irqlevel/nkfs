@@ -1,6 +1,9 @@
 #ifndef __NKFS_HELPERS_H__
 #define __NKFS_HELPERS_H__
 
+#include <linux/module.h>
+#include <linux/version.h>
+
 static inline u64 nkfs_div_round_up(u64 x, u64 y)
 {
 	u64 tmp = x + y - 1;

@@ -6,6 +6,9 @@
 
 #include <linux/tracepoint.h>
 
+#include "dio.h"
+#include "inode.h"
+
 DECLARE_EVENT_CLASS(balloc_block_alloc_class,
 	TP_PROTO(u64 block),
 	TP_ARGS(block),

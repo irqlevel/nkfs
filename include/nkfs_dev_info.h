@@ -1,6 +1,8 @@
 #pragma once
+
 #include <include/nkfs_types.h>
 #include <include/nkfs_const.h>
+#include <include/nkfs_obj_id.h>
 
 #pragma pack(push, 1)
 

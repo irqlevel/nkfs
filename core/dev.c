@@ -1,4 +1,10 @@
-#include "core.h"
+#include "dev.h"
+#include "super.h"
+#include "dio.h"
+#include "helpers.h"
+
+#include <include/nkfs_image.h>
+#include <crt/include/crt.h>
 
 static DEFINE_MUTEX(dev_list_lock);
 static LIST_HEAD(dev_list);

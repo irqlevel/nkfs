@@ -1,6 +1,11 @@
 #ifndef __NKFS_DIO_H__
 #define __NKFS_DIO_H__
 
+#include <linux/module.h>
+#include <linux/radix-tree.h>
+
+#include <crt/include/csum.h>
+
 struct dio_dev {
 	atomic_t		ref;
 	spinlock_t		clus_lock;
