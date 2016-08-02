@@ -1,4 +1,6 @@
 #pragma once
+
+#include <include/nkfs_obj_id.h>
 #include <include/nkfs_types.h>
 #include <include/nkfs_const.h>
 

@@ -1,4 +1,12 @@
-#include "core.h"
+#include <linux/module.h>
+#include "net.h"
+#include "dev.h"
+#include "dio.h"
+#include "route.h"
+#include "super.h"
+#include "inode.h"
+
+#include <crt/include/crt.h>
 
 MODULE_LICENSE("GPL");
 

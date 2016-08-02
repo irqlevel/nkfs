@@ -1,4 +1,8 @@
-#include "core.h"
+#include "dio.h"
+#include "helpers.h"
+#include "trace_events.h"
+
+#include <crt/include/crt.h>
 
 static DEFINE_MUTEX(dio_dev_list_lock);
 static LIST_HEAD(dio_dev_list);

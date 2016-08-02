@@ -1,6 +1,9 @@
 #ifndef __NKFS_UPAGES_H__
 #define __NKFS_UPAGES_H__
 
+#include <linux/module.h>
+#include <crt/include/csum.h>
+
 struct nkfs_user_pages {
 	unsigned long uaddr;
 	struct page **pages;

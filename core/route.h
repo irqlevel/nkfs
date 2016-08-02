@@ -1,6 +1,10 @@
 #ifndef __NKFS_ROUTE_H__
 #define __NKFS_ROUTE_H__
 
+#include <linux/module.h>
+#include <include/nkfs_neigh_info.h>
+#include <include/nkfs_net.h>
+
 enum {
 	NKFS_NEIGH_S_INITED,
 	NKFS_NEIGH_S_SHAKED,

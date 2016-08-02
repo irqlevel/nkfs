@@ -8,6 +8,7 @@
 
 #include "dio.h"
 #include "inode.h"
+#include "helpers.h"
 
 DECLARE_EVENT_CLASS(balloc_block_alloc_class,
 	TP_PROTO(u64 block),

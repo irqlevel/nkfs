@@ -1,4 +1,8 @@
-#include "core.h"
+#include "ksocket.h"
+#include "helpers.h"
+
+#include <crt/include/crt.h>
+#include <linux/version.h>
 
 u16 ksock_peer_port(struct socket *sock)
 {

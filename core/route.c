@@ -1,4 +1,8 @@
-#include "core.h"
+#include "route.h"
+#include "net.h"
+#include "helpers.h"
+
+#include <crt/include/crt.h>
 
 #define HOST_TIMER_TIMEOUT_MS		500
 #define HOST_HANDSHAKE_TIMEOUT_MS	500

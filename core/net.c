@@ -1,4 +1,11 @@
-#include "core.h"
+#include "net.h"
+#include "super.h"
+#include "upages.h"
+#include "ksocket.h"
+#include "helpers.h"
+#include "route.h"
+
+#include <crt/include/crt.h>
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
