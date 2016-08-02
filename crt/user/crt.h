@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_CRT_USER_CRT_H__
+#define __NKFS_CRT_USER_CRT_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,3 +34,5 @@ do {					\
 void crt_log_set_path(char *log_path, char *log_name);
 void crt_log_set_level(int level);
 void crt_log_enable_printf(int enable);
+
+#endif

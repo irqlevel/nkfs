@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_CRT_CLOG_H__
+#define __NKFS_CRT_CLOG_H__
 
 #define CL_INV	0
 #define CL_DBG3	1
@@ -33,3 +34,4 @@
 #define CLOG(level, fmt, ...)
 #endif
 
+#endif

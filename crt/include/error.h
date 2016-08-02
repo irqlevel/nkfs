@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_CRT_ERROR_H__
+#define __NKFS_CRT_ERROR_H__
 
 #define NKFS_E_VAL(x)		((int)(x))
 
@@ -17,3 +18,4 @@
 
 char *nkfs_error(int err);
 
+#endif

@@ -57,7 +57,8 @@ It depends on successfully passing SMHasher test set.
 10 is a perfect score.
 */
 
-#pragma once
+#ifndef __NKFS_CRT_XXHASH_H__
+#define __NKFS_CRT_XXHASH_H__
 
 #if defined (__cplusplus)
 extern "C" {
@@ -153,4 +154,6 @@ When you are done, don't forget to free XXH state space, using typically XXHnn_f
 
 #if defined (__cplusplus)
 }
+#endif
+
 #endif

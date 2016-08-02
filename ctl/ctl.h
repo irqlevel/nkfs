@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_CTL_H__
+#define __NKFS_CTL_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@
 #include <errno.h>
 #include <malloc.h>
 
-#include <include/nkfs_ctl.h>
+#include <include/nkfs_control.h>
 #include <include/nkfs_const.h>
 #include <crt/include/crt.h>
 
@@ -30,3 +31,5 @@ int nkfs_neigh_info(struct nkfs_neigh_info *neighs,
 		int max_nr_neighs, int *pnr_neighs);
 
 int nkfs_klog_ctl(int level, int sync);
+
+#endif

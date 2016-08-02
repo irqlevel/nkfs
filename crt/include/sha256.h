@@ -1,8 +1,9 @@
-#pragma once
+#ifndef __NKFS_CRT_SHA256_H__
+#define __NKFS_CRT_SHA256_H__
 
 #pragma pack(push, 1)
 struct sha256_sum {
-	unsigned char bytes[32];	
+	unsigned char bytes[32];
 };
 #pragma pack(pop)
 
@@ -11,8 +12,8 @@ struct sha256_sum {
  */
 struct sha256_context
 {
-    u32 total[2];	         /*!< number of bytes processed  */
-    u32 state[8];       	   /*!< intermediate digest state  */
+    u32 total[2];		/*!< number of bytes processed  */
+    u32 state[8];		/*!< intermediate digest state  */
     unsigned char buffer[64];   /*!< data block being processed */
 
     unsigned char ipad[64];     /*!< HMAC: inner padding        */
@@ -74,3 +75,5 @@ extern void sha256_finish(struct sha256_context *ctx, struct sha256_sum *output)
 extern void __sha256_test(void);
 
 extern char *sha256_sum_hex(struct sha256_sum *sum);
+
+#endif

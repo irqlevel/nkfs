@@ -1,5 +1,5 @@
-#ifndef __NKFS_CTL_H__
-#define __NKFS_CTL_H__
+#ifndef __NKFS_CONTROL_H__
+#define __NKFS_CONTROL_H__
 
 #include <linux/ioctl.h>
 #include <include/nkfs_obj_id.h>
