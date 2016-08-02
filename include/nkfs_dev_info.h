@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_DEV_INFO_H__
+#define __NKFS_DEV_INFO_H__
 
 #include <include/nkfs_types.h>
 #include <include/nkfs_const.h>
@@ -23,3 +24,5 @@ struct nkfs_dev_info {
 };
 
 #pragma pack(pop)
+
+#endif

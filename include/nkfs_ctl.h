@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __NKFS_CTL_H__
+#define __NKFS_CTL_H__
+
 #include <linux/ioctl.h>
 #include <include/nkfs_obj_id.h>
 #include <include/nkfs_dev_info.h>
@@ -67,3 +69,5 @@ struct nkfs_ctl {
 #define IOCTL_NKFS_NEIGH_INFO	_IOWR(NKFS_IOC_MAGIC, 8, struct nkfs_ctl *)
 
 #define IOCTL_NKFS_KLOG_CTL	_IOWR(NKFS_IOC_MAGIC, 9, struct nkfs_ctl *)
+
+#endif

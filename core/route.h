@@ -3,7 +3,7 @@
 
 #include <linux/module.h>
 #include <include/nkfs_neigh_info.h>
-#include <include/nkfs_net.h>
+#include <include/nkfs_network.h>
 
 enum {
 	NKFS_NEIGH_S_INITED,

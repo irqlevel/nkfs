@@ -1,5 +1,5 @@
 #include <include/nkfs_client.h>
-#include <include/nkfs_net.h>
+#include <include/nkfs_network.h>
 #include <crt/include/crt.h>
 #include <stdio.h>
 #include <stdint.h>

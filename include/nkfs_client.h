@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_CLIENT_H__
+#define __NKFS_CLIENT_H__
 
 #include <include/nkfs_obj_id.h>
 #include <include/nkfs_types.h>
@@ -26,3 +27,5 @@ int nkfs_echo(struct nkfs_con *con);
 
 int nkfs_query_object(struct nkfs_con *con, struct nkfs_obj_id *id,
 	struct nkfs_obj_info *info);
+
+#endif

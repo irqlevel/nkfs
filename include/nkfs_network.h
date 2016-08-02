@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_NETWORK_H__
+#define __NKFS_NETWORK_H__
 
 #include <include/nkfs_types.h>
 #include <include/nkfs_obj_info.h>
@@ -73,3 +74,5 @@ struct nkfs_net_pkt {
 	u32			sign2;
 };
 #pragma pack(pop)
+
+#endif

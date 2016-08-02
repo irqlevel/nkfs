@@ -2,7 +2,7 @@
 #define __NKFS_NET_H__
 
 #include <linux/module.h>
-#include <include/nkfs_net.h>
+#include <include/nkfs_network.h>
 
 struct nkfs_server {
 	struct task_struct	*thread;

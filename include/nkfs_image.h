@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_IMAGE_H__
+#define __NKFS_IMAGE_H__
 
 #include <crt/include/obj_id.h>
 #include <crt/include/csum.h>
@@ -131,3 +132,5 @@ _Static_assert(sizeof(struct nkfs_inode_disk) <= NKFS_BLOCK_SIZE,
 	"incorrect sizes");
 _Static_assert(sizeof(struct nkfs_image_header) <= NKFS_BLOCK_SIZE,
 	"incorrect sizes");
+
+#endif

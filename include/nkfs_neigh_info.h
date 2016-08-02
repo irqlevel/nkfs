@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_NEIGH_INFO_H__
+#define __NKFS_NEIGH_INFO_H__
 
 #include <include/nkfs_obj_id.h>
 #include <include/nkfs_types.h>
@@ -16,3 +17,5 @@ struct nkfs_neigh_info {
 };
 
 #pragma pack(pop)
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_OBJ_ID_H__
+#define __NKFS_OBJ_ID_H__
 
 #include <include/nkfs_types.h>
 
@@ -15,3 +16,5 @@ struct nkfs_obj_id {
 #pragma pack(pop)
 
 _Static_assert(sizeof(struct nkfs_obj_id) == 16, "size incorrect");
+
+#endif

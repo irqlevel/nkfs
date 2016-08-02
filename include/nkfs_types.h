@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NKFS_TYPES_H__
+#define __NKFS_TYPES_H__
 
 #ifndef NULL
 #define NULL 0
@@ -31,5 +32,7 @@ typedef uint32_t	u32;
 typedef uint64_t	u64;
 
 #define U64_MAX (u64)(~0ULL)
+
+#endif
 
 #endif
