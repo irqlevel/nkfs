@@ -2,7 +2,7 @@
 #include "dio.h"
 #include "helpers.h"
 #include "balloc.h"
-#include "trace_events.h"
+#include "trace.h"
 
 #include <crt/include/crt.h>
 #include <linux/highmem.h>

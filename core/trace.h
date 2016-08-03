@@ -152,5 +152,5 @@ TRACE_EVENT(dio_io_end_bio,
 #endif /* _NKFS_TRACE_H */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ../core
-#define TRACE_INCLUDE_FILE trace_events
+#define TRACE_INCLUDE_FILE trace
 #include <trace/define_trace.h>

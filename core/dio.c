@@ -1,6 +1,6 @@
 #include "dio.h"
 #include "helpers.h"
-#include "trace_events.h"
+#include "trace.h"
 
 #include <crt/include/crt.h>
 #include <linux/mm.h>
