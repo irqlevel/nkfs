@@ -38,7 +38,7 @@ $ make -j4
 ```
 ```
 Note, -j4 specifies to build by 4 cpu cores if they are available. You can build nkfs
-for particular kernel by setting up "export NKFS_KERNEL_PATH=PATH_TO_YOUR_KERNEL_SOURCES"
+for particular kernel by setting up "export KERNEL_BUILD_PATH=PATH_TO_YOUR_KERNEL"
 before execution of make.
 ```
 

@@ -1,4 +1,4 @@
-include $(PROJ_ROOT)/Makefile.inc
+include $(PROJECT_ROOT)/Makefile.inc
 
 SUBDIRS = kernel user
 SUBCLEAN = $(addsuffix .clean,$(SUBDIRS))

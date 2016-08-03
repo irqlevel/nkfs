@@ -1,6 +1,6 @@
-include $(PROJ_ROOT)/Makefile.inc
+include $(PROJECT_ROOT)/Makefile.inc
 
-CFLAGS= $(COMMON_CFLAGS) -D__CRT_LIB__
+CFLAGS= $(PROJECT_CFLAGS) $(PROJECT_DEBUG_CFLAGS) -D__CRT_LIB__
 
 LIB_OUT = nkfs_crtlib.a
 
@@ -10,7 +10,7 @@ OBJS = $(LIBS_OBJ) $(LIBS_KOBJ)
 
 all:
 	rm -rf *.o *.a
-	$(CC) $(CFLAGS) $(LIB_SRC)
+	$(CC) -c $(CFLAGS) $(LIB_SRC)
 	$(AR) -cvq $(LIB_OUT) *.o
 	cp $(LIB_OUT) $(LIB)/$(LIB_OUT)
 	rm -rf $(LIB_OUT)
