@@ -39,10 +39,6 @@ static inline u32 nkfs_mod(u64 x, u64 y)
 
 #define NKFS_BUG_ON(cond)			\
 do {						\
-	if (cond) {				\
-		KLOG(KL_ERR, "BUG_ON()");	\
-		KLOG_SYNC();			\
-	}					\
 	BUG_ON(cond);				\
 } while (0)					\
 

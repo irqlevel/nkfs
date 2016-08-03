@@ -29,17 +29,6 @@ int crt_random_buf(void *buf, size_t len)
 }
 EXPORT_SYMBOL(crt_random_buf);
 
-void crt_log(int level, const char *file, int line,
-	const char *func, const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	klog_v(level, file, line, func, fmt, args);
-	va_end(args);
-}
-EXPORT_SYMBOL(crt_log);
-
 size_t crt_strlen(const char *s)
 {
 	return strlen(s);
@@ -116,40 +105,31 @@ static int __init crt_init(void)
 	if (err)
 		goto rel_kmalloc;
 
-	err = klog_init();
-	if (err)
-		goto rel_page_alloc;
-
 	err = crt_random_init();
 	if (err)
-		goto rel_klog;
+		goto rel_page_alloc;
 
 	rand_test();
 
 	crt_wq = alloc_workqueue("crt_wq",
 			WQ_MEM_RECLAIM|WQ_UNBOUND, 1);
 	if (!crt_wq) {
-		KLOG(KL_ERR, "cant create wq");
 		err = -ENOMEM;
 		goto rel_rnd;
 	}
 
-	KLOG(KL_INF, "nk8 initing");
 	err = nk8_init();
 	if (err) {
-		KLOG(KL_ERR, "nk8 init err %d", err);
 		goto del_wq;
 	}
 
-	KLOG(KL_INF, "inited");
+	pr_info("nkfs_crt: inited\n");
 	return 0;
 
 del_wq:
 	destroy_workqueue(crt_wq);
 rel_rnd:
 	crt_random_release();
-rel_klog:
-	klog_release();
 rel_page_alloc:
 	crt_page_alloc_deinit();
 rel_kmalloc:
@@ -160,11 +140,10 @@ out:
 
 static void __exit crt_exit(void)
 {
-	KLOG(KL_INF, "exiting");
+	pr_info("nkfs_crt: exiting\n");
 	destroy_workqueue(crt_wq);
 	nk8_release();
 	crt_random_release();
-	klog_release();
 	crt_page_alloc_deinit();
 	crt_kmalloc_deinit();
 	pr_info("nkfs_crt: exited\n");

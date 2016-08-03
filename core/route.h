@@ -88,14 +88,10 @@ void nkfs_hid_deref(struct nkfs_host_id *host_id);
 #define HOST_ID_REF(hid)						\
 do {									\
 	nkfs_hid_ref((hid));						\
-	KLOG(KL_DBG, "ref hid %p ref %d",				\
-		(hid), atomic_read(&(hid)->ref));			\
 } while (0)
 
 #define HOST_ID_DEREF(hid)						\
 do {									\
-	KLOG(KL_DBG, "deref hid %p ref %d",				\
-		(hid), atomic_read(&(hid)->ref));			\
 	nkfs_hid_deref((hid));						\
 } while (0)
 

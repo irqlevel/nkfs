@@ -107,7 +107,3 @@ destination ip address for other machines in nkfs network and for external clien
 $ sudo rmmod nkfs_crt
 $ sudo rmmod nkfs
 ```
-#### Logs:
-```sh
-$ tail /var/log/nkfs.log
-```

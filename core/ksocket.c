@@ -39,11 +39,8 @@ int ksock_create(struct socket **sockp,
 
 	error = sock_create(PF_INET, SOCK_STREAM, 0, &sock);
 	if (error) {
-		KLOG(KL_ERR, "sock_create err=%d", error);
 		goto out;
 	}
-
-	KLOG(KL_DBG, "socket=%p", sock);
 
 	set_fs(KERNEL_DS);
 	option = 1;
@@ -52,7 +49,6 @@ int ksock_create(struct socket **sockp,
 	set_fs(oldmm);
 
 	if (error) {
-		KLOG(KL_ERR, "sock_setsockopt err=%d", error);
 		goto out_sock_release;
 	}
 	if (local_ip != 0 || local_port != 0) {
@@ -64,12 +60,9 @@ int ksock_create(struct socket **sockp,
 		error = sock->ops->bind(sock, (struct sockaddr *)&localaddr,
 				sizeof(localaddr));
 		if (error == -EADDRINUSE) {
-			KLOG(KL_ERR, "port %d already in use", local_port);
 			goto out_sock_release;
 		}
 		if (error) {
-			KLOG(KL_ERR, "bind to port=%d err=%d", local_port,
-					error);
 			goto out_sock_release;
 		}
 	}
@@ -93,11 +86,6 @@ int ksock_set_sendbufsize(struct socket *sock, int size)
 		(char *)&option, sizeof(option));
 	set_fs(oldmm);
 
-	if (error) {
-		KLOG(KL_ERR, "cant set send buf size=%d for sock=%p",
-			size, sock);
-	}
-
 	return error;
 }
 
@@ -112,11 +100,6 @@ int ksock_set_rcvbufsize(struct socket *sock, int size)
 		(char *)&option, sizeof(option));
 	set_fs(oldmm);
 
-	if (error) {
-		KLOG(KL_ERR, "cant set rcv buf size=%d for sock=%p",
-			size, sock);
-	}
-
 	return error;
 }
 
@@ -129,7 +112,6 @@ int ksock_connect(struct socket **sockp, __u32 local_ip, int local_port,
 
 	error = ksock_create(&sock, local_ip, local_port);
 	if (error) {
-		KLOG(KL_ERR, "sock create failed with err=%d", error);
 		goto out;
 	}
 
@@ -141,7 +123,6 @@ int ksock_connect(struct socket **sockp, __u32 local_ip, int local_port,
 	error = sock->ops->connect(sock, (struct sockaddr *)&srvaddr,
 			sizeof(srvaddr), 0);
 	if (error) {
-		KLOG(KL_ERR, "connect failed with err=%d", error);
 		goto out_sock_release;
 	}
 	*sockp = sock;
@@ -159,7 +140,6 @@ void ksock_release(struct socket *sock)
 	synchronize_rcu();
 	kernel_sock_shutdown(sock, SHUT_RDWR);
 	sock_release(sock);
-	KLOG(KL_DBG, "released sock=%p", sock);
 }
 
 int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
@@ -197,8 +177,6 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 					(char *)&tv, sizeof(tv));
 		set_fs(oldmm);
 		if (error) {
-			KLOG(KL_ERR, "cant set sock timeout, err=%d",
-				error);
 			goto out;
 		}
 
@@ -215,12 +193,10 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		ticks -= delta;
 
 		if (error < 0) {
-			KLOG(KL_ERR, "send err=%d", error);
 			goto out;
 		}
 
 		if (error == 0) {
-			KLOG(KL_ERR, "send returned zero size");
 			error = -ECONNABORTED;
 			goto out;
 		}
@@ -238,7 +214,6 @@ int ksock_write_timeout(struct socket *sock, void *buffer, u32 nob,
 		}
 
 		if (ticks == 0) {
-			KLOG(KL_ERR, "timeout reached");
 			error = -EAGAIN;
 			goto out;
 		}
@@ -287,8 +262,6 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		set_fs(oldmm);
 
 		if (error) {
-			KLOG(KL_ERR, "cant set sock timeout, err=%d",
-				error);
 			goto out;
 		}
 
@@ -301,12 +274,10 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		ticks -= delta;
 
 		if (error < 0) {
-			KLOG(KL_ERR, "recv err=%d", error);
 			goto out;
 		}
 
 		if (error == 0) {
-			KLOG(KL_DBG, "recv returned zero size");
 			error = -ECONNRESET;
 			goto out;
 		}
@@ -324,7 +295,6 @@ int ksock_read_timeout(struct socket *sock, void *buffer, u32 nob,
 		}
 
 		if (ticks == 0) {
-			KLOG(KL_ERR, "timeout reached");
 			error = -ETIMEDOUT;
 			goto out;
 		}
@@ -376,15 +346,11 @@ int ksock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 
 	error = ksock_create(&sock, local_ip, local_port);
 	if (error) {
-		KLOG(KL_ERR, "csock_create err=%d", error);
 		return error;
 	}
 
-	KLOG(KL_DBG, "sock=%p, sock->ops=%p", sock, sock->ops);
-
 	error = sock->ops->listen(sock, backlog);
 	if (error) {
-		KLOG(KL_ERR, "listen failed err=%d", error);
 		goto out;
 	}
 	*sockp = sock;
@@ -403,7 +369,6 @@ int ksock_accept(struct socket **newsockp, struct socket *sock)
 	init_waitqueue_entry(&wait, current);
 	error = sock_create_lite(PF_PACKET, sock->type, IPPROTO_TCP, &newsock);
 	if (error) {
-		KLOG(KL_ERR, "sock_create_lite err=%d", error);
 		return error;
 	}
 	newsock->ops = sock->ops;
@@ -411,17 +376,12 @@ int ksock_accept(struct socket **newsockp, struct socket *sock)
 	add_wait_queue(sk_sleep(sock->sk), &wait);
 	error = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	if (error == -EAGAIN) {
-		KLOG(KL_DBG, "accept returned %d", error);
 		schedule();
 		error = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	}
 	remove_wait_queue(sk_sleep(sock->sk), &wait);
 	set_current_state(TASK_RUNNING);
 	if (error) {
-		if (error == -EAGAIN)
-			KLOG(KL_DBG, "accept error=%d", error);
-		else
-			KLOG(KL_ERR, "accept error=%d", error);
 		goto out;
 	}
 

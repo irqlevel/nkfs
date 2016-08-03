@@ -8,31 +8,6 @@
 #define HOST_HANDSHAKE_TIMEOUT_MS	500
 #define HOST_HBT_TIMEOUT_MS		10000
 
-#define KLOG_HOST(lvl, h)				\
-do {							\
-	char *host_id, *net_id;				\
-	host_id = nkfs_obj_id_str(&((h)->host_id));	\
-	net_id = nkfs_obj_id_str(&((h)->net_id));	\
-	KLOG((lvl), "host %p hid %s nid %s",		\
-		    (h), host_id, net_id);		\
-	if (host_id)					\
-		crt_free(host_id);			\
-	if (net_id)					\
-		crt_free(net_id);			\
-} while (0)						\
-
-#define KLOG_NEIGH(lvl, n)						\
-do {									\
-	char *host_id = NULL;						\
-	if ((n)->hid)							\
-		host_id = nkfs_obj_id_str(&((n)->hid)->host_id);	\
-	KLOG((lvl), "n %p hid %s s%d -> %x:%d hbt %llu",		\
-		(n), host_id, (n)->state, (n)->ip,			\
-		(n)->port, (n)->hbt_delay);				\
-	if (host_id)							\
-		crt_free(host_id);					\
-} while (0)								\
-
 struct nkfs_host *nkfs_host;
 
 static void __nkfs_neighs_remove(struct nkfs_host *host,
@@ -64,7 +39,6 @@ static struct nkfs_neigh *nkfs_neigh_alloc(void)
 
 	neigh = crt_kmalloc(sizeof(*neigh), GFP_NOIO);
 	if (!neigh) {
-		KLOG(KL_ERR, "cant alloc neigh");
 		return NULL;
 	}
 	memset(neigh, 0, sizeof(*neigh));
@@ -137,7 +111,6 @@ struct nkfs_host_id *nkfs_hid_alloc(void)
 
 	hid = crt_kmalloc(sizeof(*hid), GFP_NOIO);
 	if (!hid) {
-		KLOG(KL_ERR, "cant alloc host_id");
 		return NULL;
 	}
 	memset(hid, 0, sizeof(*hid));
@@ -156,7 +129,6 @@ static void nkfs_hid_release(struct nkfs_host_id *hid)
 {
 	struct nkfs_host *host = hid->host;
 
-	KLOG(KL_DBG, "hid %p, host %p", hid, host);
 	if (host) {
 		write_lock_irq(&host->host_ids_lock);
 		__nkfs_host_ids_remove(host, hid);
@@ -190,7 +162,6 @@ struct nkfs_host_id *__nkfs_host_ids_lookup(struct nkfs_host *host,
 
 		hid = rb_entry(n, struct nkfs_host_id, host_ids_link);
 		cmp = nkfs_obj_id_cmp(host_id, &hid->host_id);
-		KLOG(KL_DBG, "host_id %p, hid %p, cmp=%d", host_id, hid, cmp);
 		if (cmp < 0) {
 			n = n->rb_left;
 		} else if (cmp > 0) {
@@ -209,7 +180,6 @@ void __nkfs_host_ids_remove(struct nkfs_host *host,
 	struct nkfs_host_id *found;
 
 	found = __nkfs_host_ids_lookup(host, &host_id->host_id);
-	KLOG(KL_DBG, "found %p", found);
 	if (found) {
 		NKFS_BUG_ON(found != host_id);
 		rb_erase(&found->host_ids_link, &host->host_ids);
@@ -382,7 +352,6 @@ static int nkfs_host_queue_work(struct nkfs_host *host,
 
 	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
 	}
 
@@ -396,7 +365,6 @@ static int nkfs_host_queue_work(struct nkfs_host *host,
 
 	if (!queue_work(host->wq, &work->work)) {
 		nkfs_host_work_deref(work);
-		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}
 
@@ -428,44 +396,36 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 
 	if (!test_bit(NKFS_NEIGH_S_INITED, &neigh->state)) {
 		err = -EINVAL;
-		KLOG(KL_ERR, "invalid neigh");
 		goto unlock;
 	}
 
 	if (test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
 		err = 0;
-		KLOG(KL_DBG, "already shaked");
 		goto unlock;
 	}
 
 	err = nkfs_server_select_one(&src_ip, &src_port);
 	if (err) {
-		KLOG(KL_ERR, "cant select server");
 		goto unlock;
 	}
 
 	if (src_ip == 0 || src_port == 0) {
-		KLOG(KL_ERR, "server ip %x or port %d invalid",
-			src_ip, src_port);
 		err = -EINVAL;
 		goto unlock;
 	}
 
 	err = nkfs_neigh_connect(neigh);
 	if (err) {
-		KLOG(KL_ERR, "cant connect err %d", err);
 		goto unlock;
 	}
 
 	req = net_pkt_alloc();
 	if (!req) {
-		KLOG(KL_ERR, "no memory");
 		goto close_con;
 	}
 
 	reply = net_pkt_alloc();
 	if (!reply) {
-		KLOG(KL_ERR, "no memory");
 		goto free_req;
 	}
 
@@ -476,23 +436,17 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 	req->u.neigh_handshake.src_ip = src_ip;
 	req->u.neigh_handshake.src_port = src_port;
 
-	KLOG(KL_DBG, "send neigh %x:%d -> %x:%d", src_ip, src_port,
-		neigh->ip, neigh->port);
-
 	err = nkfs_con_send_pkt(neigh->con, req);
 	if (err) {
-		KLOG(KL_ERR, "send err %d", err);
 		goto free_reply;
 	}
 
 	err = nkfs_con_recv_pkt(neigh->con, reply);
 	if (err) {
-		KLOG(KL_ERR, "recv err %d", err);
 		goto free_reply;
 	}
 
 	if (reply->err) {
-		KLOG(KL_ERR, "reply err %d", reply->err);
 		err = reply->err;
 		goto free_reply;
 	}
@@ -501,12 +455,10 @@ static int nkfs_neigh_do_handshake(struct nkfs_neigh *neigh)
 		&reply->u.neigh_handshake.reply_host_id);
 	if (!hid) {
 		err = -ENOMEM;
-		KLOG(KL_ERR, "cant get host_id %d", err);
 		goto free_reply;
 	}
 	nkfs_neigh_attach_host_id(neigh, hid);
 	set_bit(NKFS_NEIGH_S_SHAKED, &neigh->state);
-	KLOG_NEIGH(KL_DBG, neigh);
 
 free_reply:
 	crt_free(reply);
@@ -553,7 +505,6 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 	if (!test_bit(NKFS_NEIGH_S_INITED, &neigh->state) ||
 		!test_bit(NKFS_NEIGH_S_SHAKED, &neigh->state)) {
 		err = 0;
-		KLOG(KL_DBG, "not ready");
 		goto unlock;
 	}
 
@@ -561,19 +512,16 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 
 	err = nkfs_neigh_connect(neigh);
 	if (err) {
-		KLOG(KL_ERR, "cant connect err %d", err);
 		goto unlock;
 	}
 
 	req = net_pkt_alloc();
 	if (!req) {
-		KLOG(KL_ERR, "no memory");
 		goto close_con;
 	}
 
 	reply = net_pkt_alloc();
 	if (!reply) {
-		KLOG(KL_ERR, "no memory");
 		goto free_req;
 	}
 
@@ -585,18 +533,15 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 
 	err = nkfs_con_send_pkt(neigh->con, req);
 	if (err) {
-		KLOG(KL_ERR, "send err %d", err);
 		goto free_reply;
 	}
 
 	err = nkfs_con_recv_pkt(neigh->con, reply);
 	if (err) {
-		KLOG(KL_ERR, "recv err %d", err);
 		goto free_reply;
 	}
 
 	if (reply->err) {
-		KLOG(KL_ERR, "reply err %d", reply->err);
 		err = reply->err;
 		goto free_reply;
 	}
@@ -605,16 +550,12 @@ static int nkfs_neigh_do_heartbeat(struct nkfs_neigh *neigh)
 		u32 ip = reply->u.neigh_heartbeat.neigh[i].ip;
 		int port = reply->u.neigh_heartbeat.neigh[i].port;
 
-		KLOG(KL_DBG, "add neigh from reply %x:%d", ip, port);
 		err = nkfs_route_neigh_add(ip, port);
-		if (err && err != -EEXIST)
-			KLOG(KL_ERR, "neigh add %x:%d", ip, port);
 	}
 
 	err = 0;
 	set_bit(NKFS_NEIGH_S_HBT_OK, &neigh->state);
 	neigh->hbt_delay = get_jiffies_64() - neigh->hbt_time;
-	KLOG_NEIGH(KL_DBG, neigh);
 
 free_reply:
 	crt_free(reply);
@@ -714,7 +655,6 @@ static struct nkfs_host *nkfs_host_create(void)
 
 	host->wq = alloc_workqueue("nkfs_route_wq", WQ_UNBOUND, 1);
 	if (!host->wq) {
-		KLOG(KL_ERR, "cant create wq");
 		goto free_host;
 	}
 
@@ -724,11 +664,9 @@ static struct nkfs_host *nkfs_host_create(void)
 			jiffies +
 			msecs_to_jiffies(HOST_TIMER_TIMEOUT_MS));
 	if (err) {
-		KLOG(KL_ERR, "mod_timer failed with err=%d", err);
 		goto del_wq;
 	}
 
-	KLOG_HOST(KL_DBG, host);
 	return host;
 
 del_wq:
@@ -761,9 +699,6 @@ static void nkfs_host_release(struct nkfs_host *host)
 		NEIGH_DEREF(neigh);
 	}
 
-	KLOG(KL_DBG, "neighs %d host_ids %d",
-		host->neighs_active, host->host_ids_active);
-
 	NKFS_BUG_ON(host->neighs_active);
 	NKFS_BUG_ON(host->host_ids_active);
 	nkfs_host_free(host);
@@ -773,7 +708,6 @@ int nkfs_route_init(void)
 {
 	nkfs_host = nkfs_host_create();
 	if (!nkfs_host) {
-		KLOG(KL_ERR, "cant create host");
 		return -ENOMEM;
 	}
 
@@ -790,8 +724,6 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 	struct nkfs_neigh *inserted;
 	int err = -EEXIST;
 
-	KLOG(KL_DBG, "adding neigh %x:%d", neigh->ip, neigh->port);
-
 	write_lock_irq(&host->neighs_lock);
 	inserted = __nkfs_neighs_insert(host, neigh);
 	if (inserted) {
@@ -804,17 +736,6 @@ int nkfs_host_add_neigh(struct nkfs_host *host, struct nkfs_neigh *neigh)
 		err = NKFS_E_LIMIT;
 	}
 	write_unlock_irq(&host->neighs_lock);
-	if (!err) {
-		KLOG_NEIGH(KL_DBG, neigh);
-	} else {
-		if (err == -EEXIST) {
-			KLOG(KL_DBG, "neigh %x:%d already exists",
-					neigh->ip, neigh->port);
-		} else {
-			KLOG(KL_ERR, "cant add neigh %x:%d err %d",
-					neigh->ip, neigh->port, err);
-		}
-	}
 
 	return err;
 }
@@ -851,13 +772,11 @@ int nkfs_route_neigh_add(u32 ip, int port)
 	int err;
 
 	if (ip == 0 || port == 0) {
-		KLOG(KL_ERR, "ip %x or port %d invalid", ip, port);
 		return -EINVAL;
 	}
 
 	neigh = nkfs_neigh_alloc();
 	if (!neigh) {
-		KLOG(KL_ERR, "no mem");
 		return -ENOMEM;
 	}
 	neigh->ip = ip;
@@ -873,7 +792,6 @@ int nkfs_route_neigh_add(u32 ip, int port)
 int nkfs_route_neigh_remove(u32 ip, int port)
 {
 	if (ip == 0 || port == 0) {
-		KLOG(KL_ERR, "ip %x or port %d invalid", ip, port);
 		return -EINVAL;
 	}
 
@@ -890,19 +808,15 @@ static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 	int err;
 
 	if (0 != nkfs_obj_id_cmp(src_net_id, &nkfs_host->net_id)) {
-		KLOG(KL_ERR, "diff net id");
 		return -EINVAL;
 	}
 
 	if (src_ip == 0 || src_port == 0) {
-		KLOG(KL_ERR, "src_ip %x or src_port %d invalid",
-			src_ip, src_port);
 		return -EINVAL;
 	}
 
 	neigh = nkfs_neigh_alloc();
 	if (!neigh) {
-		KLOG(KL_ERR, "no mem");
 		return -ENOMEM;
 	}
 
@@ -912,7 +826,6 @@ static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 	hid = nkfs_host_id_lookup_or_create(nkfs_host, src_host_id);
 	if (!hid) {
 		err = -ENOMEM;
-		KLOG(KL_ERR, "cat ref hid");
 		goto deref_neigh;
 	}
 	nkfs_neigh_attach_host_id(neigh, hid);
@@ -922,7 +835,6 @@ static int nkfs_neigh_handshake(struct nkfs_obj_id *src_net_id,
 
 	err = nkfs_host_add_neigh(nkfs_host, neigh);
 	if (err) {
-		KLOG(KL_ERR, "cant add neigh err %d", err);
 		goto deref_neigh;
 	}
 	nkfs_obj_id_copy(reply_host_id, &nkfs_host->host_id);
@@ -938,8 +850,6 @@ int nkfs_route_neigh_handshake(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	struct nkfs_net_pkt *reply)
 {
 	int err;
-
-	KLOG(KL_DBG, "peer %x", nkfs_con_peer_addr(con));
 
 	err = nkfs_neigh_handshake(&pkt->u.neigh_handshake.src_net_id,
 		&pkt->u.neigh_handshake.src_host_id,
@@ -966,20 +876,17 @@ static int nkfs_neigh_heartbeat(struct nkfs_obj_id *src_net_id,
 
 	*preply_nr_neighs = 0;
 	if (0 != nkfs_obj_id_cmp(src_net_id, &host->net_id)) {
-		KLOG(KL_ERR, "diff net id");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (0 != nkfs_obj_id_cmp(dst_host_id, &host->host_id)) {
-		KLOG(KL_ERR, "diff host id");
 		err = -EINVAL;
 		goto out;
 	}
 
 	hid = nkfs_host_id_lookup(nkfs_host, src_host_id);
 	if (!hid) {
-		KLOG(KL_ERR, "hid not found");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1014,8 +921,6 @@ int nkfs_route_neigh_heartbeat(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 {
 	int err;
 
-	KLOG(KL_DBG, "peer %x", nkfs_con_peer_addr(con));
-
 	err = nkfs_neigh_heartbeat(&pkt->u.neigh_heartbeat.src_net_id,
 			&pkt->u.neigh_heartbeat.src_host_id,
 			&pkt->u.neigh_heartbeat.dst_host_id,
@@ -1041,7 +946,6 @@ int nkfs_route_neigh_info(struct nkfs_neigh_info *neighs,
 	read_lock(&host->neighs_lock);
 	list_for_each_entry(neigh, &host->neigh_list, neigh_list) {
 		if (i >= max_nr_neighs) {
-			KLOG(KL_ERR, "i %d max_nr_neighs %d", i, max_nr_neighs);
 			err = -ERANGE;
 			break;
 		}

@@ -14,11 +14,6 @@
 
 #define LISTEN_RESTART_TIMEOUT_MS 2000
 
-#define KLOG_SOCK(lvl, s, msg)						\
-	KLOG((lvl), "%s socket %p self %08x:%u peer %08x:%u",		\
-		(msg), (s), ksock_self_addr(s), ksock_self_port(s),	\
-			ksock_peer_addr(s), ksock_peer_port(s))
-
 static DEFINE_MUTEX(srv_list_lock);
 static LIST_HEAD(srv_list);
 
@@ -54,7 +49,6 @@ u32 nkfs_con_self_addr(struct nkfs_con *con)
 
 void nkfs_con_close(struct nkfs_con *con)
 {
-	KLOG(KL_DBG, "releasing sock %p", con->sock);
 	ksock_release(con->sock);
 	if (con->thread)
 		put_task_struct(con->thread);
@@ -64,7 +58,6 @@ void nkfs_con_close(struct nkfs_con *con)
 void nkfs_con_fail(struct nkfs_con *con, int err)
 {
 	if (!con->err) {
-		KLOG(KL_DBG, "con %p failed err %x", con, err);
 		con->err = err;
 	}
 }
@@ -84,7 +77,6 @@ int nkfs_con_recv(struct nkfs_con *con, void *buffer, u32 nob)
 	}
 
 	if (nob != read) {
-		KLOG(KL_ERR, "nob %u read %u", nob, read);
 		err = -EIO;
 		nkfs_con_fail(con, err);
 		return err;
@@ -108,7 +100,6 @@ int nkfs_con_send(struct nkfs_con *con, void *buffer, u32 nob)
 	}
 
 	if (nob != wrote) {
-		KLOG(KL_ERR, "nob %u wrote %u", nob, wrote);
 		err = -EIO;
 		nkfs_con_fail(con, err);
 		return err;
@@ -123,9 +114,6 @@ int nkfs_con_send_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 
 	net_pkt_sign(pkt);
 	err = nkfs_con_send(con, pkt, sizeof(*pkt));
-	if (err)
-		KLOG(KL_ERR, "pkt send err %d", err);
-
 	return err;
 }
 
@@ -143,16 +131,11 @@ int nkfs_con_recv_pkt(struct nkfs_con *con,
 
 	err = nkfs_con_recv(con, pkt, sizeof(*pkt));
 	if (err) {
-		if (err == -ECONNRESET)
-			KLOG(KL_DBG, "recv err %d", err);
-		else
-			KLOG(KL_ERR, "recv err %d", err);
 		return err;
 	}
 
 	err = net_pkt_check(pkt);
 	if (err) {
-		KLOG(KL_ERR, "pkt check err %d", err);
 		nkfs_con_fail(con, -EINVAL);
 	}
 	return err;
@@ -169,13 +152,11 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 	int i;
 
 	if (pkt->dsize == 0 || pkt->dsize > NKFS_NET_PKT_MAX_DSIZE) {
-		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
 		return -EINVAL;
 	}
 
 	err = nkfs_pages_create(pkt->dsize, &pages);
 	if (err) {
-		KLOG(KL_ERR, "no memory");
 		return err;
 	}
 
@@ -183,15 +164,12 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 	i = 0;
 	llen = 0;
 	while (read > 0) {
-		KLOG(KL_DBG1, "read %u pgs %u i %u llen %u dsize %u plen %u",
-			read, pages.nr_pages, i, llen, pkt->dsize, pages.len);
 		NKFS_BUG_ON(i >= pages.nr_pages);
 		buf = kmap(pages.pages[i]);
 		llen = (read > PAGE_SIZE) ? PAGE_SIZE : read;
 		err = nkfs_con_recv(con, buf, llen);
 		kunmap(pages.pages[i]);
 		if (err) {
-			KLOG(KL_ERR, "read err %d", err);
 			nkfs_con_fail(con, err);
 			goto free_pages;
 		}
@@ -201,13 +179,11 @@ static int nkfs_con_recv_pages(struct nkfs_con *con,
 
 	err = nkfs_pages_dsum(&pages, &dsum, pkt->dsize);
 	if (err) {
-		KLOG(KL_ERR, "cant calc dsum");
 		goto free_pages;
 	}
 
 	err = net_pkt_check_dsum(pkt, &dsum);
 	if (err) {
-		KLOG(KL_ERR, "invalid dsum");
 		goto free_pages;
 	}
 
@@ -257,7 +233,6 @@ static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	u32 read;
 
 	if (pkt->dsize == 0 || pkt->dsize > NKFS_NET_PKT_MAX_DSIZE) {
-		KLOG(KL_ERR, "dsize %u invalid", pkt->dsize);
 		return -EINVAL;
 	}
 
@@ -282,7 +257,6 @@ static int nkfs_con_get_obj(struct nkfs_con *con, struct nkfs_net_pkt *pkt,
 	if (read) {
 		err = nkfs_pages_dsum(&pages, &dsum, read);
 		if (err) {
-			KLOG(KL_ERR, "cant dsum pages err %d", err);
 			nkfs_con_send_reply(con, reply, err);
 			goto free_pages;
 		}
@@ -373,12 +347,9 @@ static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 	reply = net_pkt_alloc();
 	if (!reply) {
 		err = -ENOMEM;
-		KLOG(KL_ERR, "no memory");
 		nkfs_con_fail(con, err);
 		return err;
 	}
-
-	KLOG(KL_DBG1, "pkt %d", pkt->type);
 
 	switch (pkt->type) {
 	case NKFS_NET_PKT_ECHO:
@@ -409,12 +380,6 @@ static int nkfs_con_process_pkt(struct nkfs_con *con, struct nkfs_net_pkt *pkt)
 		err = nkfs_con_send_reply(con, reply, -EINVAL);
 		break;
 	}
-	KLOG(KL_DBG1, "pkt %d err %d reply.err %d",
-			pkt->type, err, reply->err);
-
-	if (err || reply->err)
-		KLOG(KL_DBG, "pkt %d err %d reply.err %d",
-				pkt->type, err, reply->err);
 	crt_free(reply);
 	return err;
 }
@@ -427,31 +392,21 @@ static int nkfs_con_thread_routine(void *data)
 
 	NKFS_BUG_ON(con->thread != current);
 
-	KLOG_SOCK(KL_DBG, con->sock, "con starting");
-
 	while (!kthread_should_stop() && !con->err) {
 		struct nkfs_net_pkt *pkt = net_pkt_alloc();
 
 		if (!pkt) {
 			nkfs_con_fail(con, -ENOMEM);
-			KLOG(KL_ERR, "no memory");
 			break;
 		}
 		err = nkfs_con_recv_pkt(con, pkt);
 		if (err) {
-			if (err == -ECONNRESET)
-				KLOG(KL_DBG, "pkt recv err %d", err);
-			else
-				KLOG(KL_ERR, "pkt recv err %d", err);
 			crt_free(pkt);
 			break;
 		}
 		nkfs_con_process_pkt(con, pkt);
 		crt_free(pkt);
 	}
-
-	KLOG_SOCK(KL_DBG, con->sock, "con stopping");
-	KLOG(KL_DBG, "stopping con %p err %d", con, con->err);
 
 	if (!server->stopping) {
 		mutex_lock(&server->con_list_lock);
@@ -474,7 +429,6 @@ static struct nkfs_con *nkfs_con_alloc(void)
 
 	con = crt_kmalloc(sizeof(*con), GFP_NOIO);
 	if (!con) {
-		KLOG(KL_ERR, "cant alloc nkfs_con");
 		return NULL;
 	}
 	memset(con, 0, sizeof(*con));
@@ -492,7 +446,6 @@ int nkfs_con_connect(u32 ip, int port, struct nkfs_con **pcon)
 
 	err = ksock_connect(&con->sock, 0, 0, ip, port);
 	if (err) {
-		KLOG(KL_ERR, "cant connect %d:%d", ip, port);
 		goto free_con;
 	}
 
@@ -520,7 +473,6 @@ static struct nkfs_con *nkfs_con_start(struct nkfs_server *server,
 	if (IS_ERR(con->thread)) {
 		err = PTR_ERR(con->thread);
 		con->thread = NULL;
-		KLOG(KL_ERR, "kthread_create err=%d", err);
 		goto out;
 	}
 
@@ -556,27 +508,18 @@ static int nkfs_server_thread_routine(void *data)
 
 	while (!kthread_should_stop()) {
 		if (!server->sock) {
-			KLOG(KL_DBG, "start listening on ip %x:%x port %d",
-				server->bind_ip, server->ext_ip, server->port);
 			err = ksock_listen(&lsock, (server->bind_ip) ?
 					   server->bind_ip : INADDR_ANY,
 					   server->port, 5);
 			if (err == -EADDRINUSE && listen_attempts) {
-				KLOG(KL_WRN, "csock_listen err=%d", err);
 				msleep_interruptible(LISTEN_RESTART_TIMEOUT_MS);
 				if (listen_attempts > 0)
 					listen_attempts--;
 				continue;
 			} else if (!err) {
-				KLOG(KL_DBG, "listen done ip %x:%x port %d",
-						server->bind_ip, server->ext_ip,
-						server->port);
 				mutex_lock(&server->lock);
 				server->sock = lsock;
-				KLOG_SOCK(KL_DBG, server->sock, "listened");
 				mutex_unlock(&server->lock);
-			} else {
-				KLOG(KL_ERR, "csock_listen err=%d", err);
 			}
 			server->err = err;
 			complete(&server->comp);
@@ -585,18 +528,11 @@ static int nkfs_server_thread_routine(void *data)
 		}
 
 		if (server->sock && !server->stopping) {
-			KLOG(KL_DBG, "accepting");
 			err = ksock_accept(&con_sock, server->sock);
 			if (err) {
-				if (err == -EAGAIN)
-					KLOG(KL_DBG, "accept err=%d", err);
-				else
-					KLOG(KL_ERR, "accept err=%d", err);
 				continue;
 			}
-			KLOG_SOCK(KL_DBG, con_sock, "accepted");
 			if (!nkfs_con_start(server, con_sock)) {
-				KLOG(KL_ERR, "nkfs_con_start failed");
 				ksock_release(con_sock);
 				continue;
 			}
@@ -606,14 +542,11 @@ static int nkfs_server_thread_routine(void *data)
 	err = 0;
 	mutex_lock(&server->lock);
 	lsock = server->sock;
-	KLOG(KL_DBG, "releasing listen socket=%p", lsock);
 	server->sock = NULL;
 	mutex_unlock(&server->lock);
 
 	if (lsock)
 		ksock_release(lsock);
-
-	KLOG(KL_DBG, "releasing cons");
 
 	for (;;) {
 		con = NULL;
@@ -631,15 +564,12 @@ static int nkfs_server_thread_routine(void *data)
 		nkfs_con_free(con);
 	}
 
-	KLOG(KL_DBG, "released cons");
 	return 0;
 }
 
 static void nkfs_server_do_stop(struct nkfs_server *server)
 {
 	if (server->stopping) {
-		KLOG(KL_ERR, "server %p %x-%x:%d already stopping",
-			server, server->bind_ip, server->ext_ip, server->port);
 		return;
 	}
 
@@ -649,8 +579,6 @@ static void nkfs_server_do_stop(struct nkfs_server *server)
 
 	kthread_stop(server->thread);
 	put_task_struct(server->thread);
-	KLOG(KL_INF, "stopped server on ip %x-%x port %d",
-		server->bind_ip, server->ext_ip, server->port);
 }
 
 static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip,
@@ -662,7 +590,6 @@ static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip,
 
 	server = crt_kmalloc(sizeof(*server), GFP_NOIO);
 	if (!server) {
-		KLOG(KL_ERR, "no memory");
 		return NULL;
 	}
 
@@ -682,7 +609,6 @@ static struct nkfs_server *nkfs_server_create_start(u32 bind_ip, u32 ext_ip,
 	if (IS_ERR(server->thread)) {
 		err = PTR_ERR(server->thread);
 		server->thread = NULL;
-		KLOG(KL_ERR, "kthread_create err=%d", err);
 		nkfs_server_free(server);
 		return NULL;
 	}
@@ -699,15 +625,12 @@ int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port)
 	struct nkfs_server *server;
 
 	if (ext_ip == 0 || port == 0) {
-		KLOG(KL_ERR, "invalid ext ip %x or port %d", ext_ip, port);
 		return -EINVAL;
 	}
 
 	mutex_lock(&srv_list_lock);
 	list_for_each_entry(server, &srv_list, srv_list) {
 		if (server->port == port && server->bind_ip == bind_ip) {
-			KLOG(KL_WRN, "server bind_ip %x port %d already exists",
-				bind_ip, port);
 			err = -EEXIST;
 			mutex_unlock(&srv_list_lock);
 			return err;
@@ -716,8 +639,6 @@ int nkfs_server_start(u32 bind_ip, u32 ext_ip, int port)
 
 	server = nkfs_server_create_start(bind_ip, ext_ip, port);
 	if (server && !server->err) {
-		KLOG(KL_INF, "started server on ip %x-%x port %d",
-			server->bind_ip, server->ext_ip, port);
 		list_add_tail(&server->srv_list, &srv_list);
 		err = 0;
 	} else {
@@ -756,7 +677,6 @@ int nkfs_server_stop(u32 bind_ip, int port)
 	struct nkfs_server *server;
 
 	if (port <= 0 || port > 64000) {
-		KLOG(KL_ERR, "invalid port %d", port);
 		return -EINVAL;
 	}
 

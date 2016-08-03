@@ -32,9 +32,6 @@ int vfile_sync(struct file *file)
 {
 	int err = vfs_fsync(file, 0);
 
-	if (err)
-		KLOG(KL_ERR, "vfs_fsync err=%d", err);
-
 	return err;
 }
 
@@ -49,14 +46,10 @@ int vfile_read(struct file *file, const void *buf, u32 len, loff_t *off)
 	while (pos < len) {
 		ret = vfs_read(file, (char *)buf + pos, len - pos, off);
 		if (ret < 0) {
-			KLOG(KL_ERR, "ret=%d, pos=%d, len=%d, off=%lld",
-				ret, pos, len, *off);
 			goto out;
 		}
 
 		if (ret == 0) {
-			KLOG(KL_ERR, "ret=%d, pos=%d, len=%d, off=%lld",
-				ret, pos, len, *off);
 			ret = -EIO;
 			goto out;
 		}

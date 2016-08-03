@@ -15,9 +15,6 @@ static void nkfs_dev_free(struct nkfs_dev *dev)
 	if (dev->sb)
 		nkfs_sb_deref(dev->sb);
 
-	KLOG(KL_DBG, "dev %s %p sb %p",
-		dev->dev_name, dev, dev->sb);
-
 	crt_kfree(dev);
 }
 
@@ -54,15 +51,11 @@ static int nkfs_dev_insert(struct nkfs_dev *cand)
 
 static void nkfs_dev_release(struct nkfs_dev *dev)
 {
-	KLOG(KL_DBG, "releasing dev=%p bdev=%p", dev, dev->bdev);
-
 	if (dev->ddev)
 		dio_dev_deref(dev->ddev);
 
 	if (dev->bdev)
 		blkdev_put(dev->bdev, dev->fmode);
-	KLOG(KL_INF, "released dev %s",
-		dev->dev_name);
 }
 
 static void nkfs_dev_unlink(struct nkfs_dev *dev)
@@ -150,13 +143,11 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 
 	len = strlen(dev_name);
 	if (len == 0 || len >= NKFS_NAME_MAX_SZ) {
-		KLOG(KL_ERR, "len=%d", len);
 		return NULL;
 	}
 
 	dev = crt_kmalloc(sizeof(*dev), GFP_NOIO);
 	if (!dev) {
-		KLOG(KL_ERR, "dev alloc failed");
 		return NULL;
 	}
 
@@ -170,8 +161,6 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 	err = IS_ERR(dev->bdev);
 	if (err) {
 		dev->bdev = NULL;
-		KLOG(KL_ERR, "bkdev_get_by_path %s failed err %d",
-		     dev->dev_name, err);
 		nkfs_dev_deref(dev);
 		return NULL;
 	}
@@ -180,7 +169,6 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 
 	dev->ddev = dio_dev_create(dev->bdev, dev->bsize, 64);
 	if (!dev->ddev) {
-		KLOG(KL_ERR, "cant create ddev");
 		blkdev_put(dev->bdev, dev->fmode);
 		dev->bdev = NULL;
 		nkfs_dev_deref(dev);
@@ -202,14 +190,12 @@ static int nkfs_dev_start(struct nkfs_dev *dev, int format)
 		err = nkfs_sb_format(dev, &sb);
 
 	if (err) {
-		KLOG(KL_ERR, "check or format err %d", err);
 		return err;
 	}
 
 	err = nkfs_sb_insert(sb);
 	if (err) {
 		nkfs_sb_deref(sb);
-		KLOG(KL_ERR, "sb insert err=%d", err);
 		return err;
 	}
 
@@ -228,14 +214,12 @@ int nkfs_dev_add(char *dev_name, int format)
 	int err;
 	struct nkfs_dev *dev;
 
-	KLOG(KL_DBG, "inserting dev %s", dev_name);
 	dev = nkfs_dev_create(dev_name, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	if (!dev)
 		return -ENOMEM;
 
 	err = nkfs_dev_insert(dev);
 	if (err) {
-		KLOG(KL_ERR, "nkfs_dev_insert err %d", err);
 		nkfs_dev_release(dev);
 		nkfs_dev_deref(dev);
 		return err;
@@ -243,14 +227,11 @@ int nkfs_dev_add(char *dev_name, int format)
 
 	err = nkfs_dev_start(dev, format);
 	if (err) {
-		KLOG(KL_ERR, "nkfs_dev_insert err %d", err);
 		nkfs_dev_unlink(dev);
 		nkfs_dev_release(dev);
 		nkfs_dev_deref(dev);
 		return err;
 	}
-
-	KLOG(KL_INF, "inserted dev %s", dev->dev_name);
 
 	return err;
 }
@@ -260,17 +241,13 @@ int nkfs_dev_remove(char *dev_name)
 	int err;
 	struct nkfs_dev *dev;
 
-	KLOG(KL_DBG, "removing dev %s", dev_name);
 	dev = nkfs_dev_lookup_unlink(dev_name);
 	if (dev) {
 		nkfs_dev_stop(dev);
 		nkfs_dev_release(dev);
-		KLOG(KL_DBG, "removed dev %s %p sb %p",
-			dev->dev_name, dev, dev->sb);
 		nkfs_dev_deref(dev);
 		err = 0;
 	} else {
-		KLOG(KL_ERR, "dev with name %s not found", dev_name);
 		err = -ENOENT;
 	}
 

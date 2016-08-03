@@ -15,21 +15,18 @@ int nkfs_balloc_bm_clear(struct nkfs_sb *sb)
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
 		clu = dio_clu_get(sb->ddev, i);
 		if (!clu) {
-			KLOG(KL_ERR, "cant read block %llu", i);
 			err = -EIO;
 			goto out;
 		}
 
 		err = dio_clu_zero(clu);
 		if (err) {
-			KLOG(KL_ERR, "cant zero clu %llu err %d", i, err);
 			dio_clu_put(clu);
 			goto out;
 		}
 
 		err = dio_clu_sync(clu);
 		if (err) {
-			KLOG(KL_ERR, "sync 0block err %d", err);
 			dio_clu_put(clu);
 			goto out;
 		}
@@ -49,8 +46,6 @@ static int nkfs_balloc_block_bm_bit(struct nkfs_sb *sb, u64 block,
 	u32 bits_per_long = 8*sizeof(unsigned long);
 
 	if (block >= sb->nr_blocks) {
-		KLOG(KL_ERR, "block %llu out of sb blocks %llu",
-			block, sb->nr_blocks);
 		return -EINVAL;
 	}
 
@@ -78,7 +73,6 @@ int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 
 	clu = dio_clu_get(sb->ddev, bm_block);
 	if (!clu) {
-		KLOG(KL_ERR, "cant read bm block %llu", bm_block);
 		err = -EIO;
 		goto out;
 	}
@@ -100,7 +94,6 @@ int nkfs_balloc_block_mark(struct nkfs_sb *sb, u64 block, int use)
 	dio_clu_set_dirty(clu);
 	err = dio_clu_sync(clu);
 	if (err) {
-		KLOG(KL_ERR, "cant sync block %llu", bm_block);
 		goto cleanup;
 	}
 
@@ -156,9 +149,6 @@ static int nkfs_balloc_block_find_set_free_bit(struct nkfs_sb *sb,
 					dio_clu_set_dirty(clu);
 					err = dio_clu_sync(clu);
 					if (err) {
-						KLOG(KL_ERR,
-						     "sync clu %llu err %d",
-						     clu->index, err);
 						return err;
 					}
 					*plong = i;
@@ -187,7 +177,6 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 	for (i = sb->bm_block; i < sb->bm_block + sb->bm_blocks; i++) {
 		clu = dio_clu_get(sb->ddev, i);
 		if (!clu) {
-			KLOG(KL_ERR, "cant read block %llu", i);
 			return -EIO;
 		}
 
@@ -197,8 +186,6 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 			u64 block = 8*(i - sb->bm_block)*sb->bsize + 8*long_off
 					+ bit;
 			trace_balloc_block_alloc(block);
-			KLOG(KL_DBG3, "long_off %lu bit %u i %llu block %llu",
-				      long_off, bit, i, block);
 			*pblock = block;
 			dio_clu_put(clu);
 			return 0;

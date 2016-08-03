@@ -17,7 +17,6 @@ MODULE_LICENSE("GPL");
 static int nkfs_mod_get(struct inode *inode, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE)) {
-		KLOG(KL_ERR, "cant ref module");
 		return -EINVAL;
 	}
 	return 0;
@@ -26,13 +25,6 @@ static int nkfs_mod_get(struct inode *inode, struct file *file)
 static int nkfs_mod_put(struct inode *inode, struct file *file)
 {
 	module_put(THIS_MODULE);
-	return 0;
-}
-
-static int nkfs_klog_ctl(int level, int sync)
-{
-	if (sync)
-		KLOG_SYNC();
 	return 0;
 }
 
@@ -86,12 +78,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 					ARRAY_SIZE(cmd->u.neigh_info.neighs),
 					&cmd->u.neigh_info.nr_neighs);
 		break;
-	case IOCTL_NKFS_KLOG_CTL:
-		err = nkfs_klog_ctl(cmd->u.klog_ctl.level,
-				    cmd->u.klog_ctl.sync);
-		break;
 	default:
-		KLOG(KL_ERR, "unknown ioctl=%d", code);
 		err = NKFS_E_UNK_IOCTL;
 		break;
 	}
@@ -101,7 +88,6 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		goto out_free_cmd;
 	}
 
-	KLOG(KL_DBG, "ctl %d err %d", code, err);
 	err = 0;
 out_free_cmd:
 	crt_kfree(cmd);
@@ -124,60 +110,51 @@ static struct miscdevice nkfs_misc = {
 
 static int __init nkfs_init(void)
 {
-	int err = -EINVAL;
+	int err;
 
-	KLOG(KL_INF, "initing");
+	pr_info("nfks: initing\n");
 
 	err = dio_init();
 	if (err) {
-		KLOG(KL_ERR, "dio_init err %d", err);
 		goto out;
 	}
 
 	err = misc_register(&nkfs_misc);
 	if (err) {
-		KLOG(KL_ERR, "misc_register err=%d", err);
 		goto out_dio_release;
 	}
 
 	err = nkfs_btree_init();
 	if (err) {
-		KLOG(KL_ERR, "btree_init err %d", err);
 		goto out_misc_release;
 	}
 
 	err = nkfs_inode_init();
 	if (err) {
-		KLOG(KL_ERR, "inode_init err %d", err);
 		goto out_btree_release;
 	}
 
 	err = nkfs_sb_init();
 	if (err) {
-		KLOG(KL_ERR, "nkfs_sb_init err %d", err);
 		goto out_inode_release;
 	}
 
 	err = nkfs_dev_init();
 	if (err) {
-		KLOG(KL_ERR, "nkfs_dev_init err %d", err);
 		goto out_sb_release;
 	}
 
 	err = nkfs_server_init();
 	if (err) {
-		KLOG(KL_ERR, "nkfs_server_init err %d", err);
 		goto out_dev_release;
 	}
 
 	err = nkfs_route_init();
 	if (err) {
-		KLOG(KL_ERR, "nkfs_route_init err %d", err);
 		goto out_srv_release;
 	}
 
-	KLOG(KL_INF, "inited");
-
+	pr_info("nkfs: inited\n");
 	return 0;
 
 out_srv_release:
@@ -200,8 +177,7 @@ out:
 
 static void __exit nkfs_exit(void)
 {
-	KLOG(KL_INF, "exiting");
-
+	pr_info("nkfs: exiting\n");
 	misc_deregister(&nkfs_misc);
 	nkfs_route_finit();
 	nkfs_server_finit();
@@ -210,8 +186,7 @@ static void __exit nkfs_exit(void)
 	nkfs_btree_finit();
 	nkfs_inode_finit();
 	dio_finit();
-
-	KLOG(KL_INF, "exited");
+	pr_info("nkfs: exited\n");
 }
 
 module_init(nkfs_init);

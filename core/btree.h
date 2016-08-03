@@ -118,15 +118,13 @@ void nkfs_btree_node_ref(struct nkfs_btree_node *node);
 void nkfs_btree_node_deref(struct nkfs_btree_node *node);
 
 #define NKFS_BTREE_NODE_REF(n)						\
-{									\
+do {									\
 	nkfs_btree_node_ref((n));					\
-	KLOG(KL_DBG3, "NREF %p now %d", (n), atomic_read(&(n)->ref));	\
-}
+} while (false);
 
 #define NKFS_BTREE_NODE_DEREF(n)					\
-{									\
-	KLOG(KL_DBG3, "NDEREF %p was %d", (n), atomic_read(&(n)->ref));	\
+do {									\
 	nkfs_btree_node_deref((n));					\
-}
+} while (false);
 
 #endif

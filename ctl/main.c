@@ -17,7 +17,7 @@ static void usage(char *program)
 #define USAGE_S								\
 "Usage: %s [-d device] [-f format] [-b bind ip] [-e ext ip] [-p port]"	\
 " command{dev_add, dev_rem, dev_query, srv_start, srv_stop,"		\
-" neigh_add, neigh_remove, neigh_info, klog_sync}\n"
+" neigh_add, neigh_remove, neigh_info}\n"
 
 	printf(USAGE_S, program);
 }
@@ -239,10 +239,6 @@ static int do_cmd(char *prog, char *cmd, char *bind_ip_s, char *ext_ip_s,
 			printf("cant remove neighbour %s:%d err %d\n",
 				ext_ip_s, port, err);
 		}
-	} else if (cmd_equal(cmd, "klog_sync")) {
-		err = nkfs_klog_ctl(0, 1);
-		if (err)
-			printf("can't sync klog err %d\n", err);
 	} else if (cmd_equal(cmd, "neigh_info")) {
 		struct nkfs_neigh_info neighs[NKFS_ROUTE_MAX_NEIGHS];
 		int nr_neighs, i;

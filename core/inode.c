@@ -27,7 +27,6 @@ static struct nkfs_inode *nkfs_inode_alloc(void)
 
 	inode = crt_kmalloc(sizeof(*inode), GFP_NOIO);
 	if (!inode) {
-		KLOG(KL_ERR, "cant alloc inode");
 		return NULL;
 	}
 	memset(inode, 0, sizeof(*inode));
@@ -184,14 +183,10 @@ static int nkfs_inode_parse_on_disk(struct nkfs_inode *inode,
 
 	if (be32_to_cpu(on_disk->sig1) != NKFS_INODE_SIG1 ||
 		be32_to_cpu(on_disk->sig2) != NKFS_INODE_SIG2) {
-		KLOG(KL_ERR, "invalid inode %llu sig",
-			inode->block);
 		return -EINVAL;
 	}
 	nkfs_inode_on_disk_sum(on_disk, &sum);
 	if (0 != memcmp(&sum, &on_disk->sum, sizeof(sum))) {
-		KLOG(KL_ERR, "invalid inode %llu sum",
-			inode->block);
 		return -EINVAL;
 	}
 
@@ -220,7 +215,6 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 
 	inode = nkfs_inode_alloc();
 	if (!inode) {
-		KLOG(KL_ERR, "no memory");
 		return NULL;
 	}
 
@@ -229,43 +223,33 @@ struct nkfs_inode *nkfs_inode_read(struct nkfs_sb *sb, u64 block)
 
 	clu = dio_clu_get(sb->ddev, block);
 	if (!clu) {
-		KLOG(KL_ERR, "cant read block %llu",
-			inode->block);
 		goto free_inode;
 	}
 
 	inode_disk = crt_kmalloc(sizeof(*inode_disk), GFP_NOIO);
 	if (!inode_disk) {
-		KLOG(KL_ERR, "no mem");
 		goto put_clu;
 	}
 
 	err = dio_clu_read(clu, inode_disk, sizeof(*inode_disk), 0);
 	if (err) {
-		KLOG(KL_ERR, "cant read %llu", inode->block);
 		goto free_idisk;
 	}
 
 	err = nkfs_inode_parse_on_disk(inode, inode_disk);
 	if (err) {
-		KLOG(KL_ERR, "parse inode %llu err %d",
-			inode->block, err);
 		goto free_idisk;
 	}
 
 	inode->blocks_tree = nkfs_btree_create(sb,
 			inode->blocks_tree_block);
 	if (!inode->blocks_tree) {
-		KLOG(KL_ERR, "cant create blocks tree inode %llu",
-			inode->block);
 		goto free_idisk;
 	}
 
 	inode->blocks_sum_tree = nkfs_btree_create(sb,
 		inode->blocks_sum_tree_block);
 	if (!inode->blocks_sum_tree) {
-		KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
-			inode->block);
 		goto free_idisk;
 	}
 
@@ -329,13 +313,10 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 
 	clu = dio_clu_get(inode->sb->ddev, inode->block);
 	if (!clu) {
-		KLOG(KL_ERR, "cant read inode %llu",
-			inode->block);
 		return -EIO;
 	}
 	idisk = crt_kmalloc(sizeof(*idisk), GFP_NOIO);
 	if (!idisk) {
-		KLOG(KL_ERR, "no memory");
 		dio_clu_put(clu);
 		return -ENOMEM;
 	}
@@ -344,16 +325,10 @@ static int nkfs_inode_write(struct nkfs_inode *inode)
 
 	err = dio_clu_write(clu, idisk, sizeof(*idisk), 0);
 	if (err) {
-		KLOG(KL_ERR, "cant write inode %llu",
-			inode->block);
 		goto cleanup;
 	}
 
 	err = dio_clu_sync(clu);
-	if (err) {
-		KLOG(KL_ERR, "cant sync inode %llu",
-			inode->block);
-	}
 
 cleanup:
 	crt_kfree(idisk);
@@ -370,8 +345,6 @@ static int nkfs_inode_write_dirty(struct nkfs_inode *inode)
 		return 0;
 
 	err = nkfs_inode_write(inode);
-	if (err)
-		KLOG(KL_ERR, "inode write err %d\n", err);
 	if (!err)
 		inode->dirty = 0;
 	return err;
@@ -386,14 +359,12 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
 
 	inode = nkfs_inode_alloc();
 	if (!inode) {
-		KLOG(KL_ERR, "no memory");
 		return NULL;
 	}
 
 	inode->sb = sb;
 	err = nkfs_balloc_block_alloc(sb, &inode->block);
 	if (err) {
-		KLOG(KL_ERR, "cant alloc block");
 		goto ifree;
 	}
 	NKFS_BUG_ON(!inode->block);
@@ -401,15 +372,11 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
 
 	inode->blocks_tree = nkfs_btree_create(sb, 0);
 	if (!inode->blocks_tree) {
-		KLOG(KL_ERR, "cant create blocks tree inode %llu",
-			inode->block);
 		goto idelete;
 	}
 
 	inode->blocks_sum_tree = nkfs_btree_create(sb, 0);
 	if (!inode->blocks_sum_tree) {
-		KLOG(KL_ERR, "cant create blocks sum tree inode %llu",
-			inode->block);
 		goto idelete;
 	}
 
@@ -420,15 +387,12 @@ struct nkfs_inode *nkfs_inode_create(struct nkfs_sb *sb,
 	trace_inode_create(inode);
 	err = nkfs_inode_write(inode);
 	if (err) {
-		KLOG(KL_ERR, "cant write inode %llu", inode->block);
 		goto idelete;
 	}
 
 	inserted = nkfs_inodes_insert(sb, inode);
 	NKFS_BUG_ON(inserted != inode);
 	if (inserted != inode) {
-		KLOG(KL_DBG, "inode %p %llu exitst vs new %p %llu",
-			inserted, inserted->block, inode, inode->block);
 		nkfs_inode_delete(inode);
 		nkfs_inode_free(inode);
 		inode = inserted;
@@ -524,8 +488,6 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 
 	err = __nkfs_inode_block_alloc(inode, &ib.block);
 	if (err) {
-		KLOG(KL_ERR, "inode %llu balloc err %d",
-			inode->block, err);
 		return err;
 	}
 
@@ -538,8 +500,6 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 	if (err) {
 		err = __nkfs_inode_block_alloc(inode, &ib.sum_block);
 		if (err) {
-			KLOG(KL_ERR, "balloc sum block inode %llu err %d",
-				inode->block, err);
 			goto fail;
 		}
 
@@ -549,8 +509,6 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 		err = nkfs_btree_insert_key(inode->blocks_sum_tree, &key,
 			(struct nkfs_btree_value *)&ib.sum_block, 0);
 		if (err) {
-			KLOG(KL_ERR, "cant inode %llu insert key %llu",
-				inode->block, ib.vsum_block);
 			goto fail;
 		}
 
@@ -559,8 +517,6 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 
 	err = nkfs_inode_block_open_clus(inode, &ib);
 	if (err) {
-		KLOG(KL_ERR, "inode %llu err %d",
-			inode->block, err);
 		goto fail;
 	}
 
@@ -569,8 +525,6 @@ static int nkfs_inode_block_alloc(struct nkfs_inode *inode,
 	err = nkfs_btree_insert_key(inode->blocks_tree, &key,
 		(struct nkfs_btree_value *)&ib.block, 0);
 	if (err) {
-		KLOG(KL_ERR, "cant insert key inode %llu err %d",
-			inode->block, err);
 		goto fail;
 	}
 
@@ -614,8 +568,6 @@ nkfs_inode_block_check_sum(struct nkfs_inode *inode,
 	dio_clu_sum(ib->clu, &sum);
 	if (0 !=
 	    memcmp(dio_clu_map(ib->sum_clu, ib->sum_off), &sum, sizeof(sum))) {
-		KLOG(KL_ERR, "invalid sum i[%llu] vb%llu b%llu",
-			inode->block, ib->vblock, ib->block);
 		return -EINVAL;
 	}
 
@@ -647,7 +599,6 @@ nkfs_inode_block_read(struct nkfs_inode *inode, u64 vblock,
 	err = nkfs_btree_find_key(inode->blocks_sum_tree, &key,
 		(struct nkfs_btree_value *)&ib.sum_block);
 	if (err) {
-		KLOG(KL_ERR, "cant find vb %llu", ib.vsum_block);
 		goto fail;
 	}
 
@@ -676,14 +627,10 @@ nkfs_inode_block_read_create(struct nkfs_inode *inode, u64 vblock,
 	if (err) {
 		err = nkfs_inode_block_alloc(inode, vblock, &ib);
 		if (err) {
-			KLOG(KL_ERR, "cant alloc block vblock %llu inode %llu",
-				vblock, inode->block);
 			goto fail;
 		}
 		err = nkfs_inode_block_write(inode, &ib);
 		if (err) {
-			KLOG(KL_ERR, "inode %llu ib.block %llu err %d",
-				inode->block, ib.block, err);
 			nkfs_inode_block_erase(inode, &ib);
 			goto fail;
 		}
@@ -717,8 +664,6 @@ nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 	data_off = vblock*inode->sb->bsize + off;
 	if (data_off > inode->size) {
 		up_read(&inode->rw_sem);
-		KLOG(KL_ERR, "inode %p %llu doff %llu isize %llu",
-			inode, inode->block, data_off, inode->size);
 		return -ERANGE;
 	} else if (data_off == inode->size) {
 		up_read(&inode->rw_sem);
@@ -728,19 +673,13 @@ nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 
 	err = nkfs_inode_block_read(inode, vblock, &ib);
 	if (err) {
-		KLOG(KL_ERR, "cant read vb %llu err %d", vblock, err);
 		return err;
 	}
 
 	err = nkfs_inode_block_check_sum(inode, &ib);
 	if (err) {
-		KLOG(KL_ERR, "check sum b %llu vb %llu err %d",
-			ib.block, ib.vblock, err);
 		goto out;
 	}
-
-	KLOG(KL_DBG1, "vb %llu off %u len %u b %llu",
-		vblock, off, len, ib.block);
 
 	down_read(&inode->rw_sem);
 	if ((data_off + len) >= inode->size) {
@@ -753,7 +692,6 @@ nkfs_inode_read_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 
 	err = dio_clu_read(ib.clu, buf, llen, off);
 	if (err) {
-		KLOG(KL_ERR, "cant read clu err %d", err);
 		goto out;
 	}
 
@@ -779,23 +717,16 @@ nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 
 	err = nkfs_inode_block_read_create(inode, vblock, &ib);
 	if (err) {
-		KLOG(KL_ERR, "cant read vblock %llu", vblock);
 		return err;
 	}
 
-	KLOG(KL_DBG1, "vb %llu off %u len %u b %llu",
-		vblock, off, len, ib.block);
-
 	err = dio_clu_write(ib.clu, buf, len, off);
 	if (err) {
-		KLOG(KL_ERR, "cant write clu err %d", err);
 		goto out;
 	}
 
 	err = nkfs_inode_block_write(inode, &ib);
 	if (err) {
-		KLOG(KL_ERR, "cant write to b %llu vb %llu",
-			ib.block, ib.vblock);
 		goto out;
 	}
 
@@ -805,8 +736,6 @@ nkfs_inode_write_block_buf(struct nkfs_inode *inode, u64 vblock, u32 off,
 		nkfs_inode_set_size(inode, data_end);
 		err = nkfs_inode_write_dirty(inode);
 		if (err) {
-			KLOG(KL_ERR, "cant update inode %llu",
-				inode->block);
 			up_write(&inode->rw_sem);
 			goto out;
 		}
@@ -876,14 +805,10 @@ int nkfs_inode_io_pages(struct nkfs_inode *inode, u64 off, u32 pg_off, u32 len,
 	u32 io_count, io_count_sum;
 	int eof;
 
-	KLOG(KL_DBG1, "off %llu pg_off %u len %u nr_pages %d write %d",
-		off, pg_off, len, nr_pages, write);
-
 	io_count_sum = 0;
 	i = 0;
 	while (len > 0) {
 		if (i >= nr_pages) {
-			KLOG(KL_ERR, "overflow pages");
 			err = -EINVAL;
 			goto fail;
 		}

@@ -16,7 +16,7 @@ ccflags-y := -I$(src) $(PROJECT_CFLAGS) $(PROJECT_DEBUG_CFLAGS)	\
 		-D __PAGE_CHECKER_FILL_CC__			\
 
 $(CRT_MOD)-y = page_alloc.o malloc.o page_checker.o		\
-		malloc_checker.o klog.o vfile.o	crt.o		\
+		malloc_checker.o vfile.o crt.o			\
 		../csum.o ../xxhash.o ../nk8.o ../random.o	\
 		../sha256.o ../char2hex.o ../error.o		\
 		../obj_id.o ../net_pkt.o

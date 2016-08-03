@@ -285,8 +285,6 @@ static void dio_clus_release(struct dio_dev *dev)
 	int nr_found, index;
 	struct dio_cluster *cluster, *removed;
 
-	KLOG(KL_INF, "nr_clus=%d", dev->nr_clus);
-
 	for (;;) {
 		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&dev->clus_root,
@@ -337,9 +335,6 @@ static void dio_clus_dump(struct dio_dev *dev)
 
 		for (index = 0; index < nr_found; index++) {
 			node = batch[index];
-			KLOG(KL_DBG3, "n=%p i=%lu age=%lx ref=%d",
-				node, node->index,
-				node->age, atomic_read(&node->ref));
 			dio_clu_deref(node);
 		}
 	}
@@ -397,7 +392,6 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 
 	page = crt_alloc_page(GFP_KERNEL);
 	if (!page) {
-		KLOG(KL_ERR, "no memory");
 		return -ENOMEM;
 	}
 
@@ -441,9 +435,6 @@ static int dio_clus_lru_frees(struct dio_dev *dev)
 			if (removed) {
 				NKFS_BUG_ON(removed != node);
 				dio_clu_sync(node);
-				KLOG(KL_DBG3, "evicted c=%p a=%lx i=%lu r=%lu",
-					node, node->age, node->index,
-					atomic_read(&node->ref));
 				dio_clu_deref(node);
 				dio_clu_deref(node);
 			}
@@ -505,15 +496,6 @@ static void __dio_io_end_bio(struct bio *bio, int err)
 
 	io->err = err;
 	trace_dio_io_end_bio(io);
-	if (err) {
-		KLOG(KL_ERR, "err %d rw %x io %p bio %p sec %llx size %x",
-			err, io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
-			BIO_BI_SIZE(io->bio));
-	} else {
-		KLOG(KL_DBG3, "err %d rw %x io %p bio %p sec %llx size %x",
-			err, io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
-			BIO_BI_SIZE(io->bio));
-	}
 
 	if (!(io->rw & REQ_WRITE)) { /*it was read */
 		if (!err) {
@@ -598,9 +580,6 @@ static void dio_submit(unsigned long rw, struct dio_io *io)
 {
 	io->rw |= rw;
 
-	KLOG(KL_DBG3, "rw %x io %p bio %p sec %llx size %x",
-			io->rw, io, io->bio, BIO_BI_SECTOR(io->bio),
-			BIO_BI_SIZE(io->bio));
 	trace_dio_submit(io);
 	submit_bio(io->rw, io->bio);
 }
@@ -920,14 +899,12 @@ static int dio_queue_work(work_func_t func)
 
 	work = crt_kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		KLOG(KL_ERR, "cant alloc work");
 		return -ENOMEM;
 	}
 
 	INIT_WORK(work, func);
 	if (!queue_work(dio_wq, work)) {
 		crt_kfree(work);
-		KLOG(KL_ERR, "cant queue work");
 		return -ENOMEM;
 	}
 	return 0;
@@ -949,7 +926,6 @@ int dio_init(void)
 
 	dio_wq = alloc_workqueue("dio_wq", WQ_UNBOUND, 1);
 	if (!dio_wq) {
-		KLOG(KL_ERR, "cant create wq");
 		err = -ENOMEM;
 		goto fail;
 	}
@@ -959,7 +935,6 @@ int dio_init(void)
 			jiffies +
 			msecs_to_jiffies(DIO_TIMER_TIMEOUT_MSECS));
 	if (err) {
-		KLOG(KL_ERR, "mod_timer failed with err=%d", err);
 		goto del_wq;
 	}
 

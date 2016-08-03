@@ -48,7 +48,6 @@ class NkfsNode():
 		u = SshUser(self.log, self.ip, self.user, password=self.passwd, key_file=self.key_file, ftp = True)
 		ssh_file_get(u, local_file, remote_file)
 	def prepare_nkfs(self):
-		self.ssh_exec('sudo rm -rf /var/log/nkfs.log')
 		self.ssh_exec('rm -rf nkfs')
 		self.ssh_exec('git clone https://github.com/irqlevel/nkfs.git')
 		self.ssh_exec('cd nkfs && git checkout -b develb origin/devel')
@@ -73,13 +72,9 @@ class NkfsNode():
 
 	def get_nkfs_log(self):
 		self.ssh_exec('mkdir -p ' + self.rdir)
-		lpath = os.path.join(self.rdir, 'nkfs.log')
 		dpath = os.path.join(self.rdir, 'dmesg.out')
-		self.ssh_exec('cd nkfs && sudo bin/nkfs_ctl klog_sync', throw = False)
-		self.ssh_exec('sudo cp /var/log/nkfs.log ' + lpath)
 		self.ssh_exec('sudo dmesg > ' + dpath)
 		self.ssh_exec('sudo chown -R ' + self.user + ':' + self.user + ' ' + self.rdir)
-		self.ssh_file_get(lpath, os.path.join(self.wdir, 'nkfs.log'))
 		self.ssh_file_get(dpath, os.path.join(self.wdir, 'dmesg.out'))
 
 def multi_process(fl):
