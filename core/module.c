@@ -178,6 +178,7 @@ out:
 static void __exit nkfs_exit(void)
 {
 	pr_info("nkfs: exiting\n");
+
 	misc_deregister(&nkfs_misc);
 	nkfs_route_finit();
 	nkfs_server_finit();
@@ -186,6 +187,7 @@ static void __exit nkfs_exit(void)
 	nkfs_btree_finit();
 	nkfs_inode_finit();
 	dio_finit();
+
 	pr_info("nkfs: exited\n");
 }
 

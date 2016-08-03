@@ -4,6 +4,7 @@
 #include "dio.h"
 #include "dev.h"
 #include "balloc.h"
+#include "trace.h"
 
 #include <crt/include/crt.h>
 #include <linux/fs.h>
@@ -353,6 +354,8 @@ static int nkfs_sb_create(struct nkfs_dev *dev,
 	int err;
 	struct nkfs_sb *sb;
 
+	__trace_info("sb create");
+
 	sb = crt_kmalloc(sizeof(*sb), GFP_NOIO);
 	if (!sb) {
 		return -ENOMEM;
@@ -402,6 +405,8 @@ int nkfs_sb_format(struct nkfs_dev *dev, struct nkfs_sb **psb)
 	struct nkfs_sb *sb = NULL;
 	struct nkfs_image_header header;
 	u64 i;
+
+	__trace_info("sb format");
 
 	clu = dio_clu_get(dev->ddev, 0);
 	if (!clu) {
@@ -465,6 +470,8 @@ int nkfs_sb_load(struct nkfs_dev *dev, struct nkfs_sb **psb)
 	struct nkfs_sb *sb = NULL;
 	struct nkfs_image_header header;
 	int err;
+
+	__trace_info("sb load");
 
 	clu = dio_clu_get(dev->ddev, 0);
 	if (!clu) {

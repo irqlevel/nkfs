@@ -149,6 +149,68 @@ TRACE_EVENT(dio_io_end_bio,
 		  __entry->sector, __entry->size)
 );
 
+#define NKFS_FUNC_CHARS 32
+#define NKFS_ERROR_MSG_CHARS 80
+
+TRACE_EVENT(error,
+	TP_PROTO(const char *func, int line, const char *message, int err),
+	TP_ARGS(func, line, message, err),
+
+	TP_STRUCT__entry(
+		__dynamic_array(char, func, NKFS_FUNC_CHARS)
+		__dynamic_array(char, message, NKFS_ERROR_MSG_CHARS)
+		__field(int, err)
+		__field(int, line)
+	),
+
+	TP_fast_assign(
+		snprintf(__get_str(message), NKFS_ERROR_MSG_CHARS,
+			 "%s", message);
+		((char *)__get_str(message))[NKFS_ERROR_MSG_CHARS - 1] = '\0';
+		snprintf(__get_str(func), NKFS_FUNC_CHARS,
+			 "%s", func);
+		((char *)__get_str(func))[NKFS_FUNC_CHARS - 1] = '\0';
+		__entry->err = err;
+		__entry->line = line;
+	),
+
+	TP_printk("%s %d,0x%x %s(),%d", __get_str(message),
+		  __entry->err, __entry->err, __get_str(func), __entry->line)
+);
+
+#define __trace_error(message, err)	\
+		trace_error(__func__, __LINE__, (message), (err))
+
+#define NKFS_INFO_MSG_CHARS 80
+
+TRACE_EVENT(info,
+	TP_PROTO(const char *func, int line, const char *message),
+	TP_ARGS(func, line, message),
+
+	TP_STRUCT__entry(
+		__dynamic_array(char, message, NKFS_INFO_MSG_CHARS)
+		__dynamic_array(char, func, NKFS_FUNC_CHARS)
+		__field(int, line)
+	),
+
+	TP_fast_assign(
+		snprintf(__get_str(message), NKFS_INFO_MSG_CHARS,
+			 "%s", message);
+		((char *)__get_str(message))[NKFS_INFO_MSG_CHARS - 1] = '\0';
+
+		snprintf(__get_str(func), NKFS_FUNC_CHARS,
+			 "%s", func);
+		((char *)__get_str(func))[NKFS_FUNC_CHARS - 1] = '\0';
+		__entry->line = line;
+	),
+
+	TP_printk("%s %s(),%d", __get_str(message), __get_str(func),
+		  __entry->line)
+);
+
+#define __trace_info(message)	\
+		trace_info(__func__, __LINE__, (message))
+
 #endif /* _NKFS_TRACE_H */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ../core
