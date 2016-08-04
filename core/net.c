@@ -4,6 +4,7 @@
 #include "ksocket.h"
 #include "helpers.h"
 #include "route.h"
+#include "trace.h"
 
 #include <crt/include/crt.h>
 
@@ -446,6 +447,7 @@ int nkfs_con_connect(u32 ip, int port, struct nkfs_con **pcon)
 
 	err = ksock_connect(&con->sock, 0, 0, ip, port);
 	if (err) {
+		nkfs_error(err, "Can't connect ip 0x%x port %d", ip, port);
 		goto free_con;
 	}
 

@@ -785,6 +785,9 @@ int dio_clu_sync(struct dio_cluster *cluster)
 out:
 	up_write(&cluster->sync_rw_lock);
 
+	if (err)
+		nkfs_error(err, "Can't sync cluster %llu", cluster->index);
+
 	return err;
 }
 

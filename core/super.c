@@ -514,6 +514,9 @@ free_sb:
 free_clu:
 	dio_clu_put(clu);
 out:
+	if (err)
+		nkfs_error(err, "Can't load sb in dev %s", dev->dev_name);
+
 	return err;
 }
 

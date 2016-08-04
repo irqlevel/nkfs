@@ -9,6 +9,7 @@
 #include "route.h"
 #include "super.h"
 #include "inode.h"
+#include "trace.h"
 
 #include <crt/include/crt.h>
 
@@ -80,6 +81,7 @@ static long nkfs_ioctl(struct file *file, unsigned int code, unsigned long arg)
 		break;
 	default:
 		err = NKFS_E_UNK_IOCTL;
+		nkfs_error(err, "Unknown ioctl 0x%x", code);
 		break;
 	}
 	cmd->err = err;

@@ -2,6 +2,7 @@
 #include "super.h"
 #include "dio.h"
 #include "helpers.h"
+#include "trace.h"
 
 #include <include/nkfs_image.h>
 #include <crt/include/crt.h>
@@ -160,6 +161,7 @@ struct nkfs_dev *nkfs_dev_create(char *dev_name, int fmode)
 		fmode, dev);
 	err = IS_ERR(dev->bdev);
 	if (err) {
+		nkfs_error(err, "Can't get device by path %s", dev->dev_name);
 		dev->bdev = NULL;
 		nkfs_dev_deref(dev);
 		return NULL;
