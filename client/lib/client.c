@@ -100,7 +100,7 @@ int nkfs_connect(struct nkfs_con *con, char *ip, int port)
 
 	err = con_init(con);
 	if (err) {
-		CLOG(CL_INF, "err %x - %s", err, nkfs_error(err));
+		CLOG(CL_INF, "err %x - %s", err, nkfs_get_error_msg(err));
 		return err;
 	}
 

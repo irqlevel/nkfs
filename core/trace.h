@@ -153,7 +153,7 @@ TRACE_EVENT(dio_io_end_bio,
 #define NKFS_FUNC_CHARS 32
 #define NKFS_ERROR_MSG_CHARS 80
 
-TRACE_EVENT(error,
+TRACE_EVENT(nkfs_error,
 	TP_PROTO(const char *func, int line, const char *message, int err),
 	TP_ARGS(func, line, message, err),
 
@@ -178,12 +178,21 @@ TRACE_EVENT(error,
 		  __entry->err, __entry->err, __get_str(func), __entry->line)
 );
 
-#define __trace_error(message, err)	\
-		trace_error(__func__, __LINE__, (message), (err))
+#define nkfs_error_message(message, err)	\
+		trace_nkfs_error(__func__, __LINE__, (message), (err))
+
+#define nkfs_error(err, fmt, ...)				\
+	do {							\
+		char message[NKFS_ERROR_MSG_CHARS];		\
+		snprintf(message, NKFS_ERROR_MSG_CHARS,		\
+			(fmt), ##__VA_ARGS__);			\
+		message[NKFS_ERROR_MSG_CHARS - 1] = '\0';	\
+		nkfs_error_message(message, err);		\
+	} while (false)
 
 #define NKFS_INFO_MSG_CHARS 80
 
-TRACE_EVENT(info,
+TRACE_EVENT(nkfs_info,
 	TP_PROTO(const char *func, int line, const char *message),
 	TP_ARGS(func, line, message),
 
@@ -205,8 +214,17 @@ TRACE_EVENT(info,
 		  __entry->line)
 );
 
-#define __trace_info(message)	\
-		trace_info(__func__, __LINE__, (message))
+#define nkfs_info_message(message)	\
+		trace_nkfs_info(__func__, __LINE__, (message))
+
+#define nkfs_info(fmt, ...)					\
+	do {							\
+		char message[NKFS_INFO_MSG_CHARS];		\
+		snprintf(message, NKFS_INFO_MSG_CHARS,		\
+			(fmt), ##__VA_ARGS__);			\
+		message[NKFS_INFO_MSG_CHARS - 1] = '\0';	\
+		nkfs_info_message(message);			\
+	} while (false)
 
 #endif /* _NKFS_TRACE_H */
 #undef TRACE_INCLUDE_PATH

@@ -16,6 +16,6 @@
 #define NKFS_E_INVAL		NKFS_E_VAL(NKFS_E_BASE + 9)
 #define NKFS_E_LIMIT		NKFS_E_VAL(NKFS_E_BASE + 10)
 
-char *nkfs_error(int err);
+char *nkfs_get_error_msg(int err);
 
 #endif

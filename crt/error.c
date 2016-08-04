@@ -1,6 +1,6 @@
 #include <crt/include/crt.h>
 
-char *nkfs_error(int err)
+char *nkfs_get_error_msg(int err)
 {
 	switch (err) {
 	case NKFS_E_NO_MEM:
@@ -27,4 +27,4 @@ char *nkfs_error(int err)
 		return "unknown err code";
 	}
 }
-EXPORT_SYMBOL(nkfs_error);
+EXPORT_SYMBOL(nkfs_get_error_msg);

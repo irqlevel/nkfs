@@ -354,7 +354,7 @@ static int nkfs_sb_create(struct nkfs_dev *dev,
 	int err;
 	struct nkfs_sb *sb;
 
-	__trace_info("sb create");
+	nkfs_info("sb create dev 0x%p %s", dev, dev->dev_name);
 
 	sb = crt_kmalloc(sizeof(*sb), GFP_NOIO);
 	if (!sb) {
@@ -406,7 +406,7 @@ int nkfs_sb_format(struct nkfs_dev *dev, struct nkfs_sb **psb)
 	struct nkfs_image_header header;
 	u64 i;
 
-	__trace_info("sb format");
+	nkfs_info("sb format dev 0x%p %s", dev, dev->dev_name);
 
 	clu = dio_clu_get(dev->ddev, 0);
 	if (!clu) {
@@ -471,7 +471,7 @@ int nkfs_sb_load(struct nkfs_dev *dev, struct nkfs_sb **psb)
 	struct nkfs_image_header header;
 	int err;
 
-	__trace_info("sb load");
+	nkfs_info("sb load dev 0x%p %s", dev, dev->dev_name);
 
 	clu = dio_clu_get(dev->ddev, 0);
 	if (!clu) {
