@@ -9,6 +9,7 @@
 #include "dio.h"
 #include "inode.h"
 #include "helpers.h"
+#include "string.h"
 
 DECLARE_EVENT_CLASS(balloc_block_alloc_class,
 	TP_PROTO(u64 block),
@@ -164,12 +165,11 @@ TRACE_EVENT(error,
 	),
 
 	TP_fast_assign(
-		snprintf(__get_str(message), NKFS_ERROR_MSG_CHARS,
-			 "%s", message);
-		((char *)__get_str(message))[NKFS_ERROR_MSG_CHARS - 1] = '\0';
-		snprintf(__get_str(func), NKFS_FUNC_CHARS,
-			 "%s", func);
-		((char *)__get_str(func))[NKFS_FUNC_CHARS - 1] = '\0';
+		nkfs_copy_string((char *)__get_str(message),
+				 NKFS_ERROR_MSG_CHARS,
+				 message);
+		nkfs_copy_string((char *)__get_str(func), NKFS_FUNC_CHARS,
+				 func);
 		__entry->err = err;
 		__entry->line = line;
 	),
@@ -194,13 +194,10 @@ TRACE_EVENT(info,
 	),
 
 	TP_fast_assign(
-		snprintf(__get_str(message), NKFS_INFO_MSG_CHARS,
-			 "%s", message);
-		((char *)__get_str(message))[NKFS_INFO_MSG_CHARS - 1] = '\0';
-
-		snprintf(__get_str(func), NKFS_FUNC_CHARS,
-			 "%s", func);
-		((char *)__get_str(func))[NKFS_FUNC_CHARS - 1] = '\0';
+		nkfs_copy_string((char *)__get_str(message),
+				 NKFS_INFO_MSG_CHARS, message);
+		nkfs_copy_string((char *)__get_str(func), NKFS_FUNC_CHARS,
+				 func);
 		__entry->line = line;
 	),
 
