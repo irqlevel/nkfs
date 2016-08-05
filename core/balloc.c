@@ -46,6 +46,8 @@ static int nkfs_balloc_block_bm_bit(struct nkfs_sb *sb, u64 block,
 	u32 bits_per_long = 8*sizeof(unsigned long);
 
 	if (block >= sb->nr_blocks) {
+		nkfs_error(-EINVAL, "block %llu out of sb 0x%p blocks %llu",
+			   block, sb, sb->nr_blocks);
 		return -EINVAL;
 	}
 
@@ -192,6 +194,8 @@ int nkfs_balloc_block_alloc(struct nkfs_sb *sb, u64 *pblock)
 		}
 		dio_clu_put(clu);
 	}
+
+	nkfs_error(-ENOSPC, "No space left on sb 0x%p", sb);
 
 	return -ENOSPC;
 }

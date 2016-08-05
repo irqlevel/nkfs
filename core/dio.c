@@ -494,6 +494,9 @@ static void __dio_io_end_bio(struct bio *bio, int err)
 
 	NKFS_BUG_ON(io->bio != bio);
 
+	if (err)
+		nkfs_error(err, "bio 0x%p complete", bio);
+
 	io->err = err;
 	trace_dio_io_end_bio(io);
 
